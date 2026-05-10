@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inroom_dining/features/admin_panel/presentation/views/tag_management_view.dart';
 import '../../../main.dart';
 import 'views/account_management_view.dart';
 
@@ -17,7 +18,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final List<Widget> _views = [
     const AccountManagementView(),
     const Center(child: Text('Tính năng Quản lý Menu (Sẽ làm sau)')),
-    const Center(child: Text('Tính năng Thiết lập Thẻ (Sẽ làm sau)')),
+    const TagManagementView(), // <-- Cập nhật Tab thứ 3 bằng giao diện này
   ];
 
   @override
