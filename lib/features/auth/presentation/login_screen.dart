@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.restaurant, size: 64, color: Colors.deepOrange),
               const SizedBox(height: 16),
-              const Text('HỆ THỐNG SMART MENU', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text('HỆ THỐNG GỌI MÓN TẠI PHÒNG', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 32),
 
               TextField(
