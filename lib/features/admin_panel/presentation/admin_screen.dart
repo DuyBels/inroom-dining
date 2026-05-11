@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:inroom_dining/features/admin_panel/presentation/views/tag_management_view.dart';
+import 'package:inroom_dining/features/admin_panel/presentation/views/menu_management_view.dart';
 import '../../../main.dart';
+
+// Import các giao diện tính năng con
 import 'views/account_management_view.dart';
+import 'views/category_management_view.dart';
+import 'views/tag_management_view.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -12,35 +16,48 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  int _selectedIndex = 0; // Trạng thái đang chọn tab nào
+  // Trạng thái lưu tab đang được chọn (Mặc định là 0 - Quản lý tài khoản)
+  int _selectedIndex = 0;
 
-  // Danh sách các màn hình tính năng
+  // Danh sách các màn hình tính năng tương ứng với các mục ở thanh Menu
   final List<Widget> _views = [
     const AccountManagementView(),
-    const Center(child: Text('Tính năng Quản lý Menu (Sẽ làm sau)')),
-    const TagManagementView(), // <-- Cập nhật Tab thứ 3 bằng giao diện này
+    const CategoryManagementView(),
+    const MenuManagementView(), // <-- Đã được thay thế thành View Thực Đơn
+    const TagManagementView(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bảng Điều Khiển Admin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+            'Bảng Điều Khiển Admin',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+        ),
         backgroundColor: Colors.blue[800],
         actions: [
+          // Nút Đăng xuất
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Đăng xuất',
             onPressed: () async {
+              // Gọi API đăng xuất của Supabase
               await supabase.auth.signOut();
-              if (context.mounted) context.go('/login');
+              // Chuyển hướng người dùng về trang đăng nhập
+              if (context.mounted) {
+                context.go('/login');
+              }
             },
-          )
+          ),
+          const SizedBox(width: 16), // Khoảng cách lề phải
         ],
       ),
       body: Row(
         children: [
-          // Thanh Menu bên trái
+          // ==========================================
+          // SIDEBAR: THANH MENU ĐIỀU HƯỚNG BÊN TRÁI
+          // ==========================================
           NavigationRail(
             selectedIndex: _selectedIndex,
             onDestinationSelected: (int index) {
@@ -50,8 +67,10 @@ class _AdminScreenState extends State<AdminScreen> {
             },
             labelType: NavigationRailLabelType.all,
             backgroundColor: Colors.blue[50],
-            selectedIconTheme: IconThemeData(color: Colors.blue[800]),
+            selectedIconTheme: IconThemeData(color: Colors.blue[800], size: 28),
+            unselectedIconTheme: IconThemeData(color: Colors.grey[700]),
             selectedLabelTextStyle: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold),
+            unselectedLabelTextStyle: TextStyle(color: Colors.grey[700]),
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.people_outline),
@@ -59,7 +78,12 @@ class _AdminScreenState extends State<AdminScreen> {
                 label: Text('Tài khoản'),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.restaurant_menu),
+                icon: Icon(Icons.category_outlined),
+                selectedIcon: Icon(Icons.category),
+                label: Text('Danh mục'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.restaurant_menu_outlined),
                 selectedIcon: Icon(Icons.restaurant_menu),
                 label: Text('Thực đơn'),
               ),
@@ -70,10 +94,18 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ],
           ),
-          const VerticalDivider(thickness: 1, width: 1),
-          // Khu vực hiển thị nội dung bên phải
+
+          // Đường kẻ dọc phân cách giữa Menu và Nội dung
+          const VerticalDivider(thickness: 1, width: 1, color: Colors.black12),
+
+          // ==========================================
+          // KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH
+          // ==========================================
           Expanded(
-            child: _views[_selectedIndex],
+            child: Container(
+              color: Colors.grey[50], // Màu nền nhạt cho khu vực nội dung
+              child: _views[_selectedIndex],
+            ),
           ),
         ],
       ),

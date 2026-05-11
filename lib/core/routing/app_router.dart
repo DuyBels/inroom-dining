@@ -5,7 +5,7 @@ import '../../features/admin_panel/presentation/admin_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/kitchen_dashboard/presentation/kitchen_screen.dart';
-import '../../features/room_menu/presentation/menu_screen.dart';
+import '../../features/room_menu/presentation/room_menu_screen.dart';
 import '../../features/waiter_app/presentation/waiter_screen.dart';
 
 
@@ -36,7 +36,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/menu',
-        builder: (context, state) => const MenuScreen(),
+        builder: (context, state) => const RoomMenuScreen(),
       ),
     ],
   );
