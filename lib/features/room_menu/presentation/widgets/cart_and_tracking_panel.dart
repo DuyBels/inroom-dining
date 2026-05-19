@@ -181,11 +181,21 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             color: Colors.amber[50],
-            child: const Row(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(Icons.room_service, color: Colors.amber),
-                SizedBox(width: 8),
-                Text('Trạng thái Bếp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Row(
+                  children: [
+                    Icon(Icons.room_service, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Text('Trạng thái Bếp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: _showOrderHistory,
+                  icon: const Icon(Icons.history, size: 18),
+                  label: const Text('Lịch sử', style: TextStyle(fontSize: 12)),
+                )
               ],
             ),
           ),
@@ -229,6 +239,78 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
   }
 
   // --- Helpers ---
+  String _formatDateTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    final dt = DateTime.parse(isoString).toLocal();
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
+    final y = dt.year;
+    return "$h:$m:$s $d/$mo/$y";
+  }
+
+  void _showOrderHistory() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('LỊCH SỬ ĐẶT MÓN CỦA PHÒNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+        content: SizedBox(
+          width: 500,
+          height: 500,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: supabase
+                .from('tickets')
+                .select('*, menu_items(name), orders!inner(room_number)')
+                .eq('orders.room_number', widget.roomNumber)
+                .order('created_at', ascending: false)
+                .limit(30),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              final data = snapshot.data ?? [];
+              if (data.isEmpty) return const Center(child: Text('Bạn chưa đặt món nào.'));
+
+              return ListView.separated(
+                itemCount: data.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, idx) {
+                  final t = data[idx];
+                  return ListTile(
+                    title: Text('${t['quantity']}x ${t['menu_items']['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Đặt lúc: ${_formatDateTime(t['created_at'])}'),
+                        if (t['status'] == 'DONE') 
+                           Text('Nấu xong: ${_formatDateTime(t['finished_at'])}', style: const TextStyle(color: Colors.green, fontSize: 12)),
+                      ],
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(color: _getStatusColor(t['status']), borderRadius: BorderRadius.circular(4)),
+                      child: Text(_translateStatus(t['status']), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('ĐÓNG'))],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'PENDING': return Colors.grey;
+      case 'COOKING': return Colors.orange;
+      case 'DONE': return Colors.green;
+      default: return Colors.blue;
+    }
+  }
+
   Widget _getStatusIcon(String status) {
     switch (status) {
       case 'PENDING': return const Icon(Icons.access_time_filled, color: Colors.grey, size: 32);

@@ -32,7 +32,22 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
   // Hàm cập nhật trạng thái món
   Future<void> _updateTicketStatus(String ticketId, String newStatus) async {
-    await supabase.from('tickets').update({'status': newStatus}).eq('id', ticketId);
+    try {
+      final Map<String, dynamic> updates = {'status': newStatus};
+      
+      // Nếu là nấu xong, ghi lại mốc thời gian UTC
+      if (newStatus == 'DONE') {
+        updates['finished_at'] = DateTime.now().toUtc().toIso8601String();
+      }
+
+      await supabase.from('tickets').update(updates).eq('id', ticketId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi cập nhật: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   // Hàm thêm thời gian Delay (+5 phút)
@@ -40,8 +55,93 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     await supabase.from('tickets').update({'delay_minutes': currentDelay + 5}).eq('id', ticketId);
   }
 
+  // Hàm hỗ trợ format thời gian
+  String _formatDateTime(String? isoString) {
+    if (isoString == null) return '--:--';
+    final dt = DateTime.parse(isoString).toLocal();
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
+    final y = dt.year;
+    return "$h:$m:$s $d/$mo/$y";
+  }
+
+  // Hàm hiển thị Lịch sử nấu xong
+  void _showHistoryDialog() {
+    // Lấy stationId từ provider đã load sẵn
+    final myStationId = ref.read(currentStationIdProvider).value;
+    if (myStationId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.history, color: Colors.green),
+            const SizedBox(width: 10),
+            const Text('LỊCH SỬ RIÊNG CỦA TRẠM', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SizedBox(
+          width: 600,
+          height: 500,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: supabase
+                .from('tickets')
+                .select('*, menu_items(name), orders(room_number)')
+                .eq('station_id', myStationId) // LỌC ĐÚNG TRẠM ĐANG ĐĂNG NHẬP
+                .eq('status', 'DONE')
+                .order('finished_at', ascending: false)
+                .limit(30),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              final data = snapshot.data ?? [];
+              if (data.isEmpty) return const Center(child: Text('Chưa có lịch sử nấu tại trạm này.'));
+
+              return ListView.separated(
+                itemCount: data.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, idx) {
+                  final t = data[idx];
+                  return ListTile(
+                    leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.check, color: Colors.white)),
+                    title: Text('${t['quantity']}x ${t['menu_items']['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('Phòng: ${t['orders']['room_number']}'),
+                    trailing: Text(_formatDateTime(t['finished_at']), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('ĐÓNG'))],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Lắng nghe trạng thái loading của các provider gốc
+    final ticketsAsync = ref.watch(activeTicketsStreamProvider);
+    final stationAsync = ref.watch(currentStationProvider);
+
+    if (ticketsAsync.isLoading || stationAsync.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final stationData = stationAsync.value;
+    final myStationId = stationData?['id'];
+    final myStationName = stationData?['name'] ?? 'Không xác định';
+
+    if (myStationId == null) {
+      return Scaffold(
+        appBar: AppBar(backgroundColor: Colors.red, title: const Text('LỖI PHÂN QUYỀN')),
+        body: const Center(child: Text('Tài khoản này chưa được gán Trạm Bếp.\nHãy liên hệ Admin.', textAlign: TextAlign.center, style: TextStyle(fontSize: 18))),
+      );
+    }
+
     // Lấy danh sách Ticket siêu thông minh đã qua thuật toán
     final smartTickets = ref.watch(smartKitchenTicketsProvider);
 
@@ -49,12 +149,63 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
     final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
 
+    // ==========================================
+    // LOGIC THÔNG BÁO KHI CÓ MÓN MỚI (REALTIME)
+    // ==========================================
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (previous, next) {
+      if (previous != null && previous.hasValue && next.hasValue && myStationId != null) {
+        final prevTickets = previous.value!;
+        final nextTickets = next.value!;
+
+        for (var newTicket in nextTickets) {
+          // Nếu món thuộc trạm này và là món mới hoàn toàn (chưa có trong danh sách cũ)
+          if (newTicket['station_id'] == myStationId) {
+            final isNew = !prevTickets.any((t) => t['id'] == newTicket['id']);
+            if (isNew) {
+              // Lấy tên món từ SmartTickets để hiển thị thông báo
+              final itemName = smartTickets.firstWhere(
+                (element) => element.rawTicket['id'] == newTicket['id'],
+                orElse: () => SmartTicket(rawTicket: {}, itemName: 'Món mới', roomNumber: '?', prepTime: 0, delayMinutes: 0, targetStartTime: DateTime.now())
+              ).itemName;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.restaurant_menu, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text('CÓ ĐƠN MỚI: $itemName - Phòng ${newTicket['order_id'].toString().substring(0,4)}...', style: const TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                  backgroundColor: Colors.blue[900],
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 4),
+                )
+              );
+            }
+          }
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: const Text('BẢNG ĐIỀU KHIỂN TRẠM BẾP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('Đang dùng: ${supabase.auth.currentUser?.email}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          ],
+        ),
         backgroundColor: Colors.orange[800],
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.white),
+            tooltip: 'Lịch sử nấu',
+            onPressed: _showHistoryDialog,
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Đăng xuất',

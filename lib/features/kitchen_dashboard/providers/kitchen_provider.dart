@@ -1,21 +1,44 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 
-// 1. Lấy station_id của tài khoản Bếp đang đăng nhập
-final currentStationIdProvider = FutureProvider<String?>((ref) async {
-  final userId = supabase.auth.currentUser?.id;
-  if (userId == null) return null;
-  final profile = await supabase.from('profiles').select('station_id').eq('id', userId).single();
-  return profile['station_id'] as String?;
+// 0. Provider lắng nghe trạng thái đăng nhập để tự động refresh các provider khác
+final authStateProvider = StreamProvider<AuthState>((ref) {
+  return supabase.auth.onAuthStateChange;
 });
 
-// 2. Stream Lấy TẤT CẢ tickets đang chờ hoặc đang nấu (Để tính toán đồng bộ chéo giữa các Bếp)
+// 1. Lấy thông tin Trạm Bếp của tài khoản đang đăng nhập (Sử dụng autoDispose và watch Auth)
+final currentStationProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  // Ép provider này phải chạy lại khi trạng thái đăng nhập thay đổi
+  ref.watch(authStateProvider);
+  
+  final user = supabase.auth.currentUser;
+  if (user == null) return null;
+  
+  final data = await supabase
+      .from('profiles')
+      .select('station_id, kitchen_stations(name)')
+      .eq('id', user.id)
+      .single();
+      
+  return {
+    'id': data['station_id'],
+    'name': data['kitchen_stations']?['name'] ?? 'Không xác định',
+  };
+});
+
+// Provider hỗ trợ lấy nhanh ID (Thêm autoDispose để đồng bộ)
+final currentStationIdProvider = FutureProvider.autoDispose<String?>((ref) async {
+  final station = await ref.watch(currentStationProvider.future);
+  return station?['id'];
+});
+
+// 2. Stream Lấy TẤT CẢ tickets (Để tính toán đồng bộ chéo giữa các Bếp)
 final activeTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase
       .from('tickets')
       .stream(primaryKey: ['id'])
-      .neq('status', 'DONE')
       .order('created_at', ascending: true);
 });
 
@@ -51,7 +74,7 @@ final smartKitchenTicketsProvider = Provider<List<SmartTicket>>((ref) {
   final myStationIdAsync = ref.watch(currentStationIdProvider);
 
   // Nếu dữ liệu chưa tải xong, trả về mảng rỗng
-  if (ticketsAsync.value == null || menuAsync.value == null ||
+  if (ticketsAsync.value == null || menuAsync.value == null || 
       ordersAsync.value == null || myStationIdAsync.value == null) {
     return [];
   }
@@ -59,10 +82,10 @@ final smartKitchenTicketsProvider = Provider<List<SmartTicket>>((ref) {
   final allTickets = ticketsAsync.value!;
   final menuItems = menuAsync.value!;
   final orders = ordersAsync.value!;
-  final myStationId = myStationIdAsync.value!;
+  final myStationId = myStationIdAsync.value;
 
-  // Bước A: Tính toán Tổng thời gian lâu nhất cho từng Đơn hàng (Order)
-  // Để các bếp biết phải đợi nhau bao lâu
+  if (myStationId == null) return [];
+
   Map<String, DateTime> orderTargetFinishTimes = {};
 
   for (var ticket in allTickets) {
@@ -76,18 +99,15 @@ final smartKitchenTicketsProvider = Provider<List<SmartTicket>>((ref) {
     final createdAt = DateTime.parse(ticket['created_at']).toLocal();
     final expectedFinishTime = createdAt.add(Duration(minutes: totalMinutesNeeded));
 
-    // Tìm món có thời gian hoàn thành lâu nhất của đơn đó
     if (!orderTargetFinishTimes.containsKey(orderId) || expectedFinishTime.isAfter(orderTargetFinishTimes[orderId]!)) {
       orderTargetFinishTimes[orderId] = expectedFinishTime;
     }
   }
 
-  // Bước B: Tạo danh sách SmartTicket cho Trạm bếp hiện tại
   List<SmartTicket> mySmartTickets = [];
 
   for (var ticket in allTickets) {
-    // Chỉ lấy ticket của Trạm Bếp này
-    if (ticket['station_id'] != myStationId) continue;
+    if (ticket['station_id'] != myStationId || ticket['status'] == 'DONE') continue;
 
     final orderId = ticket['order_id'];
     final menuItem = menuItems.firstWhere((m) => m['id'] == ticket['item_id'], orElse: () => {'name': 'Unknown', 'prep_time_minutes': 15});
@@ -96,7 +116,6 @@ final smartKitchenTicketsProvider = Provider<List<SmartTicket>>((ref) {
     final int prepTime = menuItem['prep_time_minutes'] ?? 15;
     final int delay = ticket['delay_minutes'] ?? 0;
 
-    // Tính toán lại: Thời gian bắt đầu = Thời gian xong của đơn - (Thời gian nấu món này + Delay)
     final targetFinish = orderTargetFinishTimes[orderId]!;
     final targetStart = targetFinish.subtract(Duration(minutes: prepTime + delay));
 
@@ -110,7 +129,6 @@ final smartKitchenTicketsProvider = Provider<List<SmartTicket>>((ref) {
     ));
   }
 
-  // Bước C: Sắp xếp. Món nào cần nấu gấp (targetStartTime nhỏ nhất) đưa lên đầu!
   mySmartTickets.sort((a, b) => a.targetStartTime.compareTo(b.targetStartTime));
 
   return mySmartTickets;
