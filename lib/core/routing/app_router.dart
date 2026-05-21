@@ -8,11 +8,9 @@ import '../../features/kitchen_dashboard/presentation/kitchen_screen.dart';
 import '../../features/room_menu/presentation/room_menu_screen.dart';
 import '../../features/waiter_app/presentation/waiter_screen.dart';
 
-
-
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/', // Điểm bắt đầu luôn là Splash Screen
+    initialLocation: '/', 
     routes: [
       GoRoute(
         path: '/',
@@ -30,9 +28,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/waiter',
         builder: (context, state) => const WaiterScreen(),
       ),
+      // CẤU HÌNH ĐƯỜNG DẪN DYNAMIC ĐỂ TÁCH BIỆT TAB
       GoRoute(
         path: '/kitchen',
         builder: (context, state) => const KitchenScreen(),
+        routes: [
+          GoRoute(
+            path: ':stationId',
+            builder: (context, state) {
+              final stationId = state.pathParameters['stationId'];
+              return KitchenScreen(stationId: stationId);
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/menu',

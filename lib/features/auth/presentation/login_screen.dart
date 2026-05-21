@@ -14,7 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _showDebugPanel = false; // Công tắc hiển thị debug
+  bool _showDebugPanel = true; // Công tắc hiển thị debug
 
   // Hàm đăng nhập nhanh cho Debug
   Future<void> _quickSignIn(String email, String password) async {

@@ -6,14 +6,15 @@ import '../../../main.dart';
 import '../providers/kitchen_provider.dart';
 
 class KitchenScreen extends ConsumerStatefulWidget {
-  const KitchenScreen({super.key});
+  final String? stationId; // Nhận từ URL
+
+  const KitchenScreen({super.key, this.stationId});
 
   @override
   ConsumerState<KitchenScreen> createState() => _KitchenScreenState();
 }
 
 class _KitchenScreenState extends ConsumerState<KitchenScreen> {
-  // Timer để cập nhật UI đếm ngược thời gian mỗi phút
   Timer? _timer;
 
   @override
@@ -30,16 +31,12 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     super.dispose();
   }
 
-  // Hàm cập nhật trạng thái món
   Future<void> _updateTicketStatus(String ticketId, String newStatus) async {
     try {
       final Map<String, dynamic> updates = {'status': newStatus};
-      
-      // Nếu là nấu xong, ghi lại mốc thời gian UTC
       if (newStatus == 'DONE') {
         updates['finished_at'] = DateTime.now().toUtc().toIso8601String();
       }
-
       await supabase.from('tickets').update(updates).eq('id', ticketId);
     } catch (e) {
       if (mounted) {
@@ -50,12 +47,10 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     }
   }
 
-  // Hàm thêm thời gian Delay (+5 phút)
   Future<void> _addDelay(String ticketId, int currentDelay) async {
     await supabase.from('tickets').update({'delay_minutes': currentDelay + 5}).eq('id', ticketId);
   }
 
-  // Hàm hỗ trợ format thời gian
   String _formatDateTime(String? isoString) {
     if (isoString == null) return '--:--';
     final dt = DateTime.parse(isoString).toLocal();
@@ -68,12 +63,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     return "$h:$m:$s $d/$mo/$y";
   }
 
-  // Hàm hiển thị Lịch sử nấu xong
-  void _showHistoryDialog() {
-    // Lấy stationId từ provider đã load sẵn
-    final myStationId = ref.read(currentStationIdProvider).value;
-    if (myStationId == null) return;
-
+  void _showHistoryDialog(String myStationId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -91,7 +81,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             future: supabase
                 .from('tickets')
                 .select('*, menu_items(name), orders(room_number)')
-                .eq('station_id', myStationId) // LỌC ĐÚNG TRẠM ĐANG ĐĂNG NHẬP
+                .eq('station_id', myStationId)
                 .eq('status', 'DONE')
                 .order('finished_at', ascending: false)
                 .limit(30),
@@ -123,124 +113,88 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Lắng nghe trạng thái loading của các provider gốc
-    final ticketsAsync = ref.watch(activeTicketsStreamProvider);
-    final stationAsync = ref.watch(currentStationProvider);
+    final stationId = widget.stationId;
 
-    if (ticketsAsync.isLoading || stationAsync.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final stationData = stationAsync.value;
-    final myStationId = stationData?['id'];
-    final myStationName = stationData?['name'] ?? 'Không xác định';
-
-    if (myStationId == null) {
-      return Scaffold(
-        appBar: AppBar(backgroundColor: Colors.red, title: const Text('LỖI PHÂN QUYỀN')),
-        body: const Center(child: Text('Tài khoản này chưa được gán Trạm Bếp.\nHãy liên hệ Admin.', textAlign: TextAlign.center, style: TextStyle(fontSize: 18))),
+    // Nếu không có stationId trên URL, thử lấy mặc định từ profile
+    if (stationId == null) {
+      final defaultIdAsync = ref.watch(defaultStationIdProvider);
+      return defaultIdAsync.when(
+        loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        data: (id) {
+          if (id != null) {
+             // Redirect sang URL có ID để tách biệt tab
+             Future.microtask(() => context.go('/kitchen/$id'));
+             return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          return const Scaffold(body: Center(child: Text('Tài khoản chưa được gán trạm.')));
+        },
       );
     }
 
-    // Lấy danh sách Ticket siêu thông minh đã qua thuật toán
-    final smartTickets = ref.watch(smartKitchenTicketsProvider);
+    final stationDetailAsync = ref.watch(stationDetailProvider(stationId));
+    final smartTickets = ref.watch(smartKitchenTicketsProvider(stationId));
 
-    // Tách làm 2 cột Kanban
-    final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
-    final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
+    return stationDetailAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, s) => Scaffold(body: Center(child: Text('Lỗi tải trạm: $e'))),
+      data: (station) {
+        if (station == null) return const Scaffold(body: Center(child: Text('Trạm không tồn tại.')));
 
-    // ==========================================
-    // LOGIC THÔNG BÁO KHI CÓ MÓN MỚI (REALTIME)
-    // ==========================================
-    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (previous, next) {
-      if (previous != null && previous.hasValue && next.hasValue && myStationId != null) {
-        final prevTickets = previous.value!;
-        final nextTickets = next.value!;
+        final myStationName = station['name'];
 
-        for (var newTicket in nextTickets) {
-          // Nếu món thuộc trạm này và là món mới hoàn toàn (chưa có trong danh sách cũ)
-          if (newTicket['station_id'] == myStationId) {
-            final isNew = !prevTickets.any((t) => t['id'] == newTicket['id']);
-            if (isNew) {
-              // Lấy tên món từ SmartTickets để hiển thị thông báo
-              final itemName = smartTickets.firstWhere(
-                (element) => element.rawTicket['id'] == newTicket['id'],
-                orElse: () => SmartTicket(rawTicket: {}, itemName: 'Món mới', roomNumber: '?', prepTime: 0, delayMinutes: 0, targetStartTime: DateTime.now())
-              ).itemName;
+        final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
+        final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.restaurant_menu, color: Colors.white),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text('CÓ ĐƠN MỚI: $itemName - Phòng ${newTicket['order_id'].toString().substring(0,4)}...', style: const TextStyle(fontWeight: FontWeight.bold))),
-                    ],
-                  ),
-                  backgroundColor: Colors.blue[900],
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 4),
-                )
-              );
-            }
-          }
-        }
-      }
-    });
-
-    return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            Text('Đang dùng: ${supabase.auth.currentUser?.email}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          ],
-        ),
-        backgroundColor: Colors.orange[800],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history, color: Colors.white),
-            tooltip: 'Lịch sử nấu',
-            onPressed: _showHistoryDialog,
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Đăng xuất',
-            onPressed: () async {
-              await supabase.auth.signOut();
-              if (context.mounted) context.go('/login');
-            },
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Row(
-        children: [
-          // CỘT 1: DANH SÁCH CHỜ CHẾ BIẾN
-          Expanded(
-            child: _buildTicketColumn(
-              title: 'CHỜ CHẾ BIẾN (${pendingTickets.length})',
-              headerColor: Colors.blue[700]!,
-              tickets: pendingTickets,
-              isCookingColumn: false,
+        return Scaffold(
+          backgroundColor: Colors.grey[200],
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('Tab ID: ${stationId.substring(0, 8)}...', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              ],
             ),
+            backgroundColor: Colors.orange[800],
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.history, color: Colors.white),
+                onPressed: () => _showHistoryDialog(stationId),
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: () async {
+                  await supabase.auth.signOut();
+                  if (context.mounted) context.go('/login');
+                },
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
-          const VerticalDivider(width: 2, thickness: 2, color: Colors.black12),
-
-          // CỘT 2: DANH SÁCH ĐANG NẤU
-          Expanded(
-            child: _buildTicketColumn(
-              title: 'ĐANG NẤU (${cookingTickets.length})',
-              headerColor: Colors.orange[700]!,
-              tickets: cookingTickets,
-              isCookingColumn: true,
-            ),
+          body: Row(
+            children: [
+              Expanded(
+                child: _buildTicketColumn(
+                  title: 'CHỜ CHẾ BIẾN (${pendingTickets.length})',
+                  headerColor: Colors.blue[700]!,
+                  tickets: pendingTickets,
+                  isCookingColumn: false,
+                ),
+              ),
+              const VerticalDivider(width: 2, thickness: 2, color: Colors.black12),
+              Expanded(
+                child: _buildTicketColumn(
+                  title: 'ĐANG NẤU (${cookingTickets.length})',
+                  headerColor: Colors.orange[700]!,
+                  tickets: cookingTickets,
+                  isCookingColumn: true,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -270,7 +224,6 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
   Widget _buildTicketCard(SmartTicket ticket, bool isCookingColumn) {
     final now = DateTime.now();
-    // Tính toán xem còn bao lâu thì phải nấu
     final diffMinutes = ticket.targetStartTime.difference(now).inMinutes;
 
     String timingMessage;
@@ -323,7 +276,6 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // CỤM THÔNG TIN & DELAY
                 Row(
                   children: [
                     const Icon(Icons.timer, color: Colors.grey, size: 20),
@@ -338,20 +290,18 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                     ),
                   ],
                 ),
-
-                // CỤM NÚT ACTION (CHUYỂN TRẠNG THÁI)
                 if (!isCookingColumn)
                   ElevatedButton.icon(
                     icon: const Icon(Icons.local_fire_department),
-                    label: const Text('BẮT ĐẦU NẤU', style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+                    label: const Text('BẮT ĐẦU NẤU'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
                     onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'COOKING'),
                   )
                 else
                   ElevatedButton.icon(
                     icon: const Icon(Icons.check_circle),
-                    label: const Text('NẤU XONG', style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+                    label: const Text('NẤU XONG'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                     onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'DONE'),
                   )
               ],
