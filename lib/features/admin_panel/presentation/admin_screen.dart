@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../main.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // Import các giao diện tính năng con
 import 'views/account_management_view.dart';
@@ -9,14 +11,15 @@ import 'views/category_management_view.dart';
 import 'views/menu_management_view.dart';
 import 'views/tag_management_view.dart';
 
-class AdminScreen extends StatefulWidget {
-  const AdminScreen({super.key});
+class AdminScreen extends ConsumerStatefulWidget {
+  final String? adminId;
+  const AdminScreen({super.key, this.adminId});
 
   @override
-  State<AdminScreen> createState() => _AdminScreenState();
+  ConsumerState<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends State<AdminScreen> {
+class _AdminScreenState extends ConsumerState<AdminScreen> {
   // Trạng thái lưu tab đang được chọn (Mặc định là 0 - Quản lý tài khoản)
   int _selectedIndex = 0;
 
@@ -31,11 +34,40 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final adminId = widget.adminId;
+    final profileAsync = ref.watch(userProfileProvider);
+
+    // 1. Kiểm tra trạng thái Redirect (Nếu chưa có ID trên URL)
+    if (adminId == null) {
+      return profileAsync.when(
+        loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        data: (profile) {
+          if (profile != null && profile['role'] == 'ADMIN') {
+            final id = profile['id'];
+            Future.microtask(() => context.go('/admin/$id'));
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          return const Scaffold(
+            body: Center(
+              child: Text('Bạn không có quyền quản trị.'),
+            ),
+          );
+        },
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Bảng Điều Khiển Admin',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Bảng Điều Khiển Admin',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text('Admin ID: ${adminId.substring(0, 8)}...', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          ],
         ),
         backgroundColor: Colors.blue[800],
         elevation: 2,
@@ -45,6 +77,7 @@ class _AdminScreenState extends State<AdminScreen> {
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Đăng xuất',
             onPressed: () async {
+              ref.invalidate(userProfileProvider);
               await supabase.auth.signOut();
               if (context.mounted) {
                 context.go('/login');

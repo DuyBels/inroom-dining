@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../main.dart';
 import '../providers/kitchen_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class KitchenScreen extends ConsumerStatefulWidget {
   final String? stationId; // Nhận từ URL
@@ -134,65 +135,74 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
     final stationDetailAsync = ref.watch(stationDetailProvider(stationId));
     final smartTickets = ref.watch(smartKitchenTicketsProvider(stationId));
+    final profileAsync = ref.watch(userProfileProvider);
 
-    return stationDetailAsync.when(
+    return profileAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, s) => Scaffold(body: Center(child: Text('Lỗi tải trạm: $e'))),
-      data: (station) {
-        if (station == null) return const Scaffold(body: Center(child: Text('Trạm không tồn tại.')));
+      error: (e, s) => Scaffold(body: Center(child: Text('Lỗi tải Profile: $e'))),
+      data: (profile) {
+        if (profile == null || (profile['role'] != 'STATION' && profile['role'] != 'ADMIN')) {
+          Future.microtask(() => context.go('/'));
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
 
-        final myStationName = station['name'];
+        final chefName = profile['display_name'] ?? 'Đầu bếp';
 
-        final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
-        final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
+        return stationDetailAsync.when(
+          loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+          error: (e, s) => Scaffold(body: Center(child: Text('Lỗi tải trạm: $e'))),
+          data: (station) {
+            if (station == null) return const Scaffold(body: Center(child: Text('Trạm không tồn tại.')));
 
-        return Scaffold(
-          backgroundColor: Colors.grey[200],
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                Text('Tab ID: ${stationId.substring(0, 8)}...', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-              ],
-            ),
-            backgroundColor: Colors.orange[800],
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.history, color: Colors.white),
-                onPressed: () => _showHistoryDialog(stationId),
+            final myStationName = station['name'];
+
+            final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
+            final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
+
+            return Scaffold(
+              backgroundColor: Colors.grey[200],
+              appBar: AppBar(
+                title: Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                backgroundColor: Colors.orange[800],
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.history, color: Colors.white),
+                    onPressed: () => _showHistoryDialog(stationId),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    onPressed: () async {
+                      ref.invalidate(userProfileProvider);
+                      await supabase.auth.signOut();
+                      if (context.mounted) context.go('/login');
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: () async {
-                  await supabase.auth.signOut();
-                  if (context.mounted) context.go('/login');
-                },
+              body: Row(
+                children: [
+                  Expanded(
+                    child: _buildTicketColumn(
+                      title: 'CHỜ CHẾ BIẾN (${pendingTickets.length})',
+                      headerColor: Colors.blue[700]!,
+                      tickets: pendingTickets,
+                      isCookingColumn: false,
+                    ),
+                  ),
+                  const VerticalDivider(width: 2, thickness: 2, color: Colors.black12),
+                  Expanded(
+                    child: _buildTicketColumn(
+                      title: 'ĐANG NẤU (${cookingTickets.length})',
+                      headerColor: Colors.orange[700]!,
+                      tickets: cookingTickets,
+                      isCookingColumn: true,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-            ],
-          ),
-          body: Row(
-            children: [
-              Expanded(
-                child: _buildTicketColumn(
-                  title: 'CHỜ CHẾ BIẾN (${pendingTickets.length})',
-                  headerColor: Colors.blue[700]!,
-                  tickets: pendingTickets,
-                  isCookingColumn: false,
-                ),
-              ),
-              const VerticalDivider(width: 2, thickness: 2, color: Colors.black12),
-              Expanded(
-                child: _buildTicketColumn(
-                  title: 'ĐANG NẤU (${cookingTickets.length})',
-                  headerColor: Colors.orange[700]!,
-                  tickets: cookingTickets,
-                  isCookingColumn: true,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

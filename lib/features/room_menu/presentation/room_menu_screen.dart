@@ -6,10 +6,12 @@ import '../../../main.dart'; // import supabase global
 import '../../admin_panel/providers/category_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../admin_panel/providers/tag_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/room_menu_provider.dart';
 
 class RoomMenuScreen extends ConsumerStatefulWidget {
-  const RoomMenuScreen({super.key});
+  final String? roomNumber;
+  const RoomMenuScreen({super.key, this.roomNumber});
 
   @override
   ConsumerState<RoomMenuScreen> createState() => _RoomMenuScreenState();
@@ -21,14 +23,37 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final roomNumber = widget.roomNumber;
+    final profileAsync = ref.watch(userProfileProvider);
+
+    // 1. Kiểm tra trạng thái Redirect (Nếu chưa có roomNumber trên URL)
+    if (roomNumber == null) {
+      return profileAsync.when(
+        loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        data: (profile) {
+          if (profile != null && (profile['role'] == 'ROOM' || profile['role'] == 'ADMIN')) {
+            final rNum = profile['room_number'] ?? 'unknown';
+            Future.microtask(() => context.go('/menu/$rNum'));
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          return const Scaffold(
+            body: Center(
+              child: Text('Tài khoản không có quyền truy cập hoặc không tìm thấy số phòng.'),
+            ),
+          );
+        },
+      );
+    }
+
     // Lắng nghe dữ liệu từ các Providers
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final menuAsync = ref.watch(menuItemsStreamProvider);
     final tagsAsync = ref.watch(tagsStreamProvider);
     final activeFilters = ref.watch(activeFiltersProvider);
 
-    // Ở bản thực tế, lấy roomNumber từ thông tin đăng nhập của Tablet
-    const String currentRoomNumber = '101';
+    // Lấy roomNumber từ URL hoặc dự phòng từ Profile
+    final String currentRoomNumber = widget.roomNumber ?? '...';
 
     return Scaffold(
       // ==========================================
@@ -36,9 +61,9 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       // ==========================================
       appBar: AppBar(
         backgroundColor: Colors.grey[900],
-        title: const Text(
+        title: Text(
             'IN-ROOM DINING - PHÒNG $currentRoomNumber',
-            style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+            style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, letterSpacing: 1.2)
         ),
         actions: [
           IconButton(

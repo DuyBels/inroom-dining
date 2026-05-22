@@ -30,20 +30,32 @@ class _SplashScreenState extends State<SplashScreen> {
       try {
         final profile = await supabase
             .from('profiles')
-            .select('role')
+            .select('*')
             .eq('id', session.user.id)
             .single();
 
         final String role = profile['role'];
+        final String id = profile['id'];
 
         if (!mounted) return;
 
         switch (role) {
-          case 'ADMIN': context.go('/admin'); break;
-          case 'WAITER': context.go('/waiter'); break;
-          case 'STATION': context.go('/kitchen'); break;
-          case 'ROOM': context.go('/menu'); break;
-          default: context.go('/login');
+          case 'ADMIN': 
+            context.go('/admin/$id'); 
+            break;
+          case 'WAITER': 
+            context.go('/waiter/$id'); 
+            break;
+          case 'STATION': 
+            final stationId = profile['station_id'] ?? 'default';
+            context.go('/kitchen/$stationId'); 
+            break;
+          case 'ROOM': 
+            final roomNumber = profile['room_number'] ?? 'unknown';
+            context.go('/menu/$roomNumber'); 
+            break;
+          default: 
+            context.go('/login');
         }
       } catch (e) {
         // Lỗi lấy profile -> Bắt đăng nhập lại

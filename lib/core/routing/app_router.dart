@@ -23,10 +23,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin',
         builder: (context, state) => const AdminScreen(),
+        routes: [
+          GoRoute(
+            path: ':adminId',
+            builder: (context, state) {
+              final adminId = state.pathParameters['adminId'];
+              return AdminScreen(adminId: adminId);
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/waiter',
         builder: (context, state) => const WaiterScreen(),
+        routes: [
+          GoRoute(
+            path: ':waiterId',
+            builder: (context, state) {
+              final waiterId = state.pathParameters['waiterId'];
+              return WaiterScreen(waiterId: waiterId);
+            },
+          ),
+        ],
       ),
       // CẤU HÌNH ĐƯỜNG DẪN DYNAMIC ĐỂ TÁCH BIỆT TAB
       GoRoute(
@@ -45,6 +63,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/menu',
         builder: (context, state) => const RoomMenuScreen(),
+        routes: [
+          GoRoute(
+            path: ':roomNumber',
+            builder: (context, state) {
+              final roomNumber = state.pathParameters['roomNumber'];
+              return RoomMenuScreen(roomNumber: roomNumber);
+            },
+          ),
+        ],
       ),
     ],
   );
