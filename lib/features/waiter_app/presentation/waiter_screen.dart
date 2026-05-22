@@ -16,11 +16,10 @@ class WaiterScreen extends ConsumerStatefulWidget {
 
 class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
+  // --- LOGIC GIAO MÓN ---
   Future<void> _startDelivery(String orderId, String currentWaiterId) async {
     try {
-      await supabase.from('orders').update({
-        'delivery_waiter_id': currentWaiterId,
-      }).eq('id', orderId);
+      await supabase.from('orders').update({'delivery_waiter_id': currentWaiterId}).eq('id', orderId);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
@@ -32,22 +31,15 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
         'status': 'DELIVERED',
         'delivered_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', orderId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã hoàn tất giao đơn hàng!'), backgroundColor: Colors.green)
-        );
-      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
   }
 
+  // --- LOGIC DỌN PHÒNG ---
   Future<void> _startCleaning(String orderId, String currentWaiterId) async {
     try {
-      await supabase.from('orders').update({
-        'cleaning_waiter_id': currentWaiterId,
-      }).eq('id', orderId);
+      await supabase.from('orders').update({'cleaning_waiter_id': currentWaiterId}).eq('id', orderId);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
@@ -61,7 +53,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
       }).eq('id', orderId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã dọn dẹp xong phòng!'), backgroundColor: Colors.blue)
+          const SnackBar(content: Text('Đã hoàn tất dọn phòng!'), backgroundColor: Colors.blue)
         );
       }
     } catch (e) {
@@ -72,13 +64,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
   String _formatDateTime(String? isoString) {
     if (isoString == null) return '--:--';
     final dt = DateTime.parse(isoString).toLocal();
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final mo = dt.month.toString().padLeft(2, '0');
-    final y = dt.year;
-    return "$h:$m:$s $d/$mo/$y";
+    return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
   }
 
   void _showHistoryDialog() {
@@ -95,34 +81,33 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
                 .select('*, delivery:delivery_waiter_id(display_name), cleaning:cleaning_waiter_id(display_name)')
                 .or('status.eq.DELIVERED,cleaning_completed_at.not.is.null')
                 .order('created_at', ascending: false)
-                .limit(40),
+                .limit(30),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               final data = snapshot.data ?? [];
-              if (data.isEmpty) return const Center(child: Text('Chưa có lịch sử phục vụ.'));
-
+              if (data.isEmpty) return const Center(child: Text('Chưa có lịch sử.'));
               return ListView.separated(
                 itemCount: data.length,
                 separatorBuilder: (_, __) => const Divider(),
                 itemBuilder: (context, idx) {
                   final o = data[idx];
-                  final bool isCleaning = o['cleaning_completed_at'] != null;
-                  final deliveryName = o['delivery']?['display_name'] ?? 'Không rõ';
-                  final cleaningName = o['cleaning']?['display_name'] ?? 'Không rõ';
+                  final deliveryName = o['delivery']?['display_name'] ?? 'Chưa rõ';
+                  final cleaningName = o['cleaning']?['display_name'] ?? 'Chưa rõ';
 
                   return ListTile(
                     leading: Icon(
-                      isCleaning ? Icons.cleaning_services : Icons.check_circle, 
-                      color: isCleaning ? Colors.blue : Colors.green
+                      o['status'] == 'DELIVERED' ? Icons.check_circle : Icons.cleaning_services, 
+                      color: o['cleaning_completed_at'] != null ? Colors.blue : Colors.green
                     ),
                     title: Text('Phòng ${o['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (o['delivered_at'] != null)
-                          Text('Đã giao lúc: ${_formatDateTime(o['delivered_at'])} (Bởi: $deliveryName)'),
-                        if (isCleaning)
-                          Text('Đã dọn lúc: ${_formatDateTime(o['cleaning_completed_at'])} (Bởi: $cleaningName)', style: const TextStyle(color: Colors.blue)),
+                          Text('📦 Giao: ${_formatDateTime(o['delivered_at'])} (Bởi: $deliveryName)'),
+                        if (o['cleaning_completed_at'] != null)
+                          Text('🧹 Dọn: ${_formatDateTime(o['cleaning_completed_at'])} (Bởi: $cleaningName)', 
+                              style: const TextStyle(color: Colors.blue)),
                       ],
                     ),
                   );
@@ -141,22 +126,16 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     final waiterId = widget.waiterId;
     final profileAsync = ref.watch(userProfileProvider);
 
-    // 1. Kiểm tra trạng thái Redirect (Nếu chưa có ID trên URL)
     if (waiterId == null) {
       return profileAsync.when(
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
         data: (profile) {
           if (profile != null && (profile['role'] == 'WAITER' || profile['role'] == 'ADMIN')) {
-            final id = profile['id'];
-            Future.microtask(() => context.go('/waiter/$id'));
+            Future.microtask(() => context.go('/waiter/${profile['id']}'));
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return const Scaffold(
-            body: Center(
-              child: Text('Tài khoản không có quyền truy cập hoặc không tìm thấy thông tin nhân viên.'),
-            ),
-          );
+          return const Scaffold(body: Center(child: Text('Không có quyền truy cập.')));
         },
       );
     }
@@ -173,70 +152,86 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        // Logic thông báo Realtime
-        ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (previous, next) {
-          if (previous != null && previous.hasValue && next.hasValue) {
-            final prevTickets = previous.value!;
-            final nextTickets = next.value!;
-            for (var newTicket in nextTickets) {
-              if (newTicket['status'] == 'DONE') {
-                final oldTicket = prevTickets.firstWhere((t) => t['id'] == newTicket['id'], orElse: () => {});
-                if (oldTicket.isNotEmpty && oldTicket['status'] != 'DONE') {
-                  String itemName = 'Món ăn';
-                  menuAsync.whenData((menu) {
-                    final match = menu.where((m) => m['id'] == newTicket['item_id']);
-                    if (match.isNotEmpty) itemName = match.first['name'];
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Ting! $itemName đã nấu xong!'),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                  ));
-                }
+        // --- BỘ LẮNG NGHE THÔNG BÁO REALTIME ---
+        
+        // 1. Thông báo khi bếp nấu xong (Tickets DONE)
+        ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (prev, next) {
+          if (next.hasValue && prev?.hasValue == true) {
+            final orders = ref.read(activeOrdersStreamProvider).value ?? [];
+            
+            for (var t in next.value!) {
+              final oldT = prev!.value!.firstWhere((p) => p['id'] == t['id'], orElse: () => {});
+              if (t['status'] == 'DONE' && oldT.isNotEmpty && oldT['status'] != 'DONE') {
+                // Lấy thông tin phòng và tên món
+                final order = orders.firstWhere((o) => o['id'] == t['order_id'], orElse: () => {});
+                final roomNum = order.isNotEmpty ? order['room_number'] : '???';
+                
+                String itemName = 'Món ăn';
+                menuAsync.whenData((menu) {
+                  final match = menu.where((m) => m['id'] == t['item_id']);
+                  if (match.isNotEmpty) itemName = match.first['name'];
+                });
+
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('🔔 PHÒNG $roomNum: $itemName đã nấu xong!'),
+                  backgroundColor: Colors.green[700],
+                  behavior: SnackBarBehavior.floating,
+                ));
+              }
+            }
+          }
+        });
+
+        // 2. Thông báo khi có khách yêu cầu dọn bàn (needs_cleaning = true)
+        ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeOrdersStreamProvider, (prev, next) {
+          if (next.hasValue && prev?.hasValue == true) {
+            for (var o in next.value!) {
+              final oldO = prev!.value!.firstWhere((p) => p['id'] == o['id'], orElse: () => {});
+              if (o['needs_cleaning'] == true && (oldO.isEmpty || oldO['needs_cleaning'] != true)) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.cleaning_services, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Text('🧹 PHÒNG ${o['room_number']} yêu cầu dọn bàn!', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  backgroundColor: Colors.blue[800],
+                  duration: const Duration(seconds: 10),
+                  behavior: SnackBarBehavior.floating,
+                ));
               }
             }
           }
         });
 
         return Scaffold(
-          backgroundColor: Colors.grey[200],
+          backgroundColor: Colors.grey[100],
           appBar: AppBar(
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('ĐIỀU PHỐI GIAO NHẬN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                Row(
-                  children: [
-                    Text('Nhân viên: ${currentProfile['display_name']}', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                    const SizedBox(width: 10),
-                    Text('Tab: ${waiterId.substring(0, 5)}...', style: const TextStyle(color: Colors.white38, fontSize: 9)),
-                  ],
-                ),
+                const Text('ĐIỀU PHỐI CÔNG VIỆC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('Nhân viên: ${currentProfile['display_name']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
-            backgroundColor: Colors.green[700],
+            backgroundColor: Colors.green[800],
             actions: [
               IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: _showHistoryDialog),
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: () async {
-                  ref.invalidate(userProfileProvider);
-                  await supabase.auth.signOut();
-                  if (context.mounted) context.go('/login');
-                },
-              ),
+              IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
+                ref.invalidate(userProfileProvider);
+                await supabase.auth.signOut();
+                if (context.mounted) context.go('/login');
+              }),
               const SizedBox(width: 16),
             ],
           ),
           body: waiterOrders.isEmpty
-              ? const Center(child: Text('Hiện không có đơn hàng nào cần xử lý.'))
+              ? const Center(child: Text('Hiện tại chưa có nhiệm vụ nào.', style: TextStyle(fontSize: 18, color: Colors.grey)))
               : GridView.builder(
                   padding: const EdgeInsets.all(24),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 24,
-                    mainAxisSpacing: 24,
-                    childAspectRatio: 0.85,
+                    crossAxisCount: 3, crossAxisSpacing: 24, mainAxisSpacing: 24, childAspectRatio: 0.82,
                   ),
                   itemCount: waiterOrders.length,
                   itemBuilder: (context, index) => _buildOrderCard(waiterOrders[index], menuAsync.value ?? [], waiterId),
@@ -250,131 +245,88 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     final order = orderData.order;
     final tickets = orderData.tickets;
     final isFullyDone = orderData.isFullyDone;
-    
-    // Logic dọn bàn
-    final bool needsCleaning = order['needs_cleaning'] ?? false;
-    final String? cleaningWaiterId = order['cleaning_waiter_id'];
-    final bool isIAmCleaning = cleaningWaiterId == currentWaiterId;
-    final bool isSomeoneElseCleaning = cleaningWaiterId != null && cleaningWaiterId != currentWaiterId;
+    final bool isCleaning = order['needs_cleaning'] ?? false;
 
-    // Logic giao hàng
-    final String? deliveryWaiterId = order['delivery_waiter_id'];
-    final bool isIAmDelivering = deliveryWaiterId == currentWaiterId;
-    final bool isSomeoneElseDelivering = deliveryWaiterId != null && deliveryWaiterId != currentWaiterId;
+    // Phân quyền thực hiện (Locking logic)
+    final String? cleaningId = order['cleaning_waiter_id'];
+    final bool isIAmCleaning = cleaningId == currentWaiterId;
+    final bool isOtherCleaning = cleaningId != null && cleaningId != currentWaiterId;
 
-    final doneItems = tickets.where((t) => t['status'] == 'DONE').length;
+    final String? deliveryId = order['delivery_waiter_id'];
+    final bool isIAmDelivering = deliveryId == currentWaiterId;
+    final bool isOtherDelivering = deliveryId != null && deliveryId != currentWaiterId;
 
-    Color cardBorderColor = Colors.transparent;
-    if (needsCleaning) {
-      cardBorderColor = isSomeoneElseCleaning ? Colors.grey : Colors.blue;
-    } else if (isFullyDone) {
-      cardBorderColor = isSomeoneElseDelivering ? Colors.grey : Colors.green;
-    }
-
-    String statusText = 'ĐANG NẤU ($doneItems/${tickets.length})';
-    Color statusBgColor = Colors.orange;
-
-    if (needsCleaning) {
-      if (isSomeoneElseCleaning) {
-        statusText = 'ĐANG DỌN...';
-        statusBgColor = Colors.grey;
-      } else if (isIAmCleaning) {
-        statusText = 'TÔI ĐANG DỌN';
-        statusBgColor = Colors.orange;
-      } else {
-        statusText = 'CẦN DỌN BÀN';
-        statusBgColor = Colors.blue[700]!;
-      }
-    } else if (isFullyDone) {
-      if (isSomeoneElseDelivering) {
-        statusText = 'ĐANG GIAO...';
-        statusBgColor = Colors.grey;
-      } else if (isIAmDelivering) {
-        statusText = 'TÔI ĐANG GIAO';
-        statusBgColor = Colors.orange;
-      } else {
-        statusText = 'SẴN SÀNG GIAO';
-        statusBgColor = Colors.green[700]!;
-      }
-    }
+    // Màu sắc & Nhãn
+    Color themeColor = isCleaning ? Colors.blue : (isFullyDone ? Colors.green : Colors.orange);
+    String taskTitle = isCleaning ? "NHIỆM VỤ: DỌN PHÒNG" : "NHIỆM VỤ: GIAO MÓN";
+    String statusText = isCleaning 
+        ? (isOtherCleaning ? "ĐANG DỌN..." : (isIAmCleaning ? "TÔI ĐANG DỌN" : "CẦN DỌN BÀN"))
+        : (isOtherDelivering ? "ĐANG GIAO..." : (isIAmDelivering ? "TÔI ĐANG GIAO" : (isFullyDone ? "SẴN SÀNG" : "ĐANG NẤU")));
 
     return Card(
-      elevation: (isFullyDone || needsCleaning) ? 8 : 2,
+      elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cardBorderColor, width: 3),
+        side: BorderSide(color: (isIAmCleaning || isIAmDelivering) ? Colors.orange : themeColor, width: 3),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: needsCleaning ? Colors.blue[50] : (isFullyDone ? Colors.green[100] : Colors.blue[50]),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
+            decoration: BoxDecoration(color: themeColor.withOpacity(0.1), borderRadius: const BorderRadius.vertical(top: Radius.circular(16))),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Phòng ${order['room_number']}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(taskTitle, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: themeColor)),
+                    Text('Phòng ${order['room_number']}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  ],
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusBgColor,
-                    borderRadius: BorderRadius.circular(20)
-                  ),
-                  child: Text(
-                    statusText,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: themeColor, borderRadius: BorderRadius.circular(12)),
+                  child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                 )
               ],
             ),
           ),
           Expanded(
-            child: needsCleaning
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.cleaning_services, size: 64, color: Colors.blue),
-                        const SizedBox(height: 8),
-                        const Text('YÊU CẦU DỌN MÂM', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                        if (order['cleaning_requested_at'] != null)
-                          Text('Yêu cầu lúc: ${_formatDateTime(order['cleaning_requested_at'])}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: tickets.length,
-                    itemBuilder: (context, idx) {
-                      final ticket = tickets[idx];
-                      final match = menuItems.where((m) => m['id'] == ticket['item_id']);
-                      final itemName = match.isNotEmpty ? match.first['name'] : 'Đang tải...';
-                      return ListTile(
-                        leading: _getTicketIcon(ticket['status']),
-                        title: Text('${ticket['quantity']}x $itemName', style: const TextStyle(fontSize: 14)),
-                      );
-                    },
-                  ),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: tickets.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, idx) {
+                final ticket = tickets[idx];
+                final match = menuItems.where((m) => m['id'] == ticket['item_id']);
+                final name = match.isNotEmpty ? match.first['name'] : '...';
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: _getTicketIcon(ticket['status']),
+                  title: Text('${ticket['quantity']}x $name', style: const TextStyle(fontSize: 14)),
+                );
+              },
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
-              width: double.infinity,
-              height: 45,
-              child: needsCleaning
-                  ? ElevatedButton.icon(
-                      icon: Icon(isIAmCleaning ? Icons.check_circle : Icons.cleaning_services),
-                      label: Text(isSomeoneElseCleaning ? 'CÓ NGƯỜI ĐANG DỌN' : (isIAmCleaning ? 'XÁC NHẬN XONG' : 'NHẬN DỌN PHÒNG')),
-                      style: ElevatedButton.styleFrom(backgroundColor: isIAmCleaning ? Colors.green : Colors.blue),
-                      onPressed: isSomeoneElseCleaning ? null : (isIAmCleaning ? () => _completeCleaning(order['id']) : () => _startCleaning(order['id'], currentWaiterId)),
-                    )
-                  : ElevatedButton.icon(
-                      icon: Icon(isIAmDelivering ? Icons.check_circle : Icons.room_service),
-                      label: Text(isSomeoneElseDelivering ? 'CÓ NGƯỜI ĐANG GIAO' : (isIAmDelivering ? 'XÁC NHẬN ĐÃ GIAO' : (isFullyDone ? 'NHẬN GIAO MÓN' : 'ĐỢI BẾP...'))),
-                      style: ElevatedButton.styleFrom(backgroundColor: isIAmDelivering ? Colors.green : (isFullyDone ? Colors.green[700] : Colors.grey)),
-                      onPressed: (isFullyDone && !isSomeoneElseDelivering) ? (isIAmDelivering ? () => _markAsDelivered(order['id']) : () => _startDelivery(order['id'], currentWaiterId)) : null,
-                    ),
+              width: double.infinity, height: 48,
+              child: isCleaning
+                ? ElevatedButton.icon(
+                    icon: Icon(isIAmCleaning ? Icons.check_circle : Icons.cleaning_services),
+                    label: Text(isOtherCleaning ? 'ĐÃ CÓ NGƯỜI NHẬN' : (isIAmCleaning ? 'XÁC NHẬN XONG' : 'NHẬN DỌN PHÒNG')),
+                    style: ElevatedButton.styleFrom(backgroundColor: isIAmCleaning ? Colors.orange : Colors.blue),
+                    onPressed: isOtherCleaning ? null : (isIAmCleaning ? () => _completeCleaning(order['id']) : () => _startCleaning(order['id'], currentWaiterId)),
+                  )
+                : ElevatedButton.icon(
+                    icon: Icon(isIAmDelivering ? Icons.check_circle : Icons.room_service),
+                    label: Text(isOtherDelivering ? 'ĐÃ CÓ NGƯỜI NHẬN' : (isIAmDelivering ? 'XÁC NHẬN ĐÃ GIAO' : (isFullyDone ? 'NHẬN GIAO MÓN' : 'ĐỢI BẾP...'))),
+                    style: ElevatedButton.styleFrom(backgroundColor: isIAmDelivering ? Colors.orange : (isFullyDone ? Colors.green : Colors.grey)),
+                    onPressed: (isFullyDone && !isOtherDelivering) ? (isIAmDelivering ? () => _markAsDelivered(order['id']) : () => _startDelivery(order['id'], currentWaiterId)) : null,
+                  ),
             ),
           )
         ],
@@ -384,9 +336,9 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
   Widget _getTicketIcon(String status) {
     switch (status) {
-      case 'DONE': return const Icon(Icons.check_circle, color: Colors.green, size: 20);
-      case 'COOKING': return const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2));
-      default: return const Icon(Icons.access_time, color: Colors.grey, size: 20);
+      case 'DONE': return const Icon(Icons.check_circle, color: Colors.green, size: 18);
+      case 'COOKING': return const SizedBox(width: 16, height: 18, child: CircularProgressIndicator(strokeWidth: 2));
+      default: return const Icon(Icons.access_time, color: Colors.grey, size: 18);
     }
   }
 }

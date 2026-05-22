@@ -37,7 +37,12 @@ final waiterOrdersProvider = Provider<List<WaiterOrderModel>>((ref) {
 
   if (ordersAsync.value == null || ticketsAsync.value == null) return [];
 
-  final orders = ordersAsync.value!.where((o) => o['status'] != 'DELIVERED').toList();
+  final orders = ordersAsync.value!.where((o) {
+    // Hiển thị đơn hàng nếu:
+    // 1. Đơn hàng chưa giao xong (status != 'DELIVERED')
+    // 2. HOẶC đơn hàng đang có yêu cầu dọn dẹp (needs_cleaning == true)
+    return o['status'] != 'DELIVERED' || o['needs_cleaning'] == true;
+  }).toList();
   final tickets = ticketsAsync.value!;
 
   return orders.map((order) {
