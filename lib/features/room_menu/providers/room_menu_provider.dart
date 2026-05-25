@@ -2,44 +2,67 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../main.dart';
 
 // ==========================================
-// 1. MODEL GIỎ HÀNG (Cart Model)
+// 1. MODEL GIỎ HÀNG (Bản đầy đủ Topping)
 // ==========================================
 class CartItem {
+  final String uniqueId; // Phân biệt cùng 1 món nhưng khác topping/ghi chú
   final Map<String, dynamic> menuItem;
   int quantity;
   String notes;
+  final List<Map<String, dynamic>> selectedToppings;
 
   CartItem({
+    required this.uniqueId,
     required this.menuItem,
     this.quantity = 1,
-    this.notes = ''
+    this.notes = '',
+    this.selectedToppings = const [],
   });
+
+  double get singlePrice {
+    double basePrice = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
+    double toppingsPrice = selectedToppings.fold(0.0, (sum, t) => sum + (num.tryParse(t['price'].toString())?.toDouble() ?? 0.0));
+    return basePrice + toppingsPrice;
+  }
+
+  double get totalPrice => singlePrice * quantity;
 }
 
 // ==========================================
-// 2. NOTIFIER QUẢN LÝ GIỎ HÀNG (Modern Riverpod 3.x)
+// 2. NOTIFIER QUẢN LÝ GIỎ HÀNG
 // ==========================================
 class CartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() => [];
 
-  void addToCart(Map<String, dynamic> item) {
-    final existingIndex = state.indexWhere((c) => c.menuItem['id'] == item['id']);
+  void addToCart(Map<String, dynamic> item, List<Map<String, dynamic>> toppings, String notes) {
+    final toppingIds = toppings.map((t) => t['id']).toList()..sort();
+    final String uniqueKey = "${item['id']}_${toppingIds.join('_')}_$notes";
+
+    final existingIndex = state.indexWhere((c) => c.uniqueId == uniqueKey);
+
     if (existingIndex >= 0) {
       final newState = [...state];
       newState[existingIndex] = CartItem(
+        uniqueId: state[existingIndex].uniqueId,
         menuItem: state[existingIndex].menuItem,
-        quantity: state[existingIndex].quantity + 1,
+        selectedToppings: state[existingIndex].selectedToppings,
         notes: state[existingIndex].notes,
+        quantity: state[existingIndex].quantity + 1,
       );
       state = newState;
     } else {
-      state = [...state, CartItem(menuItem: item)];
+      state = [...state, CartItem(
+        uniqueId: uniqueKey,
+        menuItem: item,
+        selectedToppings: toppings,
+        notes: notes,
+      )];
     }
   }
 
-  void updateQuantity(String itemId, int delta) {
-    final index = state.indexWhere((c) => c.menuItem['id'] == itemId);
+  void updateQuantity(String uniqueId, int delta) {
+    final index = state.indexWhere((c) => c.uniqueId == uniqueId);
     if (index >= 0) {
       final newState = [...state];
       final newQuantity = newState[index].quantity + delta;
@@ -47,9 +70,11 @@ class CartNotifier extends Notifier<List<CartItem>> {
         newState.removeAt(index);
       } else {
         newState[index] = CartItem(
+          uniqueId: newState[index].uniqueId,
           menuItem: newState[index].menuItem,
-          quantity: newQuantity,
+          selectedToppings: newState[index].selectedToppings,
           notes: newState[index].notes,
+          quantity: newQuantity,
         );
       }
       state = newState;
@@ -63,64 +88,39 @@ final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(CartNotifier
 
 final cartTotalProvider = Provider<double>((ref) {
   final cart = ref.watch(cartProvider);
-  return cart.fold(0.0, (sum, item) {
-    final price = num.tryParse(item.menuItem['price'].toString())?.toDouble() ?? 0.0;
-    return sum + (price * item.quantity);
-  });
+  return cart.fold(0.0, (sum, item) => sum + item.totalPrice);
 });
 
 // ==========================================
-// 3. QUẢN LÝ BỘ LỌC THẺ
+// 3. QUẢN LÝ BỘ LỌC & STREAMS
 // ==========================================
 class ActiveFiltersNotifier extends Notifier<List<String>> {
   @override
   List<String> build() => [];
-
   void toggle(String tagId) {
-    if (state.contains(tagId)) {
-      state = state.where((id) => id != tagId).toList();
-    } else {
-      state = [...state, tagId];
-    }
+    state = state.contains(tagId) ? state.where((id) => id != tagId).toList() : [...state, tagId];
   }
 }
-
 final activeFiltersProvider = NotifierProvider<ActiveFiltersNotifier, List<String>>(ActiveFiltersNotifier.new);
 
-// ==========================================
-// 4. WEBSOCKET - THEO DÕI TRẠNG THÁI RIÊNG TỪNG PHÒNG
-// ==========================================
-
-// Stream lấy toàn bộ tickets (Realtime)
 final allTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  return supabase
-      .from('tickets')
-      .stream(primaryKey: ['id'])
-      .order('created_at', ascending: false);
+  return supabase.from('tickets').stream(primaryKey: ['id']).order('created_at', ascending: false);
 });
 
-// Stream lấy orders của phòng hiện tại (Realtime)
 final roomOrdersStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, roomNumber) {
-  return supabase
-      .from('orders')
-      .stream(primaryKey: ['id'])
-      .eq('room_number', roomNumber)
-      .order('created_at', ascending: false);
+  return supabase.from('orders').stream(primaryKey: ['id']).eq('room_number', roomNumber).order('created_at', ascending: false);
 });
 
-// Provider tổng hợp: CHỈ LẤY TICKETS THUỘC VỀ PHÒNG HIỆN TẠI
 final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, String>((ref, roomNumber) {
   final allTicketsAsync = ref.watch(allTicketsStreamProvider);
   final roomOrdersAsync = ref.watch(roomOrdersStreamProvider(roomNumber));
-
   if (allTicketsAsync.value == null || roomOrdersAsync.value == null) return [];
+  final myOrderIds = roomOrdersAsync.value!.map((o) => o['id']).toSet();
+  return allTicketsAsync.value!.where((t) => myOrderIds.contains(t['order_id'])).toList();
+});
 
-  final allTickets = allTicketsAsync.value!;
-  final roomOrders = roomOrdersAsync.value!;
-  
-  // Tạo bộ lọc IDs của các đơn hàng thuộc phòng này
-  final myOrderIds = roomOrders.map((o) => o['id']).toSet();
-
-  // Trả về các tickets có order_id nằm trong danh sách đơn hàng của phòng
-  return allTickets.where((t) => myOrderIds.contains(t['order_id'])).toList();
+// Toppings Suggester
+final menuItemToppingsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) async {
+  final data = await supabase.from('menu_toppings').select('*').eq('menu_item_id', menuItemId);
+  return List<Map<String, dynamic>>.from(data);
 });

@@ -162,6 +162,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             return Scaffold(
               backgroundColor: Colors.grey[200],
               appBar: AppBar(
+                automaticallyImplyLeading: false,
                 title: Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 backgroundColor: Colors.orange[800],
                 actions: [

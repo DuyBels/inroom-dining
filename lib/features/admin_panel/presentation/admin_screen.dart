@@ -59,6 +59,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
