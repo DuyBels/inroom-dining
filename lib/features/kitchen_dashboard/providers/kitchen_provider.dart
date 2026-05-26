@@ -2,24 +2,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/menu_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 
-// 0. Provider lắng nghe trạng thái đăng nhập
-final authStateProvider = StreamProvider<AuthState>((ref) {
-  return supabase.auth.onAuthStateChange;
-});
-
-// 1. Provider lấy thông tin chi tiết của một Trạm Bếp dựa trên ID (Dùng cho URL State)
+// 1. Provider lấy thông tin chi tiết của một Trạm Bếp dựa trên ID
 final stationDetailProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, stationId) async {
   final data = await supabase
       .from('kitchen_stations')
       .select('id, name')
       .eq('id', stationId)
       .maybeSingle();
-      
   return data;
 });
 
-// 2. Stream Lấy TẤT CẢ tickets (Để tính toán đồng bộ chéo giữa các Bếp)
+// 2. Stream Lấy TẤT CẢ tickets để tính toán Dynamic Pacing
 final activeTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase
       .from('tickets')
@@ -27,12 +22,12 @@ final activeTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((
       .order('created_at', ascending: true);
 });
 
-// 3. Stream Lấy Đơn hàng (orders) để lấy số phòng
+// 3. Stream Lấy Đơn hàng để lấy số phòng
 final activeOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase.from('orders').stream(primaryKey: ['id']).neq('status', 'DELIVERED');
 });
 
-// MODEL ĐẠI DIỆN CHO TICKET ĐÃ TÍNH TOÁN SMART TIMING
+// Model đại diện cho Ticket đã tính toán Dynamic Smart Timing
 class SmartTicket {
   final Map<String, dynamic> rawTicket;
   final String itemName;
@@ -51,7 +46,7 @@ class SmartTicket {
   });
 }
 
-// 4. THUẬT TOÁN ĐỒNG BỘ THỜI GIAN - Bây giờ nhận stationId từ URL làm tham số
+// 4. THUẬT TOÁN ĐỒNG BỘ THỜI GIAN ĐỘNG (DYNAMIC PACING)
 final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((ref, myStationId) {
   final ticketsAsync = ref.watch(activeTicketsStreamProvider);
   final menuAsync = ref.watch(menuItemsStreamProvider);
@@ -65,14 +60,25 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
   final menuItems = menuAsync.value!;
   final orders = ordersAsync.value!;
 
+  // BƯỚC A: Tìm mốc thời gian hoàn thành lý tưởng cho mỗi Đơn hàng (CHỈ TÍNH MÓN CHƯA XONG)
   Map<String, DateTime> orderTargetFinishTimes = {};
 
   for (var ticket in allTickets) {
+    // QUY TẮC 1: BỎ QUA CÁC MÓN ĐÃ NẤU XONG (DYNAMIC PACING)
+    if (ticket['status'] == 'DONE') continue;
+
     final orderId = ticket['order_id'];
     final menuItem = menuItems.firstWhere((m) => m['id'] == ticket['item_id'], orElse: () => {'prep_time_minutes': 15});
     final int prepTime = menuItem['prep_time_minutes'] ?? 15;
     final int delay = ticket['delay_minutes'] ?? 0;
-    final createdAt = DateTime.parse(ticket['created_at']).toLocal();
+    
+    DateTime createdAt;
+    try {
+      createdAt = DateTime.parse(ticket['created_at']).toLocal();
+    } catch (_) {
+      createdAt = DateTime.now();
+    }
+
     final expectedFinishTime = createdAt.add(Duration(minutes: prepTime + delay));
 
     if (!orderTargetFinishTimes.containsKey(orderId) || expectedFinishTime.isAfter(orderTargetFinishTimes[orderId]!)) {
@@ -80,12 +86,15 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
     }
   }
 
+  // BƯỚC B: Tính ngược mốc bắt đầu cho từng món của trạm hiện tại
   List<SmartTicket> mySmartTickets = [];
 
   for (var ticket in allTickets) {
     if (ticket['station_id'] != myStationId || ticket['status'] == 'DONE') continue;
 
     final orderId = ticket['order_id'];
+    if (!orderTargetFinishTimes.containsKey(orderId)) continue;
+
     final menuItem = menuItems.firstWhere((m) => m['id'] == ticket['item_id'], orElse: () => {'name': 'Unknown', 'prep_time_minutes': 15});
     final order = orders.firstWhere((o) => o['id'] == orderId, orElse: () => {'room_number': '?'});
 
@@ -106,10 +115,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
   return mySmartTickets;
 });
 
-// 5. Provider lấy station_id mặc định của User (Chỉ dùng để redirect ban đầu)
-final defaultStationIdProvider = FutureProvider<String?>((ref) async {
-  final user = supabase.auth.currentUser;
-  if (user == null) return null;
-  final data = await supabase.from('profiles').select('station_id').eq('id', user.id).maybeSingle();
-  return data?['station_id'] as String?;
+// 5. Provider lấy station_id mặc định của User
+final defaultStationIdProvider = Provider<AsyncValue<String?>>((ref) {
+  return ref.watch(userProfileProvider).whenData((profile) => profile?['station_id'] as String?);
 });

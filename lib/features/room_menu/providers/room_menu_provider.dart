@@ -114,9 +114,19 @@ final roomOrdersStreamProvider = StreamProvider.family<List<Map<String, dynamic>
 final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, String>((ref, roomNumber) {
   final allTicketsAsync = ref.watch(allTicketsStreamProvider);
   final roomOrdersAsync = ref.watch(roomOrdersStreamProvider(roomNumber));
+  
   if (allTicketsAsync.value == null || roomOrdersAsync.value == null) return [];
-  final myOrderIds = roomOrdersAsync.value!.map((o) => o['id']).toSet();
-  return allTicketsAsync.value!.where((t) => myOrderIds.contains(t['order_id'])).toList();
+
+  final allTickets = allTicketsAsync.value!;
+  final roomOrders = roomOrdersAsync.value!;
+  
+  // LỌC: Chỉ lấy ID của các đơn hàng CHƯA GIAO XONG (status != 'DELIVERED')
+  final activeOrderIds = roomOrders
+      .where((o) => o['status'] != 'DELIVERED')
+      .map((o) => o['id'])
+      .toSet();
+
+  return allTickets.where((t) => activeOrderIds.contains(t['order_id'])).toList();
 });
 
 // Toppings Suggester
