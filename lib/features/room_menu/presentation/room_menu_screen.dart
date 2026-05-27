@@ -62,6 +62,10 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
         children: [
           NavigationRail(
             backgroundColor: Colors.grey[900],
+            unselectedLabelTextStyle: const TextStyle(color: Colors.grey, fontSize: 12),
+            selectedLabelTextStyle: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13),
+            unselectedIconTheme: const IconThemeData(color: Colors.grey),
+            selectedIconTheme: const IconThemeData(color: Colors.amber),
             selectedIndex: _getSelectedIndex(categoriesAsync.value),
             onDestinationSelected: (idx) {
               if (idx == 0) setState(() => _selectedCategoryId = null);
@@ -69,8 +73,18 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
             },
             labelType: NavigationRailLabelType.all,
             destinations: [
-              const NavigationRailDestination(icon: Icon(Icons.menu_book), label: Text('Tất cả')),
-              ...categoriesAsync.maybeWhen(data: (cats) => cats.map((c) => NavigationRailDestination(icon: const Icon(Icons.restaurant), label: Text(c['name']))).toList(), orElse: () => []),
+              const NavigationRailDestination(
+                icon: Icon(Icons.menu_book), 
+                selectedIcon: Icon(Icons.menu_book, color: Colors.amber),
+                label: Text('Tất cả')
+              ),
+              ...categoriesAsync.maybeWhen(
+                data: (cats) => cats.map((c) => NavigationRailDestination(
+                  icon: const Icon(Icons.restaurant_menu), 
+                  label: Text(c['name'], textAlign: TextAlign.center)
+                )).toList(), 
+                orElse: () => []
+              ),
             ],
           ),
           Expanded(

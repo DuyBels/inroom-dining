@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inroom_dining/features/staff_chat/presentation/widgets/staff_chat_drawer.dart';
+import '../../staff_chat/providers/chat_provider.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -16,6 +18,7 @@ class WaiterScreen extends ConsumerStatefulWidget {
 }
 
 class _WaiterScreenState extends ConsumerState<WaiterScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // --- LOGIC GIAO MÓN ---
   Future<void> _startDelivery(String orderId, String currentWaiterId) async {
@@ -79,6 +82,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
         if (currentProfile == null) return const Scaffold(body: Center(child: Text('Lỗi xác thực.')));
 
         return Scaffold(
+          key: _scaffoldKey,
+          endDrawer: const StaffChatDrawer(),
           backgroundColor: Colors.grey[200],
           appBar: AppBar(
             automaticallyImplyLeading: false,
@@ -91,6 +96,32 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             ),
             backgroundColor: Colors.green[800],
             actions: [
+              Builder(
+                builder: (ctx) {
+                  final hasUnread = ref.watch(hasUnreadMessagesProvider);
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                        onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                      ),
+                      if (hasUnread)
+                        Positioned(
+                          right: 12, top: 12,
+                          child: Container(
+                            width: 10, height: 10,
+                            decoration: BoxDecoration(
+                              color: Colors.red, 
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.green[800]!, width: 1.5) // Viền trùng màu AppBar cho đẹp
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: _showHistoryDialog),
               IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
                 ref.invalidate(userProfileProvider);
@@ -129,6 +160,53 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
   }
 
   void _setupNotificationListeners() {
+    // Lắng nghe tin nhắn chat mới
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(staffMessagesStreamProvider, (prev, next) {
+      final messages = next.value;
+      if (messages != null && messages.isNotEmpty) {
+        final newMsg = messages.first;
+        final myId = ref.read(currentUserProvider)?.id;
+        final lastMsgId = prev?.value?.isNotEmpty == true ? prev!.value!.first['id'] : null;
+
+        // CHỈ HIỆN THÔNG BÁO NẾU:
+        // 1. Không phải mình gửi
+        // 2. Tin nhắn thực sự mới
+        // 3. KHÔNG ĐANG MỞ KHUNG CHAT
+        final isDrawerOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+
+        if (newMsg['sender_id'] != myId && newMsg['id'] != lastMsgId && !isDrawerOpen) {
+          // 1. Xóa hết các thông báo đang có
+          ScaffoldMessenger.of(context).clearSnackBars();
+          
+          // 2. Hiển thị thông báo mới
+          final snackBar = SnackBar(
+            content: Text('💬 ${newMsg['sender_name']}: ${newMsg['message']}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.blueGrey[900],
+            duration: const Duration(seconds: 3), // Thiết lập 3 giây
+            margin: const EdgeInsets.all(10),
+            action: SnackBarAction(
+              label: 'XEM', 
+              textColor: Colors.amber, 
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                _scaffoldKey.currentState?.openEndDrawer();
+              }
+            ),
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(snackBar);
+
+          // 3. CƯỠNG ÉP ẨN SAU 3.5 GIÂY (Phòng trường hợp duration bị lỗi)
+          Future.delayed(const Duration(milliseconds: 3500), () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            }
+          });
+        }
+      }
+    });
+
     ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (prev, next) {
       if (next.hasValue && prev?.hasValue == true) {
         for (var t in next.value!) {
