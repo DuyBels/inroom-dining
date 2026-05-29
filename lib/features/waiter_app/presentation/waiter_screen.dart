@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -170,21 +171,23 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
         // CHỈ HIỆN THÔNG BÁO NẾU:
         // 1. Không phải mình gửi
-        // 2. Tin nhắn thực sự mới
+        // 2. Tin nhắn thực sự mới (ID khác tin cũ nhất)
         // 3. KHÔNG ĐANG MỞ KHUNG CHAT
+        // 4. MÌNH CHƯA ĐỌC TIN NÀY (Kiểm tra mảng read_by)
         final isDrawerOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+        final List readBy = newMsg['read_by'] ?? [];
+        final bool isAlreadyRead = readBy.contains(myId);
 
-        if (newMsg['sender_id'] != myId && newMsg['id'] != lastMsgId && !isDrawerOpen) {
-          // 1. Xóa hết các thông báo đang có
+        if (newMsg['sender_id'] != myId && newMsg['id'] != lastMsgId && !isDrawerOpen && !isAlreadyRead) {
+          // Xóa các thông báo cũ
           ScaffoldMessenger.of(context).clearSnackBars();
           
-          // 2. Hiển thị thông báo mới
           final snackBar = SnackBar(
             content: Text('💬 ${newMsg['sender_name']}: ${newMsg['message']}'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.blueGrey[900],
-            duration: const Duration(seconds: 3), // Thiết lập 3 giây
-            margin: const EdgeInsets.all(10),
+            duration: const Duration(seconds: 3),
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             action: SnackBarAction(
               label: 'XEM', 
               textColor: Colors.amber, 
@@ -197,8 +200,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(snackBar);
 
-          // 3. CƯỠNG ÉP ẨN SAU 3.5 GIÂY (Phòng trường hợp duration bị lỗi)
-          Future.delayed(const Duration(milliseconds: 3500), () {
+          // CƯỠNG ÉP TẮT SAU 3 GIÂY
+          Timer(const Duration(seconds: 3), () {
             if (mounted) {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
             }
