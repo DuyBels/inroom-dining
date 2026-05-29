@@ -21,7 +21,11 @@ class CartItem {
 
   double get singlePrice {
     double basePrice = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
-    double toppingsPrice = selectedToppings.fold(0.0, (sum, t) => sum + (num.tryParse(t['price'].toString())?.toDouble() ?? 0.0));
+    double toppingsPrice = selectedToppings.fold(0.0, (sum, t) {
+      double p = num.tryParse(t['price'].toString())?.toDouble() ?? 0.0;
+      int q = t['quantity'] ?? 1;
+      return sum + (p * q);
+    });
     return basePrice + toppingsPrice;
   }
 
@@ -129,8 +133,11 @@ final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, St
   return allTickets.where((t) => activeOrderIds.contains(t['order_id'])).toList();
 });
 
-// Toppings Suggester
-final menuItemToppingsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) async {
-  final data = await supabase.from('menu_toppings').select('*').eq('menu_item_id', menuItemId);
-  return List<Map<String, dynamic>>.from(data);
+// Toppings Stream
+final menuItemToppingsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) {
+  return supabase
+      .from('menu_toppings')
+      .stream(primaryKey: ['id'])
+      .eq('menu_item_id', menuItemId)
+      .order('name', ascending: true);
 });

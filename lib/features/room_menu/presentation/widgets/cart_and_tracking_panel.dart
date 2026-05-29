@@ -254,7 +254,15 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             title: Text(item.menuItem['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: item.selectedToppings.isNotEmpty ? Text('Thêm: ${item.selectedToppings.map((t) => t['name']).join(', ')}', style: const TextStyle(fontSize: 11)) : null,
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.selectedToppings.isNotEmpty)
+                  Text('Thêm: ${item.selectedToppings.map((t) => '${t['quantity'] ?? 1}x ${t['name']}').join(', ')}', style: const TextStyle(fontSize: 11)),
+                if (item.notes.isNotEmpty)
+                  Text('Ghi chú: ${item.notes}', style: const TextStyle(fontSize: 11, color: Colors.redAccent, fontStyle: FontStyle.italic)),
+              ],
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -346,15 +354,33 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         const SizedBox(height: 15),
         ...tickets.map((t) {
           final item = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'name': 'Món ăn'});
+          final List toppings = t['selected_toppings'] ?? [];
+          final String notes = t['notes'] ?? '';
+
           return Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.radio_button_unchecked, 
-                     size: 12, color: t['status'] == 'DONE' ? Colors.green : Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(child: Text(item['name'], style: const TextStyle(fontSize: 11))),
-                Text(_translateTicketStatus(t['status']), style: const TextStyle(fontSize: 10, color: Colors.blueGrey)),
+                Row(
+                  children: [
+                    Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.radio_button_unchecked, 
+                         size: 12, color: t['status'] == 'DONE' ? Colors.green : Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('${t['quantity']}x ${item['name']}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                    Text(_translateTicketStatus(t['status']), style: const TextStyle(fontSize: 10, color: Colors.blueGrey)),
+                  ],
+                ),
+                if (toppings.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20),
+                    child: Text('Topping: ${toppings.map((e) => '${e['quantity'] ?? 1}x ${e['name']}').join(', ')}', style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                  ),
+                if (notes.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20),
+                    child: Text('Ghi chú: $notes', style: const TextStyle(fontSize: 9, color: Colors.redAccent, fontStyle: FontStyle.italic)),
+                  ),
               ],
             ),
           );

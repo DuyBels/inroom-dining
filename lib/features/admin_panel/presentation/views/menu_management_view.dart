@@ -5,6 +5,7 @@ import '../../providers/menu_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/admin_provider.dart'; // Chứa stationsStreamProvider
 import '../widgets/menu_form_dialog.dart';
+import '../widgets/menu_toppings_dialog.dart';
 
 class MenuManagementView extends ConsumerWidget {
   const MenuManagementView({super.key});
@@ -113,6 +114,11 @@ class MenuManagementView extends ConsumerWidget {
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, color: Colors.blueGrey), 
+                                      tooltip: 'Quản lý Topping',
+                                      onPressed: () => _showToppingsDialog(context, item)
+                                    ),
                                     IconButton(icon: const Icon(Icons.edit_square, color: Colors.orange), onPressed: () => _showMenuDialog(context, item)),
                                     IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _confirmDelete(context, ref, item['id'])),
                                   ],
@@ -134,6 +140,10 @@ class MenuManagementView extends ConsumerWidget {
 
   void _showMenuDialog(BuildContext context, Map<String, dynamic>? item) {
     showDialog(context: context, barrierDismissible: false, builder: (context) => MenuFormDialog(item: item));
+  }
+
+  void _showToppingsDialog(BuildContext context, Map<String, dynamic> item) {
+    showDialog(context: context, builder: (context) => MenuToppingsDialog(menuItem: item));
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, String id) {

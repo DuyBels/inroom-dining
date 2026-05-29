@@ -181,33 +181,151 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
   final List<Map<String, dynamic>> _selectedToppings = [];
   final _noteController = TextEditingController();
 
+  double get _basePrice => num.tryParse(widget.item['price'].toString())?.toDouble() ?? 0.0;
+  double get _toppingsPrice => _selectedToppings.fold(0.0, (sum, t) => sum + (num.tryParse(t['price'].toString())?.toDouble() ?? 0.0));
+  double get _totalPrice => _basePrice + _toppingsPrice;
+
   @override
   Widget build(BuildContext context) {
     final toppingsAsync = ref.watch(menuItemToppingsProvider(widget.item['id']));
-    return AlertDialog(
-      title: Text('Tùy chỉnh: ${widget.item['name']}'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          toppingsAsync.when(
-            data: (list) => Column(children: list.map((t) => CheckboxListTile(
-              title: Text(t['name']), subtitle: Text('+${t['price']} đ'),
-              value: _selectedToppings.any((st) => st['id'] == t['id']),
-              onChanged: (v) => setState(() => v! ? _selectedToppings.add(t) : _selectedToppings.removeWhere((st) => st['id'] == t['id'])),
-            )).toList()),
-            loading: () => const LinearProgressIndicator(),
-            error: (e, s) => Text('Lỗi: $e'),
-          ),
-          TextField(controller: _noteController, decoration: const InputDecoration(labelText: 'Ghi chú cho bếp')),
-        ],
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: 600, // Làm popup to ra
+        padding: const EdgeInsets.all(0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header Image & Title
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: widget.item['image_url'] != null 
+                      ? Image.network(widget.item['image_url'], height: 200, width: double.infinity, fit: BoxFit.cover)
+                      : Container(height: 100, color: Colors.amber),
+                ),
+                Positioned(
+                  bottom: 0, left: 0, right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black.withOpacity(0.8), Colors.transparent])
+                    ),
+                    child: Text(widget.item['name'], style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                Positioned(
+                  top: 10, right: 10,
+                  child: CircleAvatar(backgroundColor: Colors.black26, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))),
+                )
+              ],
+            ),
+            
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('TÙY CHỌN THÊM', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    const Divider(),
+                    toppingsAsync.when(
+                      data: (list) {
+                        if (list.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('Không có topping cho món này.'));
+                        return Column(
+                          children: list.map((t) {
+                            final existing = _selectedToppings.firstWhere((st) => st['id'] == t['id'], orElse: () => {});
+                            final int qty = existing.isEmpty ? 0 : (existing['quantity'] ?? 0);
+
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(t['name']),
+                              subtitle: Text('+ ${t['price']} đ', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (qty > 0) IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.orange),
+                                    onPressed: () => setState(() {
+                                      if (qty == 1) _selectedToppings.removeWhere((st) => st['id'] == t['id']);
+                                      else existing['quantity'] = qty - 1;
+                                    }),
+                                  ),
+                                  if (qty > 0) Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_circle_outline, color: Colors.orange),
+                                    onPressed: () => setState(() {
+                                      if (existing.isEmpty) {
+                                        _selectedToppings.add({...t, 'quantity': 1});
+                                      } else {
+                                        existing['quantity'] = qty + 1;
+                                      }
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                      loading: () => const Center(child: LinearProgressIndicator()),
+                      error: (e, s) => Text('Lỗi: $e'),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('GHI CHÚ ĐẶC BIỆT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _noteController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: 'VD: Không lấy hành, ít cay...',
+                        filled: true, fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer - Total & Add Button
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('TỔNG CỘNG', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text('${_totalPrice.toInt()} đ', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.amber[900])),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 50, width: 200,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[800], foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      onPressed: () {
+                        ref.read(cartProvider.notifier).addToCart(widget.item, _selectedToppings, _noteController.text);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('THÊM VÀO GIỎ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-        ElevatedButton(onPressed: () {
-          ref.read(cartProvider.notifier).addToCart(widget.item, _selectedToppings, _noteController.text);
-          Navigator.pop(context);
-        }, child: const Text('Thêm vào giỏ')),
-      ],
     );
   }
 }
