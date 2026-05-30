@@ -2,31 +2,51 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../main.dart';
 
 // ==========================================
-// 1. MODEL GIỎ HÀNG (Bản đầy đủ Topping)
+// 1. MODEL GIỎ HÀNG (Modifier Groups)
 // ==========================================
+class SelectedModifier {
+  final String groupId;
+  final String groupName;
+  final String modifierId;
+  final String modifierName;
+  final double price;
+
+  SelectedModifier({
+    required this.groupId,
+    required this.groupName,
+    required this.modifierId,
+    required this.modifierName,
+    required this.price,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'group_id': groupId,
+    'group_name': groupName,
+    'modifier_id': modifierId,
+    'modifier_name': modifierName,
+    'price': price,
+  };
+}
+
 class CartItem {
-  final String uniqueId; // Phân biệt cùng 1 món nhưng khác topping/ghi chú
+  final String uniqueId;
   final Map<String, dynamic> menuItem;
   int quantity;
   String notes;
-  final List<Map<String, dynamic>> selectedToppings;
+  final List<SelectedModifier> selectedModifiers;
 
   CartItem({
     required this.uniqueId,
     required this.menuItem,
     this.quantity = 1,
     this.notes = '',
-    this.selectedToppings = const [],
+    this.selectedModifiers = const [],
   });
 
   double get singlePrice {
     double basePrice = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
-    double toppingsPrice = selectedToppings.fold(0.0, (sum, t) {
-      double p = num.tryParse(t['price'].toString())?.toDouble() ?? 0.0;
-      int q = t['quantity'] ?? 1;
-      return sum + (p * q);
-    });
-    return basePrice + toppingsPrice;
+    double modifiersPrice = selectedModifiers.fold(0.0, (sum, m) => sum + m.price);
+    return basePrice + modifiersPrice;
   }
 
   double get totalPrice => singlePrice * quantity;
@@ -39,27 +59,31 @@ class CartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() => [];
 
-  void addToCart(Map<String, dynamic> item, List<Map<String, dynamic>> toppings, String notes) {
-    final toppingIds = toppings.map((t) => t['id']).toList()..sort();
-    final String uniqueKey = "${item['id']}_${toppingIds.join('_')}_$notes";
+  void addToCart(Map<String, dynamic> item, List<SelectedModifier> modifiers, String notes) {
+    final modIds = modifiers.map((m) => m.modifierId).toList()..sort();
+    final String uniqueKey = "${item['id']}_${modIds.join('_')}_$notes";
 
     final existingIndex = state.indexWhere((c) => c.uniqueId == uniqueKey);
 
     if (existingIndex >= 0) {
-      final newState = [...state];
-      newState[existingIndex] = CartItem(
-        uniqueId: state[existingIndex].uniqueId,
-        menuItem: state[existingIndex].menuItem,
-        selectedToppings: state[existingIndex].selectedToppings,
-        notes: state[existingIndex].notes,
-        quantity: state[existingIndex].quantity + 1,
-      );
-      state = newState;
+      state = [
+        for (int i = 0; i < state.length; i++)
+          if (i == existingIndex)
+            CartItem(
+              uniqueId: state[i].uniqueId,
+              menuItem: state[i].menuItem,
+              selectedModifiers: state[i].selectedModifiers,
+              notes: state[i].notes,
+              quantity: state[i].quantity + 1,
+            )
+          else
+            state[i]
+      ];
     } else {
       state = [...state, CartItem(
         uniqueId: uniqueKey,
         menuItem: item,
-        selectedToppings: toppings,
+        selectedModifiers: modifiers,
         notes: notes,
       )];
     }
@@ -76,7 +100,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
         newState[index] = CartItem(
           uniqueId: newState[index].uniqueId,
           menuItem: newState[index].menuItem,
-          selectedToppings: newState[index].selectedToppings,
+          selectedModifiers: newState[index].selectedModifiers,
           notes: newState[index].notes,
           quantity: newQuantity,
         );
@@ -124,7 +148,6 @@ final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, St
   final allTickets = allTicketsAsync.value!;
   final roomOrders = roomOrdersAsync.value!;
   
-  // LỌC: Chỉ lấy ID của các đơn hàng CHƯA GIAO XONG (status != 'DELIVERED')
   final activeOrderIds = roomOrders
       .where((o) => o['status'] != 'DELIVERED')
       .map((o) => o['id'])
@@ -133,11 +156,18 @@ final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, St
   return allTickets.where((t) => activeOrderIds.contains(t['order_id'])).toList();
 });
 
-// Toppings Stream
-final menuItemToppingsProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) {
-  return supabase
-      .from('menu_toppings')
-      .stream(primaryKey: ['id'])
-      .eq('menu_item_id', menuItemId)
-      .order('name', ascending: true);
+// Provider lấy nhóm tùy chỉnh trực tiếp từ món ăn (Kiến trúc Độc lập)
+final itemModifiersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) async {
+  try {
+    final groupsData = await supabase
+        .from('modifier_groups')
+        .select('*, modifiers(*)')
+        .eq('item_id', menuItemId)
+        .order('created_at', ascending: true);
+        
+    return List<Map<String, dynamic>>.from(groupsData);
+  } catch (e) {
+    print("LỖI PROVIDER: $e");
+    return [];
+  }
 });

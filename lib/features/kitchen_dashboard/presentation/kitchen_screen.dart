@@ -279,13 +279,18 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             const SizedBox(height: 12),
             Text('${ticket.rawTicket['quantity']}x ${ticket.itemName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             
-            // Hiển thị Topping
-            if (ticket.rawTicket['selected_toppings'] != null && (ticket.rawTicket['selected_toppings'] as List).isNotEmpty)
+            // Hiển thị Modifier Groups
+            if (ticket.rawTicket['selected_modifiers'] != null && (ticket.rawTicket['selected_modifiers'] as List).isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Text(
-                  'Topping: ${(ticket.rawTicket['selected_toppings'] as List).map((e) => '${e['quantity'] ?? 1}x ${e['name']}').join(', ')}',
-                  style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: (ticket.rawTicket['selected_modifiers'] as List).map((m) {
+                    return Text(
+                      '↳ ${m['group_name']}: ${m['modifier_name']}',
+                      style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                    );
+                  }).toList(),
                 ),
               ),
 

@@ -5,7 +5,7 @@ import '../../providers/menu_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/admin_provider.dart'; // Chứa stationsStreamProvider
 import '../widgets/menu_form_dialog.dart';
-import '../widgets/menu_toppings_dialog.dart';
+import '../widgets/modifier_management_dialog.dart';
 
 class MenuManagementView extends ConsumerWidget {
   const MenuManagementView({super.key});
@@ -143,7 +143,7 @@ class MenuManagementView extends ConsumerWidget {
   }
 
   void _showToppingsDialog(BuildContext context, Map<String, dynamic> item) {
-    showDialog(context: context, builder: (context) => MenuToppingsDialog(menuItem: item));
+    showDialog(context: context, builder: (context) => ModifierManagementDialog(menuItem: item));
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, String id) {

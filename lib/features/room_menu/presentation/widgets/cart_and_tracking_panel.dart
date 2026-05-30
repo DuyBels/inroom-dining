@@ -39,7 +39,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                 itemBuilder: (c, i) => ListTile(
                   dense: true,
                   title: Text('${cart[i].quantity}x ${cart[i].menuItem['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(cart[i].selectedToppings.map((t) => t['name']).join(', ')),
+                  subtitle: Text(cart[i].selectedModifiers.map((m) => m.modifierName).join(', ')),
                   trailing: Text('${cart[i].totalPrice} đ'),
                 ),
               )),
@@ -77,7 +77,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         'station_id': c.menuItem['station_id'],
         'quantity': c.quantity,
         'notes': c.notes,
-        'selected_toppings': c.selectedToppings,
+        'selected_modifiers': c.selectedModifiers.map((m) => m.toJson()).toList(),
         'status': 'PENDING',
       }).toList();
 
@@ -257,8 +257,8 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (item.selectedToppings.isNotEmpty)
-                  Text('Thêm: ${item.selectedToppings.map((t) => '${t['quantity'] ?? 1}x ${t['name']}').join(', ')}', style: const TextStyle(fontSize: 11)),
+                if (item.selectedModifiers.isNotEmpty)
+                  ...item.selectedModifiers.map((m) => Text('↳ ${m.groupName}: ${m.modifierName}', style: const TextStyle(fontSize: 11, color: Colors.blueGrey))),
                 if (item.notes.isNotEmpty)
                   Text('Ghi chú: ${item.notes}', style: const TextStyle(fontSize: 11, color: Colors.redAccent, fontStyle: FontStyle.italic)),
               ],
@@ -354,7 +354,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         const SizedBox(height: 15),
         ...tickets.map((t) {
           final item = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'name': 'Món ăn'});
-          final List toppings = t['selected_toppings'] ?? [];
+          final List modifiers = t['selected_modifiers'] ?? [];
           final String notes = t['notes'] ?? '';
 
           return Padding(
@@ -371,10 +371,13 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                     Text(_translateTicketStatus(t['status']), style: const TextStyle(fontSize: 10, color: Colors.blueGrey)),
                   ],
                 ),
-                if (toppings.isNotEmpty)
+                if (modifiers.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(left: 20),
-                    child: Text('Topping: ${toppings.map((e) => '${e['quantity'] ?? 1}x ${e['name']}').join(', ')}', style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                    child: Text(
+                      modifiers.map((e) => '↳ ${e['group_name']}: ${e['modifier_name']}').join('\n'), 
+                      style: const TextStyle(fontSize: 9, color: Colors.grey)
+                    ),
                   ),
                 if (notes.isNotEmpty)
                   Padding(
