@@ -334,10 +334,18 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
     
     int currentStep = 0;
-    bool allDone = tickets.every((t) => t['status'] == 'DONE');
-    bool anyCooking = tickets.any((t) => t['status'] == 'COOKING' || t['status'] == 'PENDING');
-    if (allDone) currentStep = 2;
-    else if (anyCooking) currentStep = 1;
+    
+    // Logic tiến độ mới:
+    bool allDone = tickets.isNotEmpty && tickets.every((t) => t['status'] == 'DONE');
+    bool anyCooking = tickets.any((t) => t['status'] == 'COOKING');
+
+    if (allDone) {
+      currentStep = 2; // Đang giao
+    } else if (anyCooking) {
+      currentStep = 1; // Chuẩn bị (Bếp đang nấu ít nhất 1 món)
+    } else {
+      currentStep = 0; // Đã nhận (Bếp chưa nấu món nào hoặc đang đợi)
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
