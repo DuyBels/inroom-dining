@@ -36,18 +36,38 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
   // --- LOGIC DỊCH VỤ PHÒNG ---
   Future<void> _receiveService(String serviceId, String waiterId) async {
-    await supabase.from('room_services').update({'status': 'PROCESSING', 'waiter_id': waiterId}).eq('id', serviceId);
+    try {
+      await supabase.from('room_services').update({
+        'status_id': ServiceStatus.processing,
+        'waiter_id': waiterId,
+      }).eq('id', serviceId);
+    } catch (e) {
+      debugPrint('Lỗi nhận dịch vụ: $e');
+    }
   }
 
   Future<void> _completeService(String serviceId) async {
-    await supabase.from('room_services').update({'status': 'COMPLETED', 'completed_at': DateTime.now().toUtc().toIso8601String()}).eq('id', serviceId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Hoàn tất nhiệm vụ!'), backgroundColor: Colors.blue));
+    try {
+      await supabase.from('room_services').update({
+        'status_id': ServiceStatus.completed,
+        'completed_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', serviceId);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Hoàn tất nhiệm vụ!'), backgroundColor: Colors.blue));
+    } catch (e) {
+      debugPrint('Lỗi xong dịch vụ: $e');
+    }
   }
 
   String _formatDateTime(String? isoString) {
     if (isoString == null) return '--:--';
     final dt = DateTime.parse(isoString).toLocal();
-    return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
+    final y = dt.year;
+    return "$h:$m:$s $d/$mo/$y";
   }
 
   @override
@@ -69,7 +89,6 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
       );
     }
 
-    // SnackBar Listeners
     _setupNotificationListeners();
 
     final waiterOrders = ref.watch(waiterOrdersProvider);
@@ -85,7 +104,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
         return Scaffold(
           key: _scaffoldKey,
           endDrawer: const StaffChatDrawer(),
-          backgroundColor: Colors.grey[200],
+          backgroundColor: Colors.grey[100],
           appBar: AppBar(
             automaticallyImplyLeading: false,
             title: Column(
@@ -112,11 +131,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
                           right: 12, top: 12,
                           child: Container(
                             width: 10, height: 10,
-                            decoration: BoxDecoration(
-                              color: Colors.red, 
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.green[800]!, width: 1.5) // Viền trùng màu AppBar cho đẹp
-                            ),
+                            decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.green[800]!, width: 1.5)),
                           ),
                         ),
                     ],
@@ -161,51 +176,23 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
   }
 
   void _setupNotificationListeners() {
-    // Lắng nghe tin nhắn chat mới
     ref.listen<AsyncValue<List<Map<String, dynamic>>>>(staffMessagesStreamProvider, (prev, next) {
       final messages = next.value;
       if (messages != null && messages.isNotEmpty) {
         final newMsg = messages.first;
         final myId = ref.read(currentUserProvider)?.id;
         final lastMsgId = prev?.value?.isNotEmpty == true ? prev!.value!.first['id'] : null;
-
-        // CHỈ HIỆN THÔNG BÁO NẾU:
-        // 1. Không phải mình gửi
-        // 2. Tin nhắn thực sự mới (ID khác tin cũ nhất)
-        // 3. KHÔNG ĐANG MỞ KHUNG CHAT
-        // 4. MÌNH CHƯA ĐỌC TIN NÀY (Kiểm tra mảng read_by)
         final isDrawerOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
         final List readBy = newMsg['read_by'] ?? [];
-        final bool isAlreadyRead = readBy.contains(myId);
-
-        if (newMsg['sender_id'] != myId && newMsg['id'] != lastMsgId && !isDrawerOpen && !isAlreadyRead) {
-          // Xóa các thông báo cũ
+        if (newMsg['sender_id'] != myId && newMsg['id'] != lastMsgId && !isDrawerOpen && !readBy.contains(myId)) {
           ScaffoldMessenger.of(context).clearSnackBars();
-          
-          final snackBar = SnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('💬 ${newMsg['sender_name']}: ${newMsg['message']}'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.blueGrey[900],
-            duration: const Duration(seconds: 3),
-            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            action: SnackBarAction(
-              label: 'XEM', 
-              textColor: Colors.amber, 
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                _scaffoldKey.currentState?.openEndDrawer();
-              }
-            ),
-          );
-
-          ScaffoldMessenger.of(context).showSnackBar(snackBar);
-
-          // CƯỠNG ÉP TẮT SAU 3 GIÂY
-          Timer(const Duration(seconds: 3), () {
-            if (mounted) {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            }
-          });
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(label: 'XEM', textColor: Colors.amber, onPressed: () => _scaffoldKey.currentState?.openEndDrawer()),
+          ));
         }
       }
     });
@@ -224,10 +211,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
       if (next.hasValue && prev?.hasValue == true) {
         for (var s in next.value!) {
           if (!prev!.value!.any((p) => p['id'] == s['id'])) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('🧹 PHÒNG ${s['room_number']} yêu cầu dịch vụ!'),
-              backgroundColor: Colors.blue[900],
-            ));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🧹 PHÒNG ${s['room_number']} yêu cầu dịch vụ!'), backgroundColor: Colors.blue[900]));
           }
         }
       }
@@ -251,11 +235,25 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             decoration: BoxDecoration(color: themeColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(13))),
             child: Center(child: Text('PHÒNG ${service['room_number']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24))),
           ),
-          const Spacer(),
-          Icon(isCleaning ? Icons.cleaning_services : Icons.person_search, size: 80, color: themeColor),
-          const SizedBox(height: 12),
-          Text(isCleaning ? "CẦN DỌN DẸP" : "KHÁCH CẦN HỖ TRỢ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: themeColor)),
-          const Spacer(),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(isCleaning ? Icons.cleaning_services : Icons.person_search, size: 80, color: themeColor),
+                const SizedBox(height: 12),
+                Text(isCleaning ? "CẦN DỌN DẸP" : "KHÁCH CẦN HỖ TRỢ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: themeColor)),
+                if (service['notes'] != null && service['notes'].toString().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      'Lý do: ${service['notes']}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
@@ -347,63 +345,45 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
   }
 
   Widget _buildHistoryList(String table, String timeField) {
-    // Xác định đúng cột quan hệ dựa trên bảng
-    // orders -> delivery_waiter_id
-    // room_services -> waiter_id
     final String selectQuery = table == 'orders' 
         ? '*, delivery:delivery_waiter_id(display_name)' 
         : '*, waiter:waiter_id(display_name)';
+    
+    // Sửa lỗi lọc: orders dùng cột 'status' (TEXT), room_services dùng cột 'status_id' (INT)
+    final String filterColumn = table == 'orders' ? 'status' : 'status_id';
+    final dynamic filterValue = table == 'orders' ? 'DELIVERED' : ServiceStatus.completed;
 
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: supabase
           .from(table)
           .select(selectQuery)
-          .eq('status', table == 'orders' ? 'DELIVERED' : 'COMPLETED')
+          .eq(filterColumn, filterValue)
           .order(timeField, ascending: false)
           .limit(30),
       builder: (context, snapshot) {
-        // 1. Xử lý trạng thái đang tải
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // 2. Xử lý trạng thái lỗi (Nếu có lỗi query sẽ hiện ở đây)
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text('Lỗi tải lịch sử: ${snapshot.error}', 
-                textAlign: TextAlign.center, 
-                style: const TextStyle(color: Colors.red)),
-            ),
-          );
-        }
-
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
         final data = snapshot.data ?? [];
-        
-        // 3. Xử lý khi không có dữ liệu
-        if (data.isEmpty) {
-          return const Center(child: Text('Chưa có lịch sử hoạt động.'));
-        }
-
-        // 4. Hiển thị danh sách
+        if (data.isEmpty) return const Center(child: Text('Chưa có lịch sử.'));
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: data.length,
           separatorBuilder: (_, __) => const Divider(),
           itemBuilder: (context, idx) {
             final item = data[idx];
-            // Lấy tên nhân viên dựa trên quan hệ của từng bảng
-            final name = table == 'orders' 
-                ? (item['delivery']?['display_name'] ?? 'Không rõ')
-                : (item['waiter']?['display_name'] ?? 'Không rõ');
+            final name = table == 'orders' ? (item['delivery']?['display_name'] ?? 'Không rõ') : (item['waiter']?['display_name'] ?? 'Không rõ');
+            
+            String titleStr = 'Phòng ${item['room_number']}';
+            if (table == 'room_services') {
+              final type = item['service_type'] == 'CLEANING' ? 'Dọn dẹp' : 'Hỗ trợ khách';
+              titleStr += ' - $type';
+            }
 
             return ListTile(
               leading: Icon(
                 table == 'orders' ? Icons.check_circle : Icons.cleaning_services, 
                 color: table == 'orders' ? Colors.green : Colors.purple
               ),
-              title: Text('Phòng ${item['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(titleStr, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('Hoàn tất: ${_formatDateTime(item[timeField])} | Bởi: $name'),
             );
           },

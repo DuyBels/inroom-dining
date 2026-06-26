@@ -18,3 +18,27 @@ final stationsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) 
 Future<void> deleteProfile(String id) async {
   await supabase.from('profiles').delete().eq('id', id);
 }
+
+// 4. Hàm Trả phòng (Xóa lịch sử của phòng đó)
+Future<void> checkoutRoom(String roomNumber) async {
+  if (roomNumber.isEmpty) {
+    throw Exception("Room number cannot be empty for checkout");
+  }
+  
+  print("DEBUG: Checking out room: $roomNumber");
+
+  // Xóa yêu cầu dịch vụ của phòng này
+  await supabase
+      .from('room_services')
+      .delete()
+      .eq('room_number', roomNumber);
+
+  // Xóa đơn hàng của phòng này
+  // (Lưu ý: Tickets liên quan sẽ tự động bị xóa nhờ ON DELETE CASCADE trên DB)
+  await supabase
+      .from('orders')
+      .delete()
+      .eq('room_number', roomNumber);
+      
+  print("DEBUG: Checkout successful for room: $roomNumber");
+}

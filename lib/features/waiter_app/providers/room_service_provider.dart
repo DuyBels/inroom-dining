@@ -1,16 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../main.dart';
 
-// Stream lấy các yêu cầu dịch vụ chưa hoàn thành (Dọn dẹp / Hỗ trợ)
+// Định nghĩa các hằng số ID trạng thái để code dễ đọc
+class ServiceStatus {
+  static const int pending = 1;
+  static const int processing = 2;
+  static const int completed = 3;
+}
+
+// Stream lấy các yêu cầu dịch vụ chưa hoàn thành (status_id != 3)
 final activeRoomServicesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase
       .from('room_services')
       .stream(primaryKey: ['id'])
+      .order('requested_at', ascending: true)
       .map((list) {
-        // Lọc và sắp xếp trực tiếp bằng Dart để đảm bảo tính ổn định cao nhất
-        final activeList = list.where((item) => item['status'] != 'COMPLETED').toList();
-        activeList.sort((a, b) => (a['requested_at'] ?? '').compareTo(b['requested_at'] ?? ''));
-        return activeList;
+        // Lọc bỏ những yêu cầu đã hoàn tất (ID = 3)
+        return list.where((item) => item['status_id'] != ServiceStatus.completed).toList();
       });
 });
 
@@ -20,9 +26,17 @@ final roomServicesByRoomStreamProvider = StreamProvider.family<List<Map<String, 
       .from('room_services')
       .stream(primaryKey: ['id'])
       .eq('room_number', roomNumber)
+      .order('requested_at', ascending: false)
       .map((list) {
-        final activeList = list.where((item) => item['status'] != 'COMPLETED').toList();
-        activeList.sort((a, b) => (b['requested_at'] ?? '').compareTo(a['requested_at'] ?? ''));
-        return activeList;
+        return list.where((item) => item['status_id'] != ServiceStatus.completed).toList();
       });
+});
+
+// Stream lấy TOÀN BỘ yêu cầu dịch vụ của phòng (Dùng để bắt sự kiện hoàn thành)
+final allRoomServicesStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, roomNumber) {
+  return supabase
+      .from('room_services')
+      .stream(primaryKey: ['id'])
+      .eq('room_number', roomNumber)
+      .order('requested_at', ascending: false);
 });
