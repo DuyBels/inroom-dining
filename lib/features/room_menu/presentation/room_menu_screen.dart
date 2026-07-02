@@ -41,7 +41,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     }
 
     final categoriesAsync = ref.watch(categoriesStreamProvider);
-    final menuAsync = ref.watch(menuItemsStreamProvider);
+    final menuWithTagsAsync = ref.watch(menuItemsWithTagsProvider);
     final tagsAsync = ref.watch(tagsStreamProvider);
     final activeFilters = ref.watch(activeFiltersProvider);
     final String currentRoomNumber = widget.roomNumber!;
@@ -94,15 +94,43 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
               children: [
                 _buildTagFilterBar(tagsAsync, activeFilters),
                 Expanded(
-                  child: menuAsync.when(
+                  child: menuWithTagsAsync.when(
                     data: (items) {
+                      // 1. Lọc theo trạng thái khả dụng
                       var list = items.where((i) => i['is_available'] == true).toList();
-                      if (_selectedCategoryId != null) list = list.where((i) => i['category_id'] == _selectedCategoryId).toList();
+                      
+                      // 2. Lọc theo Danh mục
+                      if (_selectedCategoryId != null) {
+                        list = list.where((i) => i['category_id'] == _selectedCategoryId).toList();
+                      }
+
+                      // 3. Lọc theo Thẻ (CHỈ ÁP DỤNG LỌC CHO CÁC THẺ KHÔNG PHẢI DỊ ỨNG)
+                      // Thẻ Dị ứng sẽ dùng để hiện Warning chứ không ẩn món ăn.
+                      final allTags = tagsAsync.value ?? [];
+                      final selectedPrefTagIds = activeFilters.where((id) {
+                        final tag = allTags.firstWhere((t) => t['id'] == id, orElse: () => {});
+                        return tag.isNotEmpty && tag['tag_type'] != 'ALLERGY';
+                      }).toList();
+
+                      if (selectedPrefTagIds.isNotEmpty) {
+                        list = list.where((item) {
+                          final itemTagIds = (item['tag_ids'] as List? ?? []);
+                          // Món ăn phải có ít nhất 1 trong các thẻ Preference đang chọn
+                          return selectedPrefTagIds.any((selectedId) => itemTagIds.contains(selectedId));
+                        }).toList();
+                      }
+
+                      if (list.isEmpty) {
+                        return const Center(child: Text('Không tìm thấy món ăn phù hợp với bộ lọc.', style: TextStyle(color: Colors.grey, fontSize: 16)));
+                      }
+
                       return GridView.builder(
                         padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.75, crossAxisSpacing: 16, mainAxisSpacing: 16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, childAspectRatio: 0.75, crossAxisSpacing: 16, mainAxisSpacing: 16
+                        ),
                         itemCount: list.length,
-                        itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters),
+                        itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags),
                       );
                     },
                     loading: () => const Center(child: CircularProgressIndicator()),
@@ -126,16 +154,55 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
   Widget _buildTagFilterBar(AsyncValue<List<Map<String, dynamic>>> tagsAsync, List<String> activeFilters) {
     return Container(
-      height: 60, color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
       child: tagsAsync.maybeWhen(
-        data: (tags) => ListView(
-          scrollDirection: Axis.horizontal,
-          children: tags.map((t) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: FilterChip(label: Text(t['name']), selected: activeFilters.contains(t['id']), onSelected: (_) => ref.read(activeFiltersProvider.notifier).toggle(t['id'])),
-          )).toList(),
-        ),
-        orElse: () => const SizedBox(),
+        data: (tags) {
+          if (tags.isEmpty) return const SizedBox();
+
+          // Phân loại thẻ để hiển thị icon tương ứng
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: tags.map((t) {
+                final isSelected = activeFilters.contains(t['id']);
+                final type = t['tag_type'] ?? '';
+                
+                IconData icon;
+                Color color;
+                switch (type) {
+                  case 'ALLERGY': icon = Icons.warning_amber_rounded; color = Colors.red; break;
+                  case 'WEATHER': icon = Icons.cloud_outlined; color = Colors.blue; break;
+                  case 'TIME': icon = Icons.access_time; color = Colors.green; break;
+                  case 'TASTE': icon = Icons.restaurant; color = Colors.orange; break;
+                  default: icon = Icons.label_outline; color = Colors.grey;
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    avatar: Icon(icon, size: 16, color: isSelected ? Colors.white : color),
+                    label: Text(t['name']),
+                    selected: isSelected,
+                    selectedColor: color,
+                    checkmarkColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                    onSelected: (_) => ref.read(activeFiltersProvider.notifier).toggle(t['id']),
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        },
+        orElse: () => const SizedBox(height: 60),
       ),
     );
   }
@@ -144,28 +211,83 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     showDialog(context: context, builder: (context) => DishCustomizationDialog(item: item));
   }
 
-  Widget _buildDishCard(Map<String, dynamic> item, List<String> activeFilters) {
-    final itemTags = item['tag_ids'] != null ? List<String>.from(item['tag_ids']) : [];
-    final hasWarning = activeFilters.any((f) => itemTags.contains(f));
+  Widget _buildDishCard(Map<String, dynamic> item, List<String> activeFilters, List<Map<String, dynamic>> allTags) {
+    final itemTagIds = (item['tag_ids'] as List? ?? []).cast<String>();
+    
+    // Tìm các thẻ Dị ứng đang kích hoạt mà món này có
+    final activeAllergyTagIds = activeFilters.where((id) {
+      final tag = allTags.firstWhere((t) => t['id'] == id, orElse: () => {});
+      return tag.isNotEmpty && tag['tag_type'] == 'ALLERGY';
+    }).toList();
+
+    final hasAllergyWarning = activeAllergyTagIds.any((id) => itemTagIds.contains(id));
+    
+    // Lấy tên các loại dị ứng bị dính để hiện thông báo
+    String allergyNames = "";
+    if (hasAllergyWarning) {
+      allergyNames = allTags
+          .where((t) => activeAllergyTagIds.contains(t['id']) && itemTagIds.contains(t['id']))
+          .map((t) => t['name'])
+          .join(', ');
+    }
+
     return Card(
-      elevation: hasWarning ? 0 : 4,
+      elevation: hasAllergyWarning ? 0 : 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: hasWarning ? null : () => _showCustomizationDialog(item),
+        onTap: hasAllergyWarning ? null : () => _showCustomizationDialog(item),
         child: Column(
           children: [
             Expanded(child: Stack(fit: StackFit.expand, children: [
-              if (item['image_url'] != null) Image.network(item['image_url'], fit: BoxFit.cover) else Container(color: Colors.grey[200]),
-              if (hasWarning) Container(color: Colors.red.withOpacity(0.6), child: const Center(child: Text('CẢNH BÁO DỊ QUY', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)))),
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: item['image_url'] != null 
+                    ? Image.network(item['image_url'], fit: BoxFit.cover) 
+                    : Container(color: Colors.grey[200], child: const Icon(Icons.restaurant, color: Colors.white, size: 40)),
+              ),
+              if (hasAllergyWarning) 
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.8),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'CẢNH BÁO DỊ ỨNG', 
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)
+                          ),
+                          Text(
+                            allergyNames,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 10)
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ])),
             Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(children: [
-                Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(
-                  '${NumberFormat('#,###', 'vi_VN').format(num.tryParse(item['price'].toString()) ?? 0)} VND', 
-                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)
-                ),
-              ]),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${NumberFormat('#,###', 'vi_VN').format(num.tryParse(item['price'].toString()) ?? 0)} VND', 
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)
+                  ),
+                ],
+              ),
             )
           ],
         ),
@@ -316,10 +438,12 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
               value: m['id'],
               groupValue: isSelected ? m['id'] : null,
               title: Text(m['name']),
-              secondary: Text(
-                price > 0 ? '+${NumberFormat('#,###', 'vi_VN').format(price)} VND' : 'Miễn phí', 
-                style: TextStyle(color: price > 0 ? Colors.green : Colors.grey, fontWeight: price > 0 ? FontWeight.bold : FontWeight.normal)
-              ),
+              secondary: price > 0 
+                ? Text(
+                    '+${NumberFormat('#,###', 'vi_VN').format(price)} VND', 
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)
+                  )
+                : null,
               onChanged: (val) => setState(() {
                 _selectedModifiers.removeWhere((sm) => sm.groupId == group['id']);
                 _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: group['name'], modifierId: m['id'], modifierName: m['name'], price: price));
@@ -330,10 +454,12 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
             return CheckboxListTile(
               value: isSelected,
               title: Text(m['name']),
-              subtitle: Text(
-                price > 0 ? '+${NumberFormat('#,###', 'vi_VN').format(price)} VND' : 'Miễn phí', 
-                style: TextStyle(color: price > 0 ? Colors.green : Colors.grey, fontWeight: price > 0 ? FontWeight.bold : FontWeight.normal)
-              ),
+              subtitle: price > 0 
+                ? Text(
+                    '+${NumberFormat('#,###', 'vi_VN').format(price)} VND', 
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)
+                  )
+                : null,
               onChanged: (val) => setState(() {
                 if (val!) {
                   if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {

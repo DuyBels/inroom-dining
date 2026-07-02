@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../main.dart';
+import '../../admin_panel/providers/menu_provider.dart';
 
 // ==========================================
 // 1. MODEL GIỎ HÀNG (Modifier Groups)
@@ -130,6 +131,34 @@ class ActiveFiltersNotifier extends Notifier<List<String>> {
   }
 }
 final activeFiltersProvider = NotifierProvider<ActiveFiltersNotifier, List<String>>(ActiveFiltersNotifier.new);
+
+// Stream lấy toàn bộ quan hệ Item-Tag để join phía Client
+final itemTagsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return supabase.from('item_tags').stream(primaryKey: ['item_id', 'tag_id']);
+});
+
+// Provider kết hợp Món ăn và các Thẻ của nó
+final menuItemsWithTagsProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+  final menuAsync = ref.watch(menuItemsStreamProvider);
+  final itemTagsAsync = ref.watch(itemTagsStreamProvider);
+
+  if (menuAsync.value == null || itemTagsAsync.value == null) {
+    return const AsyncValue.loading();
+  }
+
+  final items = menuAsync.value!;
+  final relations = itemTagsAsync.value!;
+
+  final combined = items.map((item) {
+    final tagIds = relations
+        .where((r) => r['item_id'] == item['id'])
+        .map((r) => r['tag_id'].toString())
+        .toList();
+    return {...item, 'tag_ids': tagIds};
+  }).toList();
+
+  return AsyncValue.data(combined);
+});
 
 final allTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase.from('tickets').stream(primaryKey: ['id']).order('created_at', ascending: false);

@@ -213,7 +213,9 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
                           return ListTile(
                             dense: true,
                             title: Text(m['name']),
-                            subtitle: Text('+$formattedPrice VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                            subtitle: price > 0 
+                                ? Text('+$formattedPrice VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+                                : null,
                             leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
