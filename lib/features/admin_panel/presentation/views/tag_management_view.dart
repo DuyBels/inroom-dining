@@ -43,10 +43,14 @@ class TagManagementView extends ConsumerWidget {
             child: tagsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Lỗi tải dữ liệu: $err', style: const TextStyle(color: Colors.red))),
-              data: (tags) {
-                if (tags.isEmpty) {
+              data: (rawTags) {
+                if (rawTags.isEmpty) {
                   return const Center(child: Text('Chưa có thẻ nào trong hệ thống.'));
                 }
+
+                // Chống trùng lặp ID
+                final seenIds = <String>{};
+                final tags = rawTags.where((t) => seenIds.add(t['id'].toString())).toList();
 
                 return Card(
                   elevation: 2,
@@ -148,7 +152,6 @@ class TagManagementView extends ConsumerWidget {
               try {
                 Navigator.pop(dialogContext);
                 await supabase.from('tags').delete().eq('id', id);
-                ref.invalidate(tagsStreamProvider); // Ép tải lại danh sách
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa thẻ', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
                 }

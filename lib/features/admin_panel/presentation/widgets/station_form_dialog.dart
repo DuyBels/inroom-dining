@@ -50,7 +50,8 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
 
       if (mounted) {
         Navigator.pop(context);
-        ref.invalidate(stationsStreamProvider); // Tải lại danh sách
+        // Đã xóa ref.invalidate vì stationsStreamProvider là StreamProvider, 
+        // nó sẽ tự động cập nhật khi DB thay đổi (Realtime).
       }
     } catch (e) {
       if (mounted) {

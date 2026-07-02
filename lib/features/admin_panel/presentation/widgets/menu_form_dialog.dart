@@ -118,11 +118,14 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
       // ==========================================
       // BƯỚC 2: LƯU THÔNG TIN MÓN ĂN VÀO menu_items
       // ==========================================
+      // Xử lý giá tiền: Xóa bỏ các dấu chấm/phẩy nếu người dùng nhập tay để định dạng
+      String cleanPrice = _priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
+      
       final menuData = {
         'name': _nameController.text.trim(),
         'description': _descController.text.trim(),
-        'price': double.tryParse(_priceController.text.trim()) ?? 0,
-        'image_url': finalImageUrl, // Lưu link ảnh
+        'price': double.tryParse(cleanPrice) ?? 0,
+        'image_url': finalImageUrl,
         'prep_time_minutes': int.tryParse(_prepTimeController.text.trim()) ?? 15,
         'category_id': _selectedCategoryId,
         'station_id': _selectedStationId,
@@ -159,10 +162,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
         await supabase.from('item_tags').insert(tagsToInsert);
       }
 
-      // Xong xuôi -> Đóng và Refresh
+      // Xong xuôi -> Đóng
       if (mounted) {
         Navigator.pop(context);
-        ref.invalidate(menuItemsStreamProvider);
+        // Không cần invalidate vì menuItemsStreamProvider tự động cập nhật Realtime
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));

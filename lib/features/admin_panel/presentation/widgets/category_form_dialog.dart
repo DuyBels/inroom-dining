@@ -52,7 +52,7 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
 
       if (mounted) {
         Navigator.pop(context);
-        ref.invalidate(categoriesStreamProvider);
+        // Không cần invalidate vì categoriesStreamProvider tự động cập nhật Realtime
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));

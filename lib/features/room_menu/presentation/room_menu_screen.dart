@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -159,8 +160,11 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(children: [
-                Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${item['price']} đ', style: const TextStyle(color: Colors.green)),
+                Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  '${NumberFormat('#,###', 'vi_VN').format(num.tryParse(item['price'].toString()) ?? 0)} VND', 
+                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)
+                ),
               ]),
             )
           ],
@@ -312,7 +316,10 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
               value: m['id'],
               groupValue: isSelected ? m['id'] : null,
               title: Text(m['name']),
-              secondary: Text(price > 0 ? '+$price đ' : 'Miễn phí', style: TextStyle(color: price > 0 ? Colors.green : Colors.grey)),
+              secondary: Text(
+                price > 0 ? '+${NumberFormat('#,###', 'vi_VN').format(price)} VND' : 'Miễn phí', 
+                style: TextStyle(color: price > 0 ? Colors.green : Colors.grey, fontWeight: price > 0 ? FontWeight.bold : FontWeight.normal)
+              ),
               onChanged: (val) => setState(() {
                 _selectedModifiers.removeWhere((sm) => sm.groupId == group['id']);
                 _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: group['name'], modifierId: m['id'], modifierName: m['name'], price: price));
@@ -323,7 +330,10 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
             return CheckboxListTile(
               value: isSelected,
               title: Text(m['name']),
-              subtitle: Text(price > 0 ? '+$price đ' : 'Miễn phí', style: TextStyle(color: price > 0 ? Colors.green : Colors.grey)),
+              subtitle: Text(
+                price > 0 ? '+${NumberFormat('#,###', 'vi_VN').format(price)} VND' : 'Miễn phí', 
+                style: TextStyle(color: price > 0 ? Colors.green : Colors.grey, fontWeight: price > 0 ? FontWeight.bold : FontWeight.normal)
+              ),
               onChanged: (val) => setState(() {
                 if (val!) {
                   if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {
@@ -371,7 +381,10 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('TỔNG CỘNG', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              Text('${_totalPrice.toInt()} đ', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.amber[900])),
+              Text(
+                '${NumberFormat('#,###', 'vi_VN').format(_totalPrice)} VND', 
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.amber[900])
+              ),
             ]),
           ),
           SizedBox(

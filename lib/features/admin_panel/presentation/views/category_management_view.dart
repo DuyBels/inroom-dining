@@ -41,10 +41,14 @@ class CategoryManagementView extends ConsumerWidget {
             child: categoriesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Lỗi tải dữ liệu: $err', style: const TextStyle(color: Colors.red))),
-              data: (categories) {
-                if (categories.isEmpty) {
+              data: (rawCategories) {
+                if (rawCategories.isEmpty) {
                   return const Center(child: Text('Chưa có danh mục nào. Hãy tạo danh mục mới!'));
                 }
+
+                // Loại bỏ trùng lặp nếu có
+                final seenIds = <String>{};
+                final categories = rawCategories.where((c) => seenIds.add(c['id'].toString())).toList();
 
                 return Card(
                   elevation: 2,
@@ -123,7 +127,6 @@ class CategoryManagementView extends ConsumerWidget {
               try {
                 Navigator.pop(dialogContext);
                 await supabase.from('categories').delete().eq('id', id);
-                ref.invalidate(categoriesStreamProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa danh mục'), backgroundColor: Colors.green));
                 }

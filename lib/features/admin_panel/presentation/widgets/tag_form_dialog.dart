@@ -55,7 +55,7 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
 
       if (mounted) {
         Navigator.pop(context);
-        ref.invalidate(tagsStreamProvider); // Bắt buộc làm mới bảng dữ liệu
+        // Tự động cập nhật qua Stream, không cần invalidate
       }
     } catch (e) {
       if (mounted) {

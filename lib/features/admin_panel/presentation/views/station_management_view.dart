@@ -41,10 +41,14 @@ class StationManagementView extends ConsumerWidget {
             child: stationsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Lỗi tải dữ liệu: $err', style: const TextStyle(color: Colors.red))),
-              data: (stations) {
-                if (stations.isEmpty) {
+              data: (rawStations) {
+                if (rawStations.isEmpty) {
                   return const Center(child: Text('Chưa có trạm bếp nào. Hãy thêm mới!'));
                 }
+
+                // Đảm bảo không có ID trùng lặp (tránh lỗi UI nhảy 2 cái giống nhau)
+                final seenIds = <String>{};
+                final stations = rawStations.where((s) => seenIds.add(s['id'].toString())).toList();
 
                 return Card(
                   elevation: 2,
@@ -58,7 +62,6 @@ class StationManagementView extends ConsumerWidget {
                         dataRowMaxHeight: 60,
                         columns: const [
                           DataColumn(label: Text('Tên Trạm Bếp', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('Mã ID (Rút gọn)', style: TextStyle(fontWeight: FontWeight.bold))),
                           DataColumn(label: Text('Hành động', style: TextStyle(fontWeight: FontWeight.bold))),
                         ],
                         rows: stations.map((station) {
@@ -72,7 +75,6 @@ class StationManagementView extends ConsumerWidget {
                                   ],
                                 )
                             ),
-                            DataCell(Text(station['id'].toString().substring(0, 8) + '...', style: TextStyle(color: Colors.grey[600]))),
                             DataCell(
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -131,7 +133,6 @@ class StationManagementView extends ConsumerWidget {
               try {
                 Navigator.pop(dialogContext);
                 await supabase.from('kitchen_stations').delete().eq('id', id);
-                ref.invalidate(stationsStreamProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa trạm bếp'), backgroundColor: Colors.green));
                 }

@@ -11,7 +11,7 @@ final profilesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) 
 
 // 2. Lắng nghe danh sách trạm bếp (để hiển thị trong Dropdown khi chọn role STATION)
 final stationsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  return supabase.from('kitchen_stations').stream(primaryKey: ['id']);
+  return supabase.from('kitchen_stations').stream(primaryKey: ['id']).order('name', ascending: true);
 });
 
 // 3. Hàm Xóa tài khoản (Chỉ xóa profile)

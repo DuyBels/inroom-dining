@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../main.dart';
 
 class ModifierManagementDialog extends StatefulWidget {
@@ -126,10 +127,11 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           ElevatedButton(onPressed: () async {
             try {
+              String cleanPrice = priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
               final data = {
                 'group_id': groupId,
                 'name': nameController.text.trim(),
-                'price': double.tryParse(priceController.text.trim()) ?? 0.0,
+                'price': double.tryParse(cleanPrice) ?? 0.0,
               };
               if (modifier == null) {
                 await supabase.from('modifiers').insert(data);
@@ -204,19 +206,24 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
                       ),
                       children: [
                         const Divider(),
-                        ...modifiers.map((m) => ListTile(
-                          dense: true,
-                          title: Text(m['name']),
-                          subtitle: Text('+${m['price']} đ', style: const TextStyle(color: Colors.green)),
-                          leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () => _showModifierDialog(group['id'], modifier: m)),
-                              IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red), onPressed: () => _deleteModifier(m['id'])),
-                            ],
-                          ),
-                        )).toList(),
+                        ...modifiers.map((m) {
+                          final price = num.tryParse(m['price'].toString()) ?? 0;
+                          final formattedPrice = NumberFormat('#,###', 'vi_VN').format(price);
+                          
+                          return ListTile(
+                            dense: true,
+                            title: Text(m['name']),
+                            subtitle: Text('+$formattedPrice VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                            leading: const Icon(Icons.subdirectory_arrow_right, size: 16),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () => _showModifierDialog(group['id'], modifier: m)),
+                                IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red), onPressed: () => _deleteModifier(m['id'])),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: TextButton.icon(onPressed: () => _showModifierDialog(group['id']), icon: const Icon(Icons.add_circle_outline), label: const Text('Thêm lựa chọn')),

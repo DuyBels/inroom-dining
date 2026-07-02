@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../main.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/category_provider.dart';
@@ -9,6 +10,12 @@ import '../widgets/modifier_management_dialog.dart';
 
 class MenuManagementView extends ConsumerWidget {
   const MenuManagementView({super.key});
+
+  // Hàm định dạng tiền tệ VN
+  String _formatPrice(dynamic price) {
+    final n = num.tryParse(price.toString()) ?? 0;
+    return NumberFormat('#,###', 'vi_VN').format(n);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,8 +49,12 @@ class MenuManagementView extends ConsumerWidget {
             child: menuAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(child: Text('Lỗi: $err')),
-              data: (menuItems) {
-                if (menuItems.isEmpty) return const Center(child: Text('Chưa có món ăn nào.'));
+              data: (rawMenuItems) {
+                if (rawMenuItems.isEmpty) return const Center(child: Text('Chưa có món ăn nào.'));
+
+                // Chống trùng lặp ID
+                final seenIds = <String>{};
+                final menuItems = rawMenuItems.where((m) => seenIds.add(m['id'].toString())).toList();
 
                 return Card(
                   elevation: 2, color: Colors.white, clipBehavior: Clip.antiAlias,
@@ -90,7 +101,7 @@ class MenuManagementView extends ConsumerWidget {
                                   ],
                                 )
                             ),
-                            DataCell(Text('${item['price'] ?? 0} đ', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+                            DataCell(Text('${_formatPrice(item['price'])} VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
                             DataCell(Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -106,7 +117,7 @@ class MenuManagementView extends ConsumerWidget {
                                   onChanged: (val) async {
                                     // Nút gạt bật/tắt món ăn nhanh
                                     await supabase.from('menu_items').update({'is_available': val}).eq('id', item['id']);
-                                    ref.invalidate(menuItemsStreamProvider);
+                                    // Không cần invalidate vì dùng StreamProvider
                                   },
                                 )
                             ),
@@ -160,7 +171,7 @@ class MenuManagementView extends ConsumerWidget {
               try {
                 Navigator.pop(dialogContext);
                 await supabase.from('menu_items').delete().eq('id', id);
-                ref.invalidate(menuItemsStreamProvider);
+                // Tự động cập nhật qua Stream
               } catch (e) {
                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
               }

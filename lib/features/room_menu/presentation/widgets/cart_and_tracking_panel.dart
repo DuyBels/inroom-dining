@@ -40,7 +40,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                   dense: true,
                   title: Text('${cart[i].quantity}x ${cart[i].menuItem['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(cart[i].selectedModifiers.map((m) => m.modifierName).join(', ')),
-                  trailing: Text('${cart[i].totalPrice.toInt()} đ'),
+                  trailing: Text('${NumberFormat('#,###', 'vi_VN').format(cart[i].totalPrice)} VND'),
                 ),
               )),
               const Divider(),
@@ -48,7 +48,10 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('TỔNG CỘNG:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('${total.toInt()} đ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.red)),
+                  Text(
+                    '${NumberFormat('#,###', 'vi_VN').format(total)} VND', 
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.red)
+                  ),
                 ],
               ),
             ],
@@ -347,7 +350,10 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${item.totalPrice.toInt()} đ', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                Text(
+                  '${NumberFormat('#,###', 'vi_VN').format(item.totalPrice)} VND', 
+                  style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)
+                ),
                 const SizedBox(width: 8),
                 IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, -1)),
                 Text('${item.quantity}'),
@@ -368,7 +374,13 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [const Text('Tổng thanh toán:'), Text('${total.toInt()} đ', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red))],
+            children: [
+              const Text('Tổng thanh toán:'), 
+              Text(
+                '${NumberFormat('#,###', 'vi_VN').format(total)} VND', 
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)
+              )
+            ],
           ),
           const SizedBox(height: 12),
           SizedBox(

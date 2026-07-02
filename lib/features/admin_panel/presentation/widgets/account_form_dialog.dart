@@ -73,6 +73,15 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
           throw Exception(response.data['error'] ?? 'Lỗi không xác định từ Server');
         }
 
+        // SAU KHI TẠO AUTH THÀNH CÔNG, CẬP NHẬT THÊM EMAIL/PASS VÀO PROFILE ĐỂ ADMIN XEM
+        final newUserId = response.data['user_id'];
+        if (newUserId != null) {
+          await supabase.from('profiles').update({
+            'login_email': _emailController.text.trim(),
+            'login_password': _passwordController.text.trim(),
+          }).eq('id', newUserId);
+        }
+
       } else {
         // LUỒNG 2: CẬP NHẬT
         final data = {
@@ -85,13 +94,11 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
       }
 
       // ==========================================
-      // ĐÓNG POPUP VÀ TỰ ĐỘNG TẢI LẠI TRANG TẠI ĐÂY
+      // ĐÓNG POPUP
       // ==========================================
       if (mounted) {
-        Navigator.pop(context); // 1. Đóng cái form nhập liệu lại
-
-        // 2. Ép Riverpod xóa cache cũ và lấy dữ liệu mới nhất từ Supabase về
-        ref.invalidate(profilesStreamProvider);
+        Navigator.pop(context); // Đóng cái form nhập liệu lại
+        // Không cần invalidate vì profilesStreamProvider tự động cập nhật Realtime
       }
 
     } catch (e) {
@@ -146,6 +153,20 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                   validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên' : null,
                 ),
                 const SizedBox(height: 16),
+
+                // Ô ĐẶT LẠI MẬT KHẨU (Chỉ hiện khi SỬA tài khoản)
+                if (widget.profile != null) ...[
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Đổi mật khẩu mới (Để trống nếu không đổi)', 
+                      border: OutlineInputBorder(),
+                      helperText: 'Nhập mật khẩu mới nếu nhân viên quên.',
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 DropdownButtonFormField<String>(
                   value: _selectedRole,

@@ -74,7 +74,11 @@ class AccountManagementView extends ConsumerWidget {
               child: profilesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Lỗi tải dữ liệu: $err', style: const TextStyle(color: Colors.red))),
-                data: (profiles) {
+                data: (rawProfiles) {
+                  // Chống trùng lặp ID
+                  final seenIds = <String>{};
+                  final profiles = rawProfiles.where((p) => seenIds.add(p['id'].toString())).toList();
+
                   return TabBarView(
                     children: [
                       _buildAccountTable(context, ref, profiles), // Tất cả
@@ -113,22 +117,12 @@ class AccountManagementView extends ConsumerWidget {
             columns: const [
               DataColumn(label: Text('Tên hiển thị', style: TextStyle(fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Phân quyền', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Thông tin thêm', style: TextStyle(fontWeight: FontWeight.bold))),
               DataColumn(label: Text('Hành động', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: filteredProfiles.map((profile) {
-              String extraInfo = '-';
-              if (profile['role'] == 'STATION' && profile['station_id'] != null) {
-                extraInfo = 'Bếp (ID: ${profile['station_id'].toString().substring(0, 5)}...)';
-              }
-              if (profile['role'] == 'ROOM' && profile['room_number'] != null) {
-                extraInfo = 'Phòng ${profile['room_number']}';
-              }
-
               return DataRow(cells: [
                 DataCell(Text(profile['display_name'] ?? 'Chưa đặt tên', style: const TextStyle(fontWeight: FontWeight.w500))),
                 DataCell(_buildRoleBadge(profile['role'] ?? 'UNKNOWN')),
-                DataCell(Text(extraInfo, style: TextStyle(color: Colors.grey[700]))),
                 DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -207,11 +201,24 @@ class AccountManagementView extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
-              Navigator.pop(dialogContext);
-              await deleteProfile(id);
-              ref.invalidate(profilesStreamProvider);
+              try {
+                Navigator.pop(dialogContext);
+                await deleteProfile(id);
+                if (context.mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✅ Đã xóa tài khoản thành công.'), backgroundColor: Colors.green)
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  // Hiển thị lỗi thật từ hệ thống để dễ kiểm tra
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('❌ Lỗi hệ thống: $e'), backgroundColor: Colors.red)
+                  );
+                }
+              }
             },
-            child: const Text('Xóa'),
+            child: const Text('Xác nhận Xóa'),
           ),
         ],
       ),
