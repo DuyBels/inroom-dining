@@ -1,3 +1,4 @@
+import '../providers/ai_recommendation_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,11 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
   Widget build(BuildContext context) {
     final roomNumber = widget.roomNumber;
     final profileAsync = ref.watch(userProfileProvider);
+
+    // LẮNG NGHE LỖI API (Bỏ Popup tự động theo yêu cầu user)
+    ref.listen<AsyncValue<RoomContext>>(roomContextProvider, (prev, next) {
+      // Không làm gì cả, Logic sẽ hiển thị Inline trong _buildAISuggestionBar
+    });
 
     if (roomNumber == null) {
       return profileAsync.when(
@@ -93,6 +99,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
             child: Column(
               children: [
                 _buildTagFilterBar(tagsAsync, activeFilters),
+                _buildAISuggestionBar(), // Thêm dòng này
                 Expanded(
                   child: menuWithTagsAsync.when(
                     data: (items) {
@@ -143,6 +150,150 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
           CartAndTrackingPanel(roomNumber: currentRoomNumber),
         ],
       ),
+    );
+  }
+
+  Widget _buildAISuggestionBar() {
+    final aiItemsAsync = ref.watch(aiRecommendedItemsProvider);
+    final contextAsync = ref.watch(roomContextProvider);
+    final manualPref = ref.watch(userManualPreferenceProvider);
+
+    return contextAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(width: 12),
+              Text('AI đang tìm món ngon cho bạn...')
+            ],
+          ),
+        ),
+      ),
+      error: (e, s) => const SizedBox(),
+      data: (roomCtx) {
+        // TRƯỜNG HỢP: API Lỗi và khách chưa chọn tâm trạng -> Hiện câu hỏi nhỏ
+        if (roomCtx.isApiError && manualPref == null) {
+          return Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blueGrey[50],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blueGrey[100]!),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Colors.blueGrey, size: 24),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Chào bạn! Để AI gợi ý món phù hợp nhất, hôm nay bạn thấy thế nào?',
+                    style: TextStyle(fontSize: 14, color: Colors.blueGrey, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('COOL'),
+                  icon: const Text('❄️'),
+                  label: const Text('Thanh mát'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.blue[700]),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('WARM'),
+                  icon: const Text('🔥'),
+                  label: const Text('Ấm nóng'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red[700]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // TRƯỜNG HỢP: Đã có dữ liệu (từ API hoặc từ manual chọn)
+        return aiItemsAsync.when(
+          loading: () => const SizedBox(),
+          error: (e, s) => const SizedBox(),
+          data: (items) {
+            if (items.isEmpty) return const SizedBox();
+
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [Colors.amber[50]!, Colors.white]),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        roomCtx.isApiError
+                            ? 'AI GỢI Ý: Các món phù hợp với tâm trạng của bạn!'
+                            : 'AI GỢI Ý: Ngoài trời đang ${roomCtx.temp.toInt()}°C. Thử ngay các món này nhé!',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.brown),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: items.length,
+                      itemBuilder: (context, idx) {
+                        final item = items[idx];
+                        return GestureDetector(
+                          onTap: () => _showCustomizationDialog(item),
+                          child: Container(
+                            width: 250,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                            ),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                                  child: item['image_url'] != null
+                                      ? Image.network(item['image_url'], width: 80, height: 100, fit: BoxFit.cover)
+                                      : Container(width: 80, color: Colors.grey[200]),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        Text('${NumberFormat('#,###', 'vi_VN').format(item['price'])} VND', style: const TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -203,6 +354,65 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
           );
         },
         orElse: () => const SizedBox(height: 60),
+      ),
+    );
+  }
+
+  void _showAIAssistantDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.amber),
+            SizedBox(width: 10),
+            Text('Trợ lý ảo AI', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Chào quý khách, để hệ thống có thể gợi ý thực đơn phù hợp nhất với tâm trạng hiện tại, quý khách đang muốn thưởng thức những món ăn mang cảm giác như thế nào ạ?',
+          style: TextStyle(fontSize: 16, height: 1.5),
+        ),
+        actionsPadding: const EdgeInsets.all(20),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[50],
+                    foregroundColor: Colors.blue[800],
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    ref.read(userManualPreferenceProvider.notifier).update('COOL');
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('❄️ Thanh mát', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[50],
+                    foregroundColor: Colors.red[800],
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    ref.read(userManualPreferenceProvider.notifier).update('WARM');
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('🔥 Ấm nóng', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
