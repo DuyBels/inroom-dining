@@ -35,7 +35,7 @@ final userManualPreferenceProvider =
         UserManualPreferenceNotifier.new);
 
 final roomContextProvider = FutureProvider<RoomContext>((ref) async {
-  const String apiKey = '895284fb2d2c1d873467657930104895';
+  const String apiKey = '80aa8876944e14bd4a63ed69f7b20e03';
   const String city = 'Da Lat';
   final now = DateTime.now();
   final manualPref = ref.watch(userManualPreferenceProvider);
@@ -55,9 +55,11 @@ final roomContextProvider = FutureProvider<RoomContext>((ref) async {
       currentTemp = data['main']['temp'].toDouble();
       weatherDesc = data['weather'][0]['main'];
     } else {
+      print('WEATHER API ERROR STATUS: ${response.statusCode} - ${response.body}');
       isApiError = true;
     }
   } catch (e) {
+    print('WEATHER API EXCEPTION: $e');
     isApiError = true;
   }
 
