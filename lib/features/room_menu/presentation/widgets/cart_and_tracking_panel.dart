@@ -428,9 +428,41 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     bool anyCooking = tickets.any((t) => t['status'] == 'COOKING');
     int currentStep = allDone ? 2 : (anyCooking ? 1 : 0);
 
+    // Tính tổng thời gian dự kiến (Món lâu nhất + 5p giao hàng)
+    int maxPrepTime = 0;
+    for (var t in tickets) {
+      final item = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {});
+      final pTime = item['prep_time_minutes'] ?? 15;
+      if (pTime > maxPrepTime) maxPrepTime = pTime;
+    }
+    final int estimatedTotal = maxPrepTime + 5;
+
     return Column(
       children: [
         _MinimalistTracker(currentStep: currentStep),
+        const SizedBox(height: 15),
+        Container(
+          padding: const EdgeInsets.all(12),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.amber[100], 
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber[300]!)
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Dự kiến hoàn thành sau khoảng $estimatedTotal phút',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brown, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "(Bao gồm $maxPrepTime phút nấu & 5 phút giao hàng)",
+                style: const TextStyle(fontSize: 10, color: Colors.brown),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 15),
         Container(
           padding: const EdgeInsets.all(12),

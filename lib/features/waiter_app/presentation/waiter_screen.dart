@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -296,15 +297,71 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
           ),
           Expanded(
             child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: tickets.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, idx) {
                 final t = tickets[idx];
-                final name = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'name': '...'})['name'];
-                return ListTile(dense: true, title: Text('${t['quantity']}x $name'), leading: Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.timer, color: t['status'] == 'DONE' ? Colors.green : Colors.grey));
+                final menuItem = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'name': '...', 'price': 0});
+                final basePrice = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
+                final modifiers = t['selected_modifiers'] as List? ?? [];
+                final double modsTotal = modifiers.fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0));
+                final double itemTotal = (basePrice + modsTotal) * (t['quantity'] ?? 1);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.timer, color: t['status'] == 'DONE' ? Colors.green : Colors.grey, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('${t['quantity']}x ${menuItem['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                          Text('${NumberFormat('#,###', 'vi_VN').format(itemTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      if (modifiers.isNotEmpty)
+                        ...modifiers.map((m) => Padding(
+                          padding: const EdgeInsets.only(left: 28.0, top: 2),
+                          child: Text('↳ ${m['group_name']}: ${m['modifier_name']}', style: TextStyle(fontSize: 12, color: Colors.blue[700])),
+                        )),
+                      if (t['notes'] != null && t['notes'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 28.0, top: 2),
+                          child: Text('Ghi chú: ${t['notes']}', style: const TextStyle(fontSize: 12, color: Colors.red, fontStyle: FontStyle.italic)),
+                        ),
+                    ],
+                  ),
+                );
               },
             ),
           ),
+          // HIỂN THỊ TỔNG TIỀN CỦA CẢ BILL
+          Builder(builder: (context) {
+             double grandTotal = 0;
+             for (var t in tickets) {
+               final menuItem = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'price': 0});
+               final base = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
+               final mods = (t['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0));
+               grandTotal += (base + mods) * (t['quantity'] ?? 1);
+             }
+             return Container(
+               padding: const EdgeInsets.all(12),
+               color: Colors.yellow[50],
+               child: Row(
+                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                 children: [
+                   const Text('TỔNG BILL:', style: TextStyle(fontWeight: FontWeight.bold)),
+                   Text(
+                     '${NumberFormat('#,###', 'vi_VN').format(grandTotal)} VND',
+                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red),
+                   ),
+                 ],
+               ),
+             );
+          }),
           Padding(
             padding: const EdgeInsets.all(12),
             child: SizedBox(

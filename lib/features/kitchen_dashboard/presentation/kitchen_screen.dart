@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +22,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    // Thay đổi từ 30s sang 1s để đếm ngược mượt mà
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) setState(() {});
     });
   }
@@ -235,21 +237,44 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
   Widget _buildTicketCard(SmartTicket ticket, bool isCookingColumn) {
     final now = DateTime.now();
-    final diffMinutes = ticket.targetStartTime.difference(now).inMinutes;
-
+    
+    // --- LOGIC ĐẾM NGƯỢC ---
     String timingMessage;
     Color timingColor;
 
     if (isCookingColumn) {
-      timingMessage = 'Đang trên bếp...';
-      timingColor = Colors.orange;
-    } else {
-      if (diffMinutes <= 0) {
-        timingMessage = 'NẤU NGAY! (Đồng bộ)';
+      // Khi đang nấu: Đếm ngược dựa trên thời gian bắt đầu thực tế + thời gian chuẩn bị
+      final updatedAt = DateTime.parse(ticket.rawTicket['updated_at']).toLocal();
+      final targetDoneTime = updatedAt.add(Duration(minutes: ticket.prepTime));
+      final remaining = targetDoneTime.difference(now);
+
+      if (remaining.isNegative) {
+        timingMessage = 'QUÁ GIỜ: ${remaining.inMinutes.abs()}p';
         timingColor = Colors.red;
       } else {
-        timingMessage = 'Khoan nấu. Đợi $diffMinutes phút nữa...';
-        timingColor = Colors.green;
+        final m = remaining.inMinutes.toString().padLeft(2, '0');
+        final s = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+        timingMessage = 'Xong sau: $m:$s';
+        timingColor = Colors.orange;
+      }
+    } else {
+      // Khi đang chờ:
+      if (ticket.isOrderStarted || ticket.isInitialAnchor) {
+        // Đã có món bắt đầu HOẶC đây chính là món lâu nhất cần nấu trước
+        final diff = ticket.targetStartTime.difference(now);
+        if (diff.isNegative) {
+          timingMessage = 'NẤU NGAY! (Đồng bộ)';
+          timingColor = Colors.red;
+        } else {
+          final m = diff.inMinutes.toString().padLeft(2, '0');
+          final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
+          timingMessage = 'Bắt đầu sau: $m:$s';
+          timingColor = Colors.green;
+        }
+      } else {
+        // Đây là món phụ, chưa đến lúc nấu và món chính cũng chưa bắt đầu
+        timingMessage = 'Chờ bắt đầu món chính...';
+        timingColor = Colors.blueGrey;
       }
     }
 
@@ -258,7 +283,12 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: diffMinutes <= 0 && !isCookingColumn ? Colors.red : Colors.transparent, width: 2),
+        side: BorderSide(
+          color: (!isCookingColumn && ticket.targetStartTime.difference(now).isNegative) 
+              ? Colors.red 
+              : Colors.transparent, 
+          width: 2
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -270,25 +300,48 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(8)),
-                  child: Text('Phòng ${ticket.roomNumber}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 18)),
+                  decoration: BoxDecoration(color: Colors.orange[900], borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.meeting_room, color: Colors.white, size: 20),
+                      const SizedBox(width: 6),
+                      Text('PHÒNG ${ticket.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                    ],
+                  ),
                 ),
                 Text(timingMessage, style: TextStyle(color: timingColor, fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 12),
-            Text('${ticket.rawTicket['quantity']}x ${ticket.itemName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text('${ticket.rawTicket['quantity']}x ${ticket.itemName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+                Text(
+                  '${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
             
-            // Hiển thị Modifier Groups
+            // Hiển thị Modifier Groups (Toppings)
             if (ticket.rawTicket['selected_modifiers'] != null && (ticket.rawTicket['selected_modifiers'] as List).isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: (ticket.rawTicket['selected_modifiers'] as List).map((m) {
-                    return Text(
-                      '↳ ${m['group_name']}: ${m['modifier_name']}',
-                      style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                    final double modPrice = num.tryParse(m['price'].toString())?.toDouble() ?? 0.0;
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '↳ ${m['group_name']}: ${m['modifier_name']}',
+                          style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        if (modPrice > 0)
+                          Text('+${NumberFormat('#,###', 'vi_VN').format(modPrice)}', style: const TextStyle(color: Colors.blueAccent, fontSize: 14)),
+                      ],
                     );
                   }).toList(),
                 ),
@@ -299,6 +352,27 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text('Ghi chú: ${ticket.rawTicket['notes']}', style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic, fontSize: 16)),
               ),
+
+            // TỔNG TIỀN CỦA MÓN
+            Builder(builder: (context) {
+              final double modifiersTotal = (ticket.rawTicket['selected_modifiers'] as List? ?? [])
+                  .fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0));
+              final double itemTotal = (ticket.basePrice + modifiersTotal) * (ticket.rawTicket['quantity'] ?? 1);
+              return Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const Text('TỔNG MÓN: ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text(
+                      '${NumberFormat('#,###', 'vi_VN').format(itemTotal)} VND',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

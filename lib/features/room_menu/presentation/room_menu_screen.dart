@@ -134,7 +134,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       return GridView.builder(
                         padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3, childAspectRatio: 0.75, crossAxisSpacing: 16, mainAxisSpacing: 16
+                          crossAxisCount: 3, childAspectRatio: 0.72, crossAxisSpacing: 16, mainAxisSpacing: 16
                         ),
                         itemCount: list.length,
                         itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags),
@@ -492,9 +492,18 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                 children: [
                   Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
-                  Text(
-                    '${NumberFormat('#,###', 'vi_VN').format(num.tryParse(item['price'].toString()) ?? 0)} VND', 
-                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${NumberFormat('#,###', 'vi_VN').format(num.tryParse(item['price'].toString()) ?? 0)} VND', 
+                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)
+                      ),
+                      Text(
+                        '⏱️ ${item['prep_time_minutes'] ?? 15}p',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                      ),
+                    ],
                   ),
                 ],
               ),
