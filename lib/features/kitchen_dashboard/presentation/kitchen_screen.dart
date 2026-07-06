@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../main.dart';
 import '../providers/kitchen_provider.dart';
+import '../../admin_panel/providers/menu_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class KitchenScreen extends ConsumerStatefulWidget {
@@ -396,7 +397,64 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                     icon: const Icon(Icons.local_fire_department),
                     label: const Text('BẮT ĐẦU NẤU'),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-                    onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'COOKING'),
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final bool isEarly = now.isBefore(ticket.targetStartTime);
+
+                      // Lấy danh sách toàn bộ món và menu để kiểm tra món chính
+                      final allTickets = ref.read(activeTicketsStreamProvider).value ?? [];
+                      final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
+                      final orderId = ticket.rawTicket['order_id'];
+
+                      bool hasUnfinishedPrimary = false;
+                      for (var t in allTickets) {
+                        // Tìm món trong cùng đơn, không phải chính nó và chưa xong
+                        if (t['order_id'] == orderId && t['id'] != ticket.rawTicket['id'] && t['status'] != 'DONE') {
+                          final item = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {});
+                          final pTime = item['prep_time_minutes'] ?? 0;
+                          // Nếu món đó nấu lâu hơn món hiện tại -> Món đó là món chính/món nấu trước
+                          if (pTime > ticket.prepTime) {
+                            hasUnfinishedPrimary = true;
+                            break;
+                          }
+                        }
+                      }
+
+                      if (isEarly || hasUnfinishedPrimary) {
+                        String message = isEarly 
+                            ? "Chưa đến thời gian nấu món này để đảm bảo đồng bộ với các món khác."
+                            : "Món chính (món nấu trước) của đơn hàng này vẫn chưa nấu xong.";
+
+                        bool? proceed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            title: const Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                                SizedBox(width: 10),
+                                Text('Cảnh báo xác nhận'),
+                              ],
+                            ),
+                            content: Text('$message\n\nBạn có chắc chắn muốn bắt đầu nấu ngay bây giờ không?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('BỎ QUA', style: TextStyle(color: Colors.grey)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('VẪN NẤU', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (proceed != true) return;
+                      }
+
+                      _updateTicketStatus(ticket.rawTicket['id'], 'COOKING');
+                    },
                   )
                 else
                   ElevatedButton.icon(
