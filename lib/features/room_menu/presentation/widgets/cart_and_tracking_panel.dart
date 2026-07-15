@@ -465,7 +465,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           child: Column(
             children: [
               Text(
-                '${l10n.estimatedFinish} $estimatedTotal ${l10n.prepTime.toLowerCase()}',
+                '${l10n.estimatedFinish} $estimatedTotal ${l10n.minute}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brown, fontSize: 13),
               ),
               const SizedBox(height: 4),

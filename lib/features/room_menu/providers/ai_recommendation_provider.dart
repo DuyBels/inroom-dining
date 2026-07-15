@@ -35,7 +35,7 @@ final userManualPreferenceProvider =
         UserManualPreferenceNotifier.new);
 
 final roomContextProvider = FutureProvider<RoomContext>((ref) async {
-  const String apiKey = '39448cb0cb3380f9cc1efe5de1ad1982';
+  const String apiKey = '80aa8876944e14bd4a63ed69f7b20e03';
   const String city = 'Can Tho';
   final now = DateTime.now();
   final manualPref = ref.watch(userManualPreferenceProvider);
@@ -74,8 +74,9 @@ final roomContextProvider = FutureProvider<RoomContext>((ref) async {
 
     // ƯU TIÊN 1: Nếu khách đã chọn thủ công qua Popup (Kịch bản API lỗi)
     if (isApiError && manualPref != null) {
-      if (manualPref == 'COOL' && name == 'Giải nhiệt ngày nóng') isMatched = true;
-      if (manualPref == 'WARM' && name == 'Món ấm ngày lạnh') isMatched = true;
+      final String ruleName = (name is Map) ? (name['vi']?.toString() ?? '') : name.toString();
+      if (manualPref == 'COOL' && ruleName == 'Giải nhiệt ngày nóng') isMatched = true;
+      if (manualPref == 'WARM' && ruleName == 'Món ấm ngày lạnh') isMatched = true;
     }
     // ƯU TIÊN 2: Nếu API chạy bình thường hoặc theo khung giờ
     else {

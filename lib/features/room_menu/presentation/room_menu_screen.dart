@@ -629,7 +629,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
             return RadioListTile<String>(
               value: m['id'],
               groupValue: isSelected ? m['id'] : null,
-              title: Text(modName),
+              title: Text(L10nUtils.getL10n(m['name'], locale)),
               secondary: price > 0 
                 ? Text(
                     '+${NumberFormat('#,###', 'vi_VN').format(price)} VND', 
@@ -638,14 +638,14 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                 : null,
               onChanged: (val) => setState(() {
                 _selectedModifiers.removeWhere((sm) => sm.groupId == group['id']);
-                _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: modName, price: price));
+                _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: L10nUtils.getL10n(m['name'], locale), price: price));
               }),
             );
           } else {
             // Checkbox Style
             return CheckboxListTile(
               value: isSelected,
-              title: Text(m['name']),
+              title: Text(L10nUtils.getL10n(m['name'], locale)),
               subtitle: price > 0 
                 ? Text(
                     '+${NumberFormat('#,###', 'vi_VN').format(price)} VND', 
@@ -655,7 +655,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
               onChanged: (val) => setState(() {
                 if (val!) {
                   if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {
-                    _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: modName, price: price));
+                    _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: L10nUtils.getL10n(m['name'], locale), price: price));
                   }
                 } else {
                   _selectedModifiers.removeWhere((sm) => sm.modifierId == m['id']);
