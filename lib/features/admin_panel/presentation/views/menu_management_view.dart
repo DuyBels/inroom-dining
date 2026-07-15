@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
 import '../../providers/menu_provider.dart';
 import '../../providers/category_provider.dart';
@@ -27,10 +28,12 @@ class MenuManagementView extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) => Center(child: Text('Lỗi tải danh mục: $err')),
       data: (categories) {
-        final allCategories = [{'id': 'all', 'name': 'Tất cả'}, ...categories];
+        final allCategories = [{'id': 'all', 'name': {'vi': 'Tất cả', 'en': 'All'}}];
+        final List<Map<String, dynamic>> categoriesList = List<Map<String, dynamic>>.from(categories);
+        final List<Map<String, dynamic>> fullCategories = [...allCategories, ...categoriesList];
 
         return DefaultTabController(
-          length: allCategories.length,
+          length: fullCategories.length,
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -64,7 +67,10 @@ class MenuManagementView extends ConsumerWidget {
                     labelColor: Colors.blue[800],
                     unselectedLabelColor: Colors.grey,
                     indicatorColor: Colors.blue[800],
-                    tabs: allCategories.map((c) => Tab(text: c['name'])).toList(),
+                    tabs: fullCategories.map((c) {
+                      final name = L10nUtils.getL10n(c['name'], 'vi');
+                      return Tab(text: name);
+                    }).toList(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -81,12 +87,12 @@ class MenuManagementView extends ConsumerWidget {
                       final menuItems = rawMenuItems.where((m) => seenIds.add(m['id'].toString())).toList();
 
                       return TabBarView(
-                        children: allCategories.map((cat) {
+                        children: fullCategories.map((cat) {
                           final filteredItems = cat['id'] == 'all'
                               ? menuItems
-                              : menuItems.where((item) => item['category_id'] == cat['id']).toList();
+                              : menuItems.where((item) => item['category_id'].toString() == cat['id'].toString()).toList();
 
-                          return _buildMenuTable(context, ref, filteredItems, categories, stationsAsync.value ?? []);
+                          return _buildMenuTable(context, ref, filteredItems, categoriesList, stationsAsync.value ?? []);
                         }).toList(),
                       );
                     },
@@ -129,11 +135,15 @@ class MenuManagementView extends ConsumerWidget {
             rows: menuItems.map((item) {
               // Tìm tên Danh mục từ ID
               final categoryMatch = categories.where((c) => c['id'] == item['category_id']);
-              final categoryName = categoryMatch.isNotEmpty ? categoryMatch.first['name'] : 'Chưa phân loại';
+              final categoryName = categoryMatch.isNotEmpty 
+                  ? L10nUtils.getL10n(categoryMatch.first['name'], 'vi') 
+                  : 'Chưa phân loại';
 
               // Tìm tên Bếp từ ID
               final stationMatch = stations.where((s) => s['id'] == item['station_id']);
-              final stationName = stationMatch.isNotEmpty ? stationMatch.first['name'] : 'Chưa gán bếp';
+              final stationName = stationMatch.isNotEmpty 
+                  ? L10nUtils.getL10n(stationMatch.first['name'], 'vi') 
+                  : 'Chưa gán bếp';
 
               return DataRow(cells: [
                 DataCell(
@@ -147,7 +157,7 @@ class MenuManagementView extends ConsumerWidget {
                               : Container(width: 50, height: 50, color: Colors.grey[300], child: const Icon(Icons.restaurant)),
                         ),
                         const SizedBox(width: 12),
-                        Text(item['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(L10nUtils.getL10n(item['name'], 'vi'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     )
                 ),

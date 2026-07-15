@@ -1,3 +1,5 @@
+import '../../../../core/services/gemini_service.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +22,9 @@ class MenuFormDialog extends ConsumerStatefulWidget {
 class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _nameEnController = TextEditingController();
   final _descController = TextEditingController();
+  final _descEnController = TextEditingController();
   final _priceController = TextEditingController();
   final _prepTimeController = TextEditingController(text: '15');
 
@@ -38,14 +42,60 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
 
   bool _isLoading = false;
   bool _isLoadingTags = false;
+  bool _isTranslatingName = false;
+  bool _isTranslatingDesc = false;
+
+  // Hàm dịch tự động bằng AI
+  Future<void> _translateWithAI(String type) async {
+    final gemini = ref.read(geminiServiceProvider);
+    try {
+      if (type == 'name') {
+        if (_nameController.text.isEmpty) return;
+        setState(() => _isTranslatingName = true);
+        final result = await gemini.translate(_nameController.text);
+        _nameEnController.text = result;
+      } else {
+        if (_descController.text.isEmpty) return;
+        setState(() => _isTranslatingDesc = true);
+        final result = await gemini.translate(_descController.text);
+        _descEnController.text = result;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi dịch: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTranslatingName = false;
+          _isTranslatingDesc = false;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     if (widget.item != null) {
-      // Load thông tin cơ bản
-      _nameController.text = widget.item!['name'] ?? '';
-      _descController.text = widget.item!['description'] ?? '';
+      // Load thông tin cơ bản (Xử lý JSONB mới)
+      final nameData = widget.item!['name'];
+      final descData = widget.item!['description'];
+
+      if (nameData is Map) {
+        _nameController.text = nameData['vi']?.toString() ?? '';
+        _nameEnController.text = nameData['en']?.toString() ?? '';
+      } else {
+        _nameController.text = nameData?.toString() ?? '';
+      }
+
+      if (descData is Map) {
+        _descController.text = descData['vi']?.toString() ?? '';
+        _descEnController.text = descData['en']?.toString() ?? '';
+      } else {
+        _descController.text = descData?.toString() ?? '';
+      }
+
       _priceController.text = widget.item!['price']?.toString() ?? '0';
       _prepTimeController.text = widget.item!['prep_time_minutes']?.toString() ?? '15';
       _selectedCategoryId = widget.item!['category_id'];
@@ -122,8 +172,14 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
       String cleanPrice = _priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
       
       final menuData = {
-        'name': _nameController.text.trim(),
-        'description': _descController.text.trim(),
+        'name': {
+          'vi': _nameController.text.trim(),
+          'en': _nameEnController.text.trim(),
+        },
+        'description': {
+          'vi': _descController.text.trim(),
+          'en': _descEnController.text.trim(),
+        },
         'price': double.tryParse(cleanPrice) ?? 0,
         'image_url': finalImageUrl,
         'prep_time_minutes': int.tryParse(_prepTimeController.text.trim()) ?? 15,
@@ -229,26 +285,39 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // TÊN MÓN ĂN - SONG NGỮ
                       Row(
                         children: [
                           Expanded(
-                            flex: 2,
                             child: TextFormField(
                               controller: _nameController,
-                              decoration: const InputDecoration(labelText: 'Tên món ăn', border: OutlineInputBorder()),
+                              decoration: const InputDecoration(labelText: 'Tên món ăn (VI)', border: OutlineInputBorder()),
                               validator: (val) => val == null || val.isEmpty ? 'Nhập tên' : null,
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _isTranslatingName ? null : () => _translateWithAI('name'),
+                            icon: _isTranslatingName 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.auto_awesome, color: Colors.purple),
+                            tooltip: 'AI Dịch sang tiếng Anh',
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
-                            flex: 1,
                             child: TextFormField(
-                              controller: _priceController,
-                              decoration: const InputDecoration(labelText: 'Giá tiền', border: OutlineInputBorder(), suffixText: 'đ'),
-                              keyboardType: TextInputType.number,
+                              controller: _nameEnController,
+                              decoration: const InputDecoration(labelText: 'Tên món ăn (EN)', border: OutlineInputBorder()),
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      TextFormField(
+                        controller: _priceController,
+                        decoration: const InputDecoration(labelText: 'Giá tiền', border: OutlineInputBorder(), suffixText: 'đ'),
+                        keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 16),
 
@@ -261,7 +330,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                               data: (cats) => DropdownButtonFormField<String>(
                                 value: _selectedCategoryId,
                                 decoration: const InputDecoration(labelText: 'Danh mục', border: OutlineInputBorder()),
-                                items: cats.map((c) => DropdownMenuItem(value: c['id'].toString(), child: Text(c['name']))).toList(),
+                                items: cats.map((c) {
+                                  final name = L10nUtils.getL10n(c['name'], 'vi');
+                                  return DropdownMenuItem(value: c['id'].toString(), child: Text(name));
+                                }).toList(),
                                 onChanged: (val) => setState(() => _selectedCategoryId = val),
                                 validator: (val) => val == null ? 'Chọn danh mục' : null,
                               ),
@@ -275,7 +347,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                               data: (stations) => DropdownButtonFormField<String>(
                                 value: _selectedStationId,
                                 decoration: const InputDecoration(labelText: 'Trạm Bếp', border: OutlineInputBorder()),
-                                items: stations.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text(s['name']))).toList(),
+                                items: stations.map((s) {
+                                  final name = L10nUtils.getL10n(s['name'], 'vi');
+                                  return DropdownMenuItem(value: s['id'].toString(), child: Text(name));
+                                }).toList(),
                                 onChanged: (val) => setState(() => _selectedStationId = val),
                                 validator: (val) => val == null ? 'Chọn Bếp' : null,
                               ),
@@ -292,10 +367,33 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      TextFormField(
-                        controller: _descController,
-                        decoration: const InputDecoration(labelText: 'Mô tả món ăn', border: OutlineInputBorder()),
-                        maxLines: 2,
+                      // MÔ TẢ - SONG NGỮ
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _descController,
+                              decoration: const InputDecoration(labelText: 'Mô tả (VI)', border: OutlineInputBorder()),
+                              maxLines: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _isTranslatingDesc ? null : () => _translateWithAI('description'),
+                            icon: _isTranslatingDesc 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.auto_awesome, color: Colors.purple),
+                            tooltip: 'AI Dịch sang tiếng Anh',
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _descEnController,
+                              decoration: const InputDecoration(labelText: 'Mô tả (EN)', border: OutlineInputBorder()),
+                              maxLines: 2,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 24),
 
@@ -315,9 +413,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                             children: tags.map((tag) {
                               final tagId = tag['id'].toString();
                               final isSelected = _selectedTagIds.contains(tagId);
+                              final String tagName = L10nUtils.getL10n(tag['name'], 'vi');
 
                               return FilterChip(
-                                label: Text(tag['name']),
+                                label: Text(tagName),
                                 selected: isSelected,
                                 selectedColor: Colors.blue[100],
                                 checkmarkColor: Colors.blue[800],

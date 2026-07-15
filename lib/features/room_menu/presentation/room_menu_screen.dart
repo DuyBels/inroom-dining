@@ -1,4 +1,6 @@
 import '../providers/ai_recommendation_provider.dart';
+import '../../../core/l10n/app_localizations.dart';
+import '../../../core/utils/l10n_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,13 +53,22 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     final tagsAsync = ref.watch(tagsStreamProvider);
     final activeFilters = ref.watch(activeFiltersProvider);
     final String currentRoomNumber = widget.roomNumber!;
+    final l10n = ref.watch(l10nProvider);
 
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Colors.grey[900],
-        title: Text('IN-ROOM DINING - PHÒNG $currentRoomNumber', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+        title: Text('${l10n.room} $currentRoomNumber', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
         actions: [
+          // Nút Đổi Ngôn Ngữ
+          TextButton(
+            onPressed: () => ref.read(localeProvider.notifier).toggleLanguage(),
+            child: Text(
+              ref.watch(localeProvider) == 'vi' ? 'EN 🇺🇸' : 'VI 🇻🇳',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
           IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: () async {
             await supabase.auth.signOut();
             if (context.mounted) context.go('/login');
@@ -80,16 +91,22 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
             },
             labelType: NavigationRailLabelType.all,
             destinations: [
-              const NavigationRailDestination(
-                icon: Icon(Icons.menu_book), 
-                selectedIcon: Icon(Icons.menu_book, color: Colors.amber),
-                label: Text('Tất cả')
+              NavigationRailDestination(
+                icon: const Icon(Icons.menu_book), 
+                selectedIcon: const Icon(Icons.menu_book, color: Colors.amber),
+                label: Text(l10n.all)
               ),
               ...categoriesAsync.maybeWhen(
-                data: (cats) => cats.map((c) => NavigationRailDestination(
-                  icon: const Icon(Icons.restaurant_menu), 
-                  label: Text(c['name'], textAlign: TextAlign.center)
-                )).toList(), 
+                data: (cats) {
+                  final locale = ref.watch(localeProvider);
+                  return cats.map((c) {
+                    final String catName = L10nUtils.getL10n(c['name'], locale);
+                    return NavigationRailDestination(
+                      icon: const Icon(Icons.restaurant_menu), 
+                      label: Text(catName, textAlign: TextAlign.center)
+                    );
+                  }).toList();
+                }, 
                 orElse: () => []
               ),
             ],
@@ -128,7 +145,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       }
 
                       if (list.isEmpty) {
-                        return const Center(child: Text('Không tìm thấy món ăn phù hợp với bộ lọc.', style: TextStyle(color: Colors.grey, fontSize: 16)));
+                        return Center(child: Text(l10n.emptyCart, style: const TextStyle(color: Colors.grey, fontSize: 16)));
                       }
 
                       return GridView.builder(
@@ -137,7 +154,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                           crossAxisCount: 3, childAspectRatio: 0.72, crossAxisSpacing: 16, mainAxisSpacing: 16
                         ),
                         itemCount: list.length,
-                        itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags),
+                        itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags, l10n),
                       );
                     },
                     loading: () => const Center(child: CircularProgressIndicator()),
@@ -157,6 +174,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     final aiItemsAsync = ref.watch(aiRecommendedItemsProvider);
     final contextAsync = ref.watch(roomContextProvider);
     final manualPref = ref.watch(userManualPreferenceProvider);
+    final l10n = ref.watch(l10nProvider);
 
     return contextAsync.when(
       loading: () => const Padding(
@@ -188,23 +206,23 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
               children: [
                 const Icon(Icons.auto_awesome, color: Colors.blueGrey, size: 24),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Chào bạn! Để AI gợi ý món phù hợp nhất, hôm nay bạn thấy thế nào?',
-                    style: TextStyle(fontSize: 14, color: Colors.blueGrey, fontWeight: FontWeight.w500),
+                    l10n.aiIntro,
+                    style: const TextStyle(fontSize: 14, color: Colors.blueGrey, fontWeight: FontWeight.w500),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('COOL'),
                   icon: const Text('❄️'),
-                  label: const Text('Thanh mát'),
+                  label: Text(l10n.cool),
                   style: TextButton.styleFrom(foregroundColor: Colors.blue[700]),
                 ),
                 const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('WARM'),
                   icon: const Text('🔥'),
-                  label: const Text('Ấm nóng'),
+                  label: Text(l10n.warm),
                   style: TextButton.styleFrom(foregroundColor: Colors.red[700]),
                 ),
               ],
@@ -235,9 +253,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        roomCtx.isApiError
-                            ? 'AI GỢI Ý: Các món phù hợp với tâm trạng của bạn!'
-                            : 'AI GỢI Ý: Ngoài trời đang ${roomCtx.temp.toInt()}°C. Thử ngay các món này nhé!',
+                        '${l10n.aiSuggestion}: ${roomCtx.isApiError ? (manualPref == 'COOL' ? l10n.cool : l10n.warm) : (roomCtx.temp.toInt().toString() + "°C")}',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.brown),
                       ),
                     ],
@@ -250,6 +266,9 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       itemCount: items.length,
                       itemBuilder: (context, idx) {
                         final item = items[idx];
+                        final locale = ref.watch(localeProvider);
+                        final String displayName = L10nUtils.getL10n(item['name'], locale);
+
                         return GestureDetector(
                           onTap: () => _showCustomizationDialog(item),
                           child: Container(
@@ -275,7 +294,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                                         Text('${NumberFormat('#,###', 'vi_VN').format(item['price'])} VND', style: const TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
@@ -314,7 +333,6 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
         data: (tags) {
           if (tags.isEmpty) return const SizedBox();
 
-          // Phân loại thẻ để hiển thị icon tương ứng
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -322,6 +340,8 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
               children: tags.map((t) {
                 final isSelected = activeFilters.contains(t['id']);
                 final type = t['tag_type'] ?? '';
+                final locale = ref.watch(localeProvider);
+                final String tagName = L10nUtils.getL10n(t['name'], locale);
                 
                 IconData icon;
                 Color color;
@@ -337,7 +357,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
                     avatar: Icon(icon, size: 16, color: isSelected ? Colors.white : color),
-                    label: Text(t['name']),
+                    label: Text(tagName),
                     selected: isSelected,
                     selectedColor: color,
                     checkmarkColor: Colors.white,
@@ -358,71 +378,14 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     );
   }
 
-  void _showAIAssistantDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.auto_awesome, color: Colors.amber),
-            SizedBox(width: 10),
-            Text('Trợ lý ảo AI', style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: const Text(
-          'Chào quý khách, để hệ thống có thể gợi ý thực đơn phù hợp nhất với tâm trạng hiện tại, quý khách đang muốn thưởng thức những món ăn mang cảm giác như thế nào ạ?',
-          style: TextStyle(fontSize: 16, height: 1.5),
-        ),
-        actionsPadding: const EdgeInsets.all(20),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[50],
-                    foregroundColor: Colors.blue[800],
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    ref.read(userManualPreferenceProvider.notifier).update('COOL');
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('❄️ Thanh mát', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[50],
-                    foregroundColor: Colors.red[800],
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    ref.read(userManualPreferenceProvider.notifier).update('WARM');
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('🔥 Ấm nóng', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showCustomizationDialog(Map<String, dynamic> item) {
     showDialog(context: context, builder: (context) => DishCustomizationDialog(item: item));
   }
 
-  Widget _buildDishCard(Map<String, dynamic> item, List<String> activeFilters, List<Map<String, dynamic>> allTags) {
+  Widget _buildDishCard(Map<String, dynamic> item, List<String> activeFilters, List<Map<String, dynamic>> allTags, AppDictionary l10n) {
     final itemTagIds = (item['tag_ids'] as List? ?? []).cast<String>();
+    final locale = ref.watch(localeProvider);
+    final String displayName = L10nUtils.getL10n(item['name'], locale);
     
     // Tìm các thẻ Dị ứng đang kích hoạt mà món này có
     final activeAllergyTagIds = activeFilters.where((id) {
@@ -469,10 +432,10 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                         children: [
                           const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
                           const SizedBox(height: 4),
-                          const Text(
-                            'CẢNH BÁO DỊ ỨNG', 
+                          Text(
+                            l10n.allergyWarning, 
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)
                           ),
                           Text(
                             allergyNames,
@@ -490,7 +453,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -542,6 +505,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
     final modifiersAsync = ref.watch(itemModifiersProvider(widget.item['id']));
 
     return Dialog(
@@ -572,9 +536,9 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
               child: modifiersAsync.when(
                 data: (groups) {
                   if (groups.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(40),
-                      child: Center(child: Text('Món ăn này không có tùy chọn thêm.\nBạn có thể nhập ghi chú ở dưới.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey))),
+                    return Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Center(child: Text(l10n.noOptions, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey))),
                     );
                   }
                   return SingleChildScrollView(
@@ -582,15 +546,15 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...groups.map((group) => _buildModifierGroup(group)),
+                        ...groups.map((group) => _buildModifierGroup(group, l10n)),
                         const SizedBox(height: 20),
-                        const Text('GHI CHÚ ĐẶC BIỆT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                        Text(l10n.specialNotes, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _noteController,
                           maxLines: 2,
                           decoration: InputDecoration(
-                            hintText: 'VD: Không lấy hành, ít cay...',
+                            hintText: ref.watch(localeProvider) == 'vi' ? 'VD: Không lấy hành, ít cay...' : 'Ex: No onions, less spicy...',
                             filled: true, fillColor: Colors.grey[100],
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           ),
@@ -599,17 +563,17 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                     ),
                   );
                 },
-                loading: () => const Center(child: Padding(padding: EdgeInsets.all(60), child: CircularProgressIndicator())),
+                loading: () => Center(child: Padding(padding: const EdgeInsets.all(60), child: Text(ref.watch(l10nProvider).loadingOptions))),
                 error: (e, s) => Center(child: Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: Text('Lỗi tải tùy chọn: $e\n\nVui lòng kiểm tra lại cấu hình Database.'),
+                  child: Text(ref.watch(l10nProvider).errorLoading),
                 )),
               ),
             ),
 
             // Footer với Nút Thêm vào giỏ (Có Validation)
             modifiersAsync.maybeWhen(
-              data: (groups) => _buildFooter(_isSelectionValid(groups)),
+              data: (groups) => _buildFooter(_isSelectionValid(groups), l10n),
               orElse: () => const SizedBox(),
             ),
           ],
@@ -618,45 +582,54 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
     );
   }
 
-  Widget _buildModifierGroup(Map<String, dynamic> group) {
+  Widget _buildModifierGroup(Map<String, dynamic> group, AppDictionary l10n) {
     final List modifiers = group['modifiers'] ?? [];
     final int min = group['min_select'] ?? 0;
     final int max = group['max_select'] ?? 1;
     final bool isRequired = min > 0;
+    final locale = ref.watch(localeProvider);
+
+    final String groupName = L10nUtils.getL10n(group['name'], locale);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text(group['name'], style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(groupName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(width: 8),
             if (isRequired) Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(4)),
-              child: const Text('BẮT BUỘC', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+              child: Text(l10n.requiredLabel, style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
-        Text('Chọn ${min == max ? min : '$min đến $max'} lựa chọn', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(
+          locale == 'vi' 
+            ? 'Chọn ${min == max ? min : '$min đến $max'} lựa chọn'
+            : 'Select ${min == max ? min : '$min to $max'} options', 
+          style: TextStyle(fontSize: 12, color: Colors.grey[600])
+        ),
         const SizedBox(height: 10),
         
         if (modifiers.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(' (Chưa có lựa chọn nào trong nhóm này)', style: TextStyle(color: Colors.red, fontSize: 12, fontStyle: FontStyle.italic)),
+            child: Text('...', style: TextStyle(color: Colors.red, fontSize: 12, fontStyle: FontStyle.italic)),
           ),
 
         ...modifiers.map((m) {
           final isSelected = _selectedModifiers.any((sm) => sm.modifierId == m['id']);
           final price = num.tryParse(m['price'].toString())?.toDouble() ?? 0.0;
+          final String modName = L10nUtils.getL10n(m['name'], locale);
 
           if (max == 1) {
             // Radio Button Style
             return RadioListTile<String>(
               value: m['id'],
               groupValue: isSelected ? m['id'] : null,
-              title: Text(m['name']),
+              title: Text(modName),
               secondary: price > 0 
                 ? Text(
                     '+${NumberFormat('#,###', 'vi_VN').format(price)} VND', 
@@ -665,7 +638,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                 : null,
               onChanged: (val) => setState(() {
                 _selectedModifiers.removeWhere((sm) => sm.groupId == group['id']);
-                _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: group['name'], modifierId: m['id'], modifierName: m['name'], price: price));
+                _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: modName, price: price));
               }),
             );
           } else {
@@ -682,7 +655,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
               onChanged: (val) => setState(() {
                 if (val!) {
                   if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {
-                    _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: group['name'], modifierId: m['id'], modifierName: m['name'], price: price));
+                    _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: modName, price: price));
                   }
                 } else {
                   _selectedModifiers.removeWhere((sm) => sm.modifierId == m['id']);
@@ -697,6 +670,10 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
   }
 
   Widget _buildHeader() {
+    final l10n = ref.watch(l10nProvider);
+    final locale = ref.watch(localeProvider);
+    final String displayName = L10nUtils.getL10n(widget.item['name'], locale);
+
     return Stack(
       children: [
         ClipRRect(
@@ -710,14 +687,14 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black.withOpacity(0.8), Colors.transparent])),
-            child: Text(widget.item['name'], style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            child: Text(displayName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildFooter(bool isValid) {
+  Widget _buildFooter(bool isValid, AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
@@ -725,7 +702,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
         children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('TỔNG CỘNG', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(l10n.total, style: const TextStyle(fontSize: 12, color: Colors.grey)),
               Text(
                 '${NumberFormat('#,###', 'vi_VN').format(_totalPrice)} VND', 
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.amber[900])
@@ -745,7 +722,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                 ref.read(cartProvider.notifier).addToCart(widget.item, _selectedModifiers, _noteController.text);
                 Navigator.pop(context);
               } : null,
-              child: Text(isValid ? 'THÊM VÀO GIỎ' : 'VUI LÒNG CHỌN ĐỦ', style: const TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(isValid ? l10n.cart.toUpperCase() : l10n.selectFullLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           )
         ],

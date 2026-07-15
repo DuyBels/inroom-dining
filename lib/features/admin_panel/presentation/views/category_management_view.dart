@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
 import '../../providers/category_provider.dart';
 import '../widgets/category_form_dialog.dart';
@@ -66,9 +67,12 @@ class CategoryManagementView extends ConsumerWidget {
                           DataColumn(label: Text('Hành động', style: TextStyle(fontWeight: FontWeight.bold))),
                         ],
                         rows: categories.map((category) {
+                          final String catName = L10nUtils.getL10n(category['name'], 'vi');
+                          final String catDesc = L10nUtils.getL10n(category['description'], 'vi');
+                          
                           return DataRow(cells: [
-                            DataCell(Text(category['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16))),
-                            DataCell(Text(category['description'] ?? '-', style: TextStyle(color: Colors.grey[700]))),
+                            DataCell(Text(catName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16))),
+                            DataCell(Text(catDesc.isEmpty ? '-' : catDesc, style: TextStyle(color: Colors.grey[700]))),
                             DataCell(
                                 Row(
                                   mainAxisSize: MainAxisSize.min,

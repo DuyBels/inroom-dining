@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/gemini_service.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
 import '../../providers/tag_provider.dart';
 
@@ -14,25 +16,48 @@ class TagFormDialog extends ConsumerStatefulWidget {
 
 class _TagFormDialogState extends ConsumerState<TagFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _nameViController = TextEditingController();
+  final _nameEnController = TextEditingController();
 
   // Mặc định chọn ALLERGY
   String _selectedType = 'ALLERGY';
   bool _isLoading = false;
+  bool _isTranslating = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.tag != null) {
-      _nameController.text = widget.tag!['name'] ?? '';
+      final nameData = widget.tag!['name'];
+      if (nameData is Map) {
+        _nameViController.text = nameData['vi']?.toString() ?? '';
+        _nameEnController.text = nameData['en']?.toString() ?? '';
+      } else {
+        _nameViController.text = nameData?.toString() ?? '';
+      }
       _selectedType = widget.tag!['tag_type'] ?? 'ALLERGY';
     }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _nameViController.dispose();
+    _nameEnController.dispose();
     super.dispose();
+  }
+
+  Future<void> _translateWithAI() async {
+    if (_nameViController.text.isEmpty) return;
+    setState(() => _isTranslating = true);
+    try {
+      final gemini = ref.read(geminiServiceProvider);
+      final result = await gemini.translate(_nameViController.text);
+      _nameEnController.text = result;
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi dịch: $e')));
+    } finally {
+      if (mounted) setState(() => _isTranslating = false);
+    }
   }
 
   Future<void> _saveTag() async {
@@ -41,7 +66,10 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
 
     try {
       final data = {
-        'name': _nameController.text.trim(),
+        'name': {
+          'vi': _nameViController.text.trim(),
+          'en': _nameEnController.text.trim(),
+        },
         'tag_type': _selectedType,
       };
 
@@ -71,19 +99,37 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
     return AlertDialog(
       title: Text(widget.tag == null ? 'Thêm Thẻ Mới' : 'Sửa Thông Tin Thẻ'),
       content: SizedBox(
-        width: 400,
+        width: 500,
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                    labelText: 'Tên thẻ (VD: Có đậu phộng, Trời mưa)',
-                    border: OutlineInputBorder()
-                ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên thẻ' : null,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nameViController,
+                      decoration: const InputDecoration(labelText: 'Tên thẻ (VI)', border: OutlineInputBorder()),
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isTranslating ? null : _translateWithAI,
+                    icon: _isTranslating 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_awesome, color: Colors.purple),
+                    tooltip: 'AI Dịch sang tiếng Anh',
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nameEnController,
+                      decoration: const InputDecoration(labelText: 'Tên thẻ (EN)', border: OutlineInputBorder()),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(

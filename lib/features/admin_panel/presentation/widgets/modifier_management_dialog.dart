@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/services/gemini_service.dart';
+import '../../../../core/utils/l10n_utils.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../main.dart';
 
-class ModifierManagementDialog extends StatefulWidget {
+class ModifierManagementDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> menuItem;
   const ModifierManagementDialog({super.key, required this.menuItem});
 
   @override
-  State<ModifierManagementDialog> createState() => _ModifierManagementDialogState();
+  ConsumerState<ModifierManagementDialog> createState() => _ModifierManagementDialogState();
 }
 
-class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
+class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDialog> {
   bool _isLoading = false;
+  bool _isTranslating = false;
   List<Map<String, dynamic>> _groups = [];
 
   @override
@@ -47,50 +51,87 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
 
   // --- QUẢN LÝ NHÓM (GROUP) ---
   void _showGroupDialog({Map<String, dynamic>? group}) {
-    final nameController = TextEditingController(text: group?['name'] ?? '');
+    final nameData = group?['name'];
+    final nameViController = TextEditingController();
+    final nameEnController = TextEditingController();
+
+    if (nameData is Map) {
+      nameViController.text = nameData['vi']?.toString() ?? '';
+      nameEnController.text = nameData['en']?.toString() ?? '';
+    } else {
+      nameViController.text = nameData?.toString() ?? '';
+    }
+
     final minController = TextEditingController(text: group?['min_select']?.toString() ?? '0');
     final maxController = TextEditingController(text: group?['max_select']?.toString() ?? '1');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(group == null ? 'Thêm Nhóm Tùy Chọn' : 'Sửa Nhóm'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Tên nhóm (VD: Chọn độ chín)')),
-            TextField(controller: minController, decoration: const InputDecoration(labelText: 'Chọn tối thiểu (1: Bắt buộc, 0: Tùy chọn)'), keyboardType: TextInputType.number),
-            TextField(controller: maxController, decoration: const InputDecoration(labelText: 'Chọn tối đa'), keyboardType: TextInputType.number),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(group == null ? 'Thêm Nhóm Tùy Chọn' : 'Sửa Nhóm'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: nameViController, decoration: const InputDecoration(labelText: 'Tên nhóm (VI)'))),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isTranslating ? null : () async {
+                      if (nameViController.text.isEmpty) return;
+                      setDialogState(() => _isTranslating = true);
+                      try {
+                        final result = await ref.read(geminiServiceProvider).translate(nameViController.text);
+                        nameEnController.text = result;
+                      } finally {
+                        setDialogState(() => _isTranslating = false);
+                      }
+                    },
+                    icon: _isTranslating 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_awesome, color: Colors.purple),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: nameEnController, decoration: const InputDecoration(labelText: 'Tên nhóm (EN)'))),
+                ],
+              ),
+              TextField(controller: minController, decoration: const InputDecoration(labelText: 'Chọn tối thiểu (1: Bắt buộc, 0: Tùy chọn)'), keyboardType: TextInputType.number),
+              TextField(controller: maxController, decoration: const InputDecoration(labelText: 'Chọn tối đa'), keyboardType: TextInputType.number),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameViController.text.isEmpty) return;
+                try {
+                  final data = {
+                    'name': {
+                      'vi': nameViController.text.trim(),
+                      'en': nameEnController.text.trim(),
+                    },
+                    'min_select': int.tryParse(minController.text.trim()) ?? 0,
+                    'max_select': int.tryParse(maxController.text.trim()) ?? 1,
+                    'item_id': widget.menuItem['id'],
+                  };
+
+                  if (group == null) {
+                    await supabase.from('modifier_groups').insert(data);
+                  } else {
+                    await supabase.from('modifier_groups').update(data).eq('id', group['id']);
+                  }
+
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _fetchData();
+                } catch (e) {
+                  _showError('Lỗi khi lưu nhóm: $e');
+                }
+              },
+              child: const Text('Lưu'),
+            )
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty) return;
-              try {
-                final data = {
-                  'name': nameController.text.trim(),
-                  'min_select': int.tryParse(minController.text.trim()) ?? 0,
-                  'max_select': int.tryParse(maxController.text.trim()) ?? 1,
-                  'item_id': widget.menuItem['id'],
-                };
-
-                if (group == null) {
-                  await supabase.from('modifier_groups').insert(data);
-                } else {
-                  await supabase.from('modifier_groups').update(data).eq('id', group['id']);
-                }
-
-                if (ctx.mounted) Navigator.pop(ctx);
-                _fetchData();
-              } catch (e) {
-                _showError('Lỗi khi lưu nhóm: $e');
-              }
-            },
-            child: const Text('Lưu'),
-          )
-        ],
       ),
     );
   }
@@ -109,42 +150,79 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
 
   // --- QUẢN LÝ LỰA CHỌN (MODIFIER) ---
   void _showModifierDialog(String groupId, {Map<String, dynamic>? modifier}) {
-    final nameController = TextEditingController(text: modifier?['name'] ?? '');
+    final nameData = modifier?['name'];
+    final nameViController = TextEditingController();
+    final nameEnController = TextEditingController();
+
+    if (nameData is Map) {
+      nameViController.text = nameData['vi']?.toString() ?? '';
+      nameEnController.text = nameData['en']?.toString() ?? '';
+    } else {
+      nameViController.text = nameData?.toString() ?? '';
+    }
+
     final priceController = TextEditingController(text: modifier?['price']?.toString() ?? '0');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(modifier == null ? 'Thêm Lựa Chọn' : 'Sửa Lựa Chọn'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Tên (VD: Tái, Thêm trứng...)')),
-            TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Giá cộng thêm'), keyboardType: TextInputType.number),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(modifier == null ? 'Thêm Lựa Chọn' : 'Sửa Lựa Chọn'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: nameViController, decoration: const InputDecoration(labelText: 'Tên (VI)'))),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isTranslating ? null : () async {
+                      if (nameViController.text.isEmpty) return;
+                      setDialogState(() => _isTranslating = true);
+                      try {
+                        final result = await ref.read(geminiServiceProvider).translate(nameViController.text);
+                        nameEnController.text = result;
+                      } finally {
+                        setDialogState(() => _isTranslating = false);
+                      }
+                    },
+                    icon: _isTranslating 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_awesome, color: Colors.purple),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: nameEnController, decoration: const InputDecoration(labelText: 'Tên (EN)'))),
+                ],
+              ),
+              TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Giá cộng thêm'), keyboardType: TextInputType.number),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(onPressed: () async {
+              try {
+                String cleanPrice = priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
+                final data = {
+                  'group_id': groupId,
+                  'name': {
+                    'vi': nameViController.text.trim(),
+                    'en': nameEnController.text.trim(),
+                  },
+                  'price': double.tryParse(cleanPrice) ?? 0.0,
+                };
+                if (modifier == null) {
+                  await supabase.from('modifiers').insert(data);
+                } else {
+                  await supabase.from('modifiers').update(data).eq('id', modifier['id']);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                _fetchData();
+              } catch (e) {
+                _showError('Lỗi khi lưu lựa chọn: $e');
+              }
+            }, child: const Text('Lưu')),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(onPressed: () async {
-            try {
-              String cleanPrice = priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
-              final data = {
-                'group_id': groupId,
-                'name': nameController.text.trim(),
-                'price': double.tryParse(cleanPrice) ?? 0.0,
-              };
-              if (modifier == null) {
-                await supabase.from('modifiers').insert(data);
-              } else {
-                await supabase.from('modifiers').update(data).eq('id', modifier['id']);
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-              _fetchData();
-            } catch (e) {
-              _showError('Lỗi khi lưu lựa chọn: $e');
-            }
-          }, child: const Text('Lưu')),
-        ],
       ),
     );
   }
@@ -170,11 +248,12 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final String itemName = L10nUtils.getL10n(widget.menuItem['name'], 'vi');
     return AlertDialog(
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text('Tùy chỉnh: ${widget.menuItem['name']}', overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text('Tùy chỉnh: $itemName', overflow: TextOverflow.ellipsis)),
           ElevatedButton.icon(onPressed: () => _showGroupDialog(), icon: const Icon(Icons.add), label: const Text('Thêm nhóm mới')),
         ],
       ),
@@ -189,12 +268,14 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
                 itemBuilder: (ctx, i) {
                   final group = _groups[i];
                   final List modifiers = group['modifiers'] ?? [];
+                  final String groupName = L10nUtils.getL10n(group['name'], 'vi');
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey[200]!)),
                     child: ExpansionTile(
                       initiallyExpanded: true,
-                      title: Text(group['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                      title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
                       subtitle: Text('Bắt buộc: ${group['min_select'] > 0 ? 'Có' : 'Không'} | Chọn tối đa: ${group['max_select']}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -209,10 +290,11 @@ class _ModifierManagementDialogState extends State<ModifierManagementDialog> {
                         ...modifiers.map((m) {
                           final price = num.tryParse(m['price'].toString()) ?? 0;
                           final formattedPrice = NumberFormat('#,###', 'vi_VN').format(price);
-                          
+                          final String modName = L10nUtils.getL10n(m['name'], 'vi');
+
                           return ListTile(
                             dense: true,
-                            title: Text(m['name']),
+                            title: Text(modName),
                             subtitle: price > 0 
                                 ? Text('+$formattedPrice VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
                                 : null,

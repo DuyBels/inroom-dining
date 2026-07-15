@@ -14,20 +14,28 @@ class StationFormDialog extends ConsumerStatefulWidget {
 
 class _StationFormDialogState extends ConsumerState<StationFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _nameViController = TextEditingController();
+  final _nameEnController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.station != null) {
-      _nameController.text = widget.station!['name'] ?? '';
+      final nameData = widget.station!['name'];
+      if (nameData is Map) {
+        _nameViController.text = nameData['vi']?.toString() ?? '';
+        _nameEnController.text = nameData['en']?.toString() ?? '';
+      } else {
+        _nameViController.text = nameData?.toString() ?? '';
+      }
     }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _nameViController.dispose();
+    _nameEnController.dispose();
     super.dispose();
   }
 
@@ -37,7 +45,10 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
 
     try {
       final data = {
-        'name': _nameController.text.trim(),
+        'name': {
+          'vi': _nameViController.text.trim(),
+          'en': _nameEnController.text.trim(),
+        },
       };
 
       if (widget.station == null) {
@@ -74,12 +85,20 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
-                controller: _nameController,
+                controller: _nameViController,
                 decoration: const InputDecoration(
-                    labelText: 'Tên trạm bếp (VD: Bếp Á, Bếp Âu, Quầy Bar)',
+                    labelText: 'Tên trạm bếp (VI)',
                     border: OutlineInputBorder()
                 ),
                 validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên trạm bếp' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameEnController,
+                decoration: const InputDecoration(
+                    labelText: 'Tên trạm bếp (EN)',
+                    border: OutlineInputBorder()
+                ),
               ),
             ],
           ),

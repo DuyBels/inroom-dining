@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/l10n/app_localizations.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../main.dart';
@@ -18,6 +20,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
   // --- LOGIC: ĐẶT MÓN & XÁC NHẬN ---
   Future<void> _submitOrderWithConfirmation() async {
+    final l10n = ref.read(l10nProvider);
     final cart = ref.read(cartProvider);
     final total = ref.read(cartTotalProvider);
     if (cart.isEmpty) return;
@@ -25,29 +28,33 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận Đặt món', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.confirmOrder, style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: 450,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Kiểm tra lại danh sách món ăn:'),
+              Text('${l10n.checkOrderList}:'),
               const Divider(),
               Flexible(child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: cart.length,
-                itemBuilder: (c, i) => ListTile(
-                  dense: true,
-                  title: Text('${cart[i].quantity}x ${cart[i].menuItem['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(cart[i].selectedModifiers.map((m) => m.modifierName).join(', ')),
-                  trailing: Text('${NumberFormat('#,###', 'vi_VN').format(cart[i].totalPrice)} VND'),
-                ),
+                itemBuilder: (c, i) {
+                   final locale = ref.watch(localeProvider);
+                   final String displayName = L10nUtils.getL10n(cart[i].menuItem['name'], locale);
+                   return ListTile(
+                    dense: true,
+                    title: Text('${cart[i].quantity}x $displayName', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(cart[i].selectedModifiers.map((m) => m.modifierName).join(', ')),
+                    trailing: Text('${NumberFormat('#,###', 'vi_VN').format(cart[i].totalPrice)} VND'),
+                  );
+                },
               )),
               const Divider(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('TỔNG CỘNG:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${l10n.total}:', style: const TextStyle(fontWeight: FontWeight.bold)),
                   Text(
                     '${NumberFormat('#,###', 'vi_VN').format(total)} VND', 
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.red)
@@ -58,11 +65,11 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Thay đổi')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.changeLabel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Gửi yêu cầu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(l10n.sendRequest, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -84,9 +91,8 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         'status': 'PENDING',
       }).toList();
 
-      await supabase.from('tickets').insert(tickets);
       ref.read(cartProvider.notifier).clearCart();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đặt món thành công!'), backgroundColor: Colors.green));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.orderSuccess), backgroundColor: Colors.green));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
@@ -165,6 +171,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                   final o = orders[i];
                   final date = DateTime.parse(o['created_at']).toLocal();
                   final List tickets = o['tickets'] ?? [];
+                  final locale = ref.watch(localeProvider);
                   
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,10 +185,13 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                       ),
                       Text('Lúc: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       const SizedBox(height: 8),
-                      ...tickets.map((t) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text('• ${t['quantity']}x ${t['menu_items']?['name'] ?? 'Món ăn'}', style: const TextStyle(fontSize: 13)),
-                      )),
+                      ...tickets.map((t) {
+                        final String itemName = L10nUtils.getL10n(t['menu_items']?['name'], locale);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('• ${t['quantity']}x $itemName', style: const TextStyle(fontSize: 13)),
+                        );
+                      }),
                     ],
                   );
                 },
@@ -212,17 +222,18 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     }
   }
 
-  String _translateTicketStatus(String status) {
+  String _translateTicketStatus(String status, AppDictionary l10n) {
     switch (status) {
-      case 'PENDING': return 'Đang chờ';
-      case 'COOKING': return 'Đang nấu';
-      case 'DONE': return 'Nấu xong';
+      case 'PENDING': return l10n.pending;
+      case 'COOKING': return l10n.cooking;
+      case 'DONE': return l10n.done;
       default: return status;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
     final cart = ref.watch(cartProvider);
     final cartTotal = ref.watch(cartTotalProvider);
     final roomTicketsAsync = ref.watch(activeRoomTicketsProvider(widget.roomNumber));
@@ -237,8 +248,8 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         for (var newOrder in next.value!) {
           final oldOrder = prev!.value!.firstWhere((o) => o['id'] == newOrder['id'], orElse: () => {});
           if (newOrder['status'] == 'DELIVERED' && oldOrder.isNotEmpty && oldOrder['status'] != 'DELIVERED') {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Row(children: [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 12), Text('Chúc ngon miệng! Đơn hàng đã được giao tới phòng.')]),
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 12), Text(l10n.enjoyMeal)]),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
             ));
@@ -270,28 +281,26 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       child: Column(
         children: [
           // 1. Header Dịch vụ & Nút Lịch sử
-          _buildActionHeader(),
+          _buildActionHeader(l10n),
 
-          // 2. Danh sách giỏ hàng hiện tại
           Expanded(
             flex: 3,
             child: cart.isEmpty 
-              ? const Center(child: Text('Giỏ hàng trống', style: TextStyle(color: Colors.grey))) 
-              : _buildCartList(cart),
+              ? Center(child: Text(l10n.emptyCart, style: const TextStyle(color: Colors.grey))) 
+              : _buildCartList(cart, l10n),
           ),
 
           // 3. Checkout Section
-          if (cart.isNotEmpty) _buildCheckoutSection(cartTotal),
+          if (cart.isNotEmpty) _buildCheckoutSection(cartTotal, l10n),
 
-          // 4. TIẾN ĐỘ THỰC HIỆN (Hợp nhất theo yêu cầu UX mới)
           if (roomTicketsAsync.isNotEmpty || (roomServicesAsync.value?.isNotEmpty ?? false))
-            _buildTrackingSection(roomTicketsAsync, roomServicesAsync.value ?? [], menuAsync.value ?? []),
+            _buildTrackingSection(roomTicketsAsync, roomServicesAsync.value ?? [], menuAsync.value ?? [], l10n),
         ],
       ),
     );
   }
 
-  Widget _buildActionHeader() {
+  Widget _buildActionHeader(AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.grey[50],
@@ -300,11 +309,11 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(children: [Icon(Icons.shopping_bag_outlined), SizedBox(width: 8), Text('GIỎ HÀNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))]),
+              Row(children: [const Icon(Icons.shopping_bag_outlined), const SizedBox(width: 8), Text(l10n.cart, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))]),
               TextButton.icon(
                 onPressed: _showOrderHistory, 
                 icon: const Icon(Icons.history, size: 18), 
-                label: const Text('Lịch sử', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                label: Text(l10n.history, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -314,7 +323,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               Expanded(
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.person, size: 16),
-                  label: const Text('GỌI NV'),
+                  label: Text(l10n.callStaff),
                   onPressed: () => _requestService('CALL_STAFF'),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[50], foregroundColor: Colors.purple[800], elevation: 0),
                 ),
@@ -323,7 +332,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.cleaning_services, size: 16),
-                  label: const Text('DỌN BÀN'),
+                  label: Text(l10n.cleaning),
                   onPressed: () => _requestService('CLEANING'),
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.blue[800], side: BorderSide(color: Colors.blue[200]!)),
                 ),
@@ -335,18 +344,22 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     );
   }
 
-  Widget _buildCartList(List<CartItem> cart) {
+  Widget _buildCartList(List<CartItem> cart, AppDictionary l10n) {
+    final locale = ref.watch(localeProvider);
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: cart.length,
       itemBuilder: (context, index) {
         final item = cart[index];
+        final locale = ref.watch(localeProvider);
+        final String displayName = L10nUtils.getL10n(item.menuItem['name'], locale);
+        
         return Card(
           elevation: 0, color: Colors.grey[50],
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            title: Text(item.menuItem['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: item.selectedModifiers.isNotEmpty ? Text('Thêm: ${item.selectedModifiers.map((m) => m.modifierName).join(', ')}', style: const TextStyle(fontSize: 11)) : null,
+            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: item.selectedModifiers.isNotEmpty ? Text('${l10n.extra}: ${item.selectedModifiers.map((m) => m.modifierName).join(', ')}', style: const TextStyle(fontSize: 11)) : null,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -366,7 +379,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     );
   }
 
-  Widget _buildCheckoutSection(double total) {
+  Widget _buildCheckoutSection(double total, AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey[200]!))),
@@ -375,7 +388,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Tổng thanh toán:'), 
+              Text('${l10n.totalPayment}:'), 
               Text(
                 '${NumberFormat('#,###', 'vi_VN').format(total)} VND', 
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)
@@ -388,7 +401,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, elevation: 0),
               onPressed: _submitOrderWithConfirmation,
-              child: const Text('ĐẶT MÓN NGAY', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(l10n.orderNow, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           )
         ],
@@ -396,19 +409,19 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     );
   }
 
-  Widget _buildTrackingSection(List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> services, List<Map<String, dynamic>> menuItems) {
+  Widget _buildTrackingSection(List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> services, List<Map<String, dynamic>> menuItems, AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(20),
       color: Colors.blueGrey[50],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(child: Text('TIẾN ĐỘ THỰC HIỆN', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1))),
+          Center(child: Text(l10n.history.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1))),
           const SizedBox(height: 20),
 
           // 1. TIẾN ĐỘ GỌI MÓN (Dùng Stepper)
           if (tickets.isNotEmpty) ...[
-            _buildFoodProgress(tickets, menuItems),
+            _buildFoodProgress(tickets, menuItems, l10n),
             const SizedBox(height: 25),
           ],
 
@@ -416,14 +429,14 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           if (services.isNotEmpty) ...[
             const Text('Dịch vụ tại phòng:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
             const SizedBox(height: 8),
-            ...services.map((s) => _buildServiceRequestCard(s)),
+            ...services.map((s) => _buildServiceRequestCard(s, l10n)),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildFoodProgress(List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> menuItems) {
+  Widget _buildFoodProgress(List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> menuItems, AppDictionary l10n) {
     bool allDone = tickets.every((t) => t['status'] == 'DONE');
     bool anyCooking = tickets.any((t) => t['status'] == 'COOKING');
     int currentStep = allDone ? 2 : (anyCooking ? 1 : 0);
@@ -439,7 +452,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
     return Column(
       children: [
-        _MinimalistTracker(currentStep: currentStep),
+        _MinimalistTracker(currentStep: currentStep, l10n: l10n),
         const SizedBox(height: 15),
         Container(
           padding: const EdgeInsets.all(12),
@@ -452,12 +465,12 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           child: Column(
             children: [
               Text(
-                'Dự kiến hoàn thành sau khoảng $estimatedTotal phút',
+                '${l10n.estimatedFinish} $estimatedTotal ${l10n.prepTime.toLowerCase()}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brown, fontSize: 13),
               ),
               const SizedBox(height: 4),
               Text(
-                "(Bao gồm $maxPrepTime phút nấu & 5 phút giao hàng)",
+                "(${l10n.includeDelivery})",
                 style: const TextStyle(fontSize: 10, color: Colors.brown),
               ),
             ],
@@ -469,22 +482,25 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           width: double.infinity,
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
           child: Text(
-            currentStep == 0 ? "Nhà bếp đã nhận đơn hàng của bạn." : (currentStep == 1 ? "Đầu bếp đang cẩn thận chế biến..." : "Nhân viên đang mang đồ lên phòng bạn!"),
+            currentStep == 0 ? l10n.orderReceived : (currentStep == 1 ? l10n.orderPreparing : l10n.orderDelivering),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.blueGrey),
           ),
         ),
         const SizedBox(height: 15),
         ...tickets.map((t) {
+          final locale = ref.watch(localeProvider);
           final item = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'name': 'Món ăn'});
+          final String displayName = L10nUtils.getL10n(item['name'], locale);
+          
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
                 Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.radio_button_unchecked, size: 14, color: t['status'] == 'DONE' ? Colors.green : Colors.grey),
                 const SizedBox(width: 8),
-                Expanded(child: Text('${t['quantity']}x ${item['name']}', style: const TextStyle(fontSize: 12))),
-                Text(_translateTicketStatus(t['status']), style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
+                Expanded(child: Text('${t['quantity']}x $displayName', style: const TextStyle(fontSize: 12))),
+                Text(_translateTicketStatus(t['status'], l10n), style: const TextStyle(fontSize: 11, color: Colors.blueGrey)),
               ],
             ),
           );
@@ -493,7 +509,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     );
   }
 
-  Widget _buildServiceRequestCard(Map<String, dynamic> s) {
+  Widget _buildServiceRequestCard(Map<String, dynamic> s, AppDictionary l10n) {
     final isCleaning = s['service_type'] == 'CLEANING';
     final int statusId = s['status_id'] ?? 1;
     final bool isPending = statusId == 1; // 1 = PENDING
@@ -518,8 +534,8 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isCleaning ? 'Yêu cầu dọn bàn' : 'Yêu cầu hỗ trợ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                Text(isPending ? 'Đang chờ nhân viên nhận...' : 'Nhân viên đang xử lý', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                Text(isCleaning ? l10n.cleaningRequest : l10n.supportRequest, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                Text(isPending ? l10n.waitingStaff : l10n.staffProcessing, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
               ],
             ),
           ),
@@ -532,17 +548,18 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
 class _MinimalistTracker extends StatelessWidget {
   final int currentStep;
-  const _MinimalistTracker({required this.currentStep});
+  final AppDictionary l10n;
+  const _MinimalistTracker({required this.currentStep, required this.l10n});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _buildStep(0, "Đã nhận", Icons.assignment_turned_in),
+        _buildStep(0, l10n.pending, Icons.assignment_turned_in),
         _buildLine(0),
-        _buildStep(1, "Chuẩn bị", Icons.restaurant),
+        _buildStep(1, l10n.cooking, Icons.restaurant),
         _buildLine(1),
-        _buildStep(2, "Đang giao", Icons.delivery_dining),
+        _buildStep(2, l10n.delivery, Icons.delivery_dining),
       ],
     );
   }

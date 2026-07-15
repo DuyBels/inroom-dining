@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../../core/l10n/app_localizations.dart';
+import '../../../core/utils/l10n_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,6 +141,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     final stationDetailAsync = ref.watch(stationDetailProvider(stationId));
     final smartTickets = ref.watch(smartKitchenTicketsProvider(stationId));
     final profileAsync = ref.watch(userProfileProvider);
+    final l10n = ref.watch(l10nProvider);
 
     return profileAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -166,9 +169,17 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               backgroundColor: Colors.grey[200],
               appBar: AppBar(
                 automaticallyImplyLeading: false,
-                title: Text('BẾP: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                title: Text('${l10n.kitchenTitle}: $myStationName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 backgroundColor: Colors.orange[800],
                 actions: [
+                  // Nút Đổi Ngôn Ngữ
+                  TextButton(
+                    onPressed: () => ref.read(localeProvider.notifier).toggleLanguage(),
+                    child: Text(
+                      ref.watch(localeProvider) == 'vi' ? 'EN 🇺🇸' : 'VI 🇻🇳',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.history, color: Colors.white),
                     onPressed: () => _showHistoryDialog(stationId),
@@ -188,7 +199,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 children: [
                   Expanded(
                     child: _buildTicketColumn(
-                      title: 'CHỜ CHẾ BIẾN (${pendingTickets.length})',
+                      title: '${l10n.pendingColumn} (${pendingTickets.length})',
                       headerColor: Colors.blue[700]!,
                       tickets: pendingTickets,
                       isCookingColumn: false,
@@ -197,7 +208,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                   const VerticalDivider(width: 2, thickness: 2, color: Colors.black12),
                   Expanded(
                     child: _buildTicketColumn(
-                      title: 'ĐANG NẤU (${cookingTickets.length})',
+                      title: '${l10n.cookingColumn} (${cookingTickets.length})',
                       headerColor: Colors.orange[700]!,
                       tickets: cookingTickets,
                       isCookingColumn: true,
@@ -238,6 +249,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
   Widget _buildTicketCard(SmartTicket ticket, bool isCookingColumn) {
     final now = DateTime.now();
+    final l10n = ref.watch(l10nProvider);
     
     // --- LOGIC ĐẾM NGƯỢC ---
     String timingMessage;
@@ -306,7 +318,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                     children: [
                       const Icon(Icons.meeting_room, color: Colors.white, size: 20),
                       const SizedBox(width: 6),
-                      Text('PHÒNG ${ticket.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                      Text('${l10n.room.toUpperCase()} ${ticket.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                     ],
                   ),
                 ),
@@ -314,16 +326,21 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text('${ticket.rawTicket['quantity']}x ${ticket.itemName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-                Text(
-                  '${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final locale = ref.watch(localeProvider);
+              final String displayName = L10nUtils.getL10n(ticket.rawTicket['menu_items']?['name'] ?? ticket.itemName, locale);
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(child: Text('${ticket.rawTicket['quantity']}x $displayName', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
+                  Text(
+                    '${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND',
+                    style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              );
+            }),
             
             // Hiển thị Modifier Groups (Toppings)
             if (ticket.rawTicket['selected_modifiers'] != null && (ticket.rawTicket['selected_modifiers'] as List).isNotEmpty)
@@ -364,7 +381,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Text('TỔNG MÓN: ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text('${l10n.totalItem}: ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                     Text(
                       '${NumberFormat('#,###', 'vi_VN').format(itemTotal)} VND',
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
@@ -395,7 +412,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 if (!isCookingColumn)
                   ElevatedButton.icon(
                     icon: const Icon(Icons.local_fire_department),
-                    label: const Text('BẮT ĐẦU NẤU'),
+                    label: Text(l10n.startCooking),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
                     onPressed: () async {
                       final now = DateTime.now();
@@ -459,7 +476,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 else
                   ElevatedButton.icon(
                     icon: const Icon(Icons.check_circle),
-                    label: const Text('NẤU XONG'),
+                    label: Text(l10n.cookingDone),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                     onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'DONE'),
                   )

@@ -87,6 +87,10 @@ final roomContextProvider = FutureProvider<RoomContext>((ref) async {
         int minHour = int.tryParse(rule['min_value']?.toString() ?? '0') ?? 0;
         int maxHour = int.tryParse(rule['max_value']?.toString() ?? '24') ?? 24;
         if (now.hour >= minHour && now.hour <= maxHour) isMatched = true;
+      } else if (type == 'WEATHER_CONDITION' && !isApiError) {
+        // So sánh khớp tuyệt đối chuỗi văn bản (VD: 'Rain', 'Clouds', 'Clear')
+        String? exact = rule['exact_value']?.toString();
+        if (weatherDesc.toLowerCase() == exact?.toLowerCase()) isMatched = true;
       }
     }
 

@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../../core/l10n/app_localizations.dart';
+import '../../../core/utils/l10n_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,6 +97,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     final waiterOrders = ref.watch(waiterOrdersProvider);
     final roomServicesAsync = ref.watch(activeRoomServicesStreamProvider);
     final menuItems = ref.watch(menuItemsStreamProvider).value ?? [];
+    final l10n = ref.watch(l10nProvider);
 
     return profileAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -111,12 +114,20 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('ĐIỀU PHỐI CÔNG VIỆC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                Text('Nhân viên: ${currentProfile['display_name']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(l10n.waiterTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('${l10n.staffLabel}: ${currentProfile['display_name']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ),
             backgroundColor: Colors.green[800],
             actions: [
+              // Nút Đổi Ngôn Ngữ
+              TextButton(
+                onPressed: () => ref.read(localeProvider.notifier).toggleLanguage(),
+                child: Text(
+                  ref.watch(localeProvider) == 'vi' ? 'EN 🇺🇸' : 'VI 🇻🇳',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
               Builder(
                 builder: (ctx) {
                   final hasUnread = ref.watch(hasUnreadMessagesProvider);
@@ -164,9 +175,9 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
                 itemCount: roomServices.length + waiterOrders.length,
                 itemBuilder: (context, index) {
                   if (index < roomServices.length) {
-                    return _buildServiceCard(roomServices[index], waiterId!);
+                    return _buildServiceCard(roomServices[index], waiterId!, l10n);
                   }
-                  return _buildOrderCard(waiterOrders[index - roomServices.length], menuItems, waiterId!);
+                  return _buildOrderCard(waiterOrders[index - roomServices.length], menuItems, waiterId!, l10n);
                 },
               );
             },
@@ -219,7 +230,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     });
   }
 
-  Widget _buildServiceCard(Map<String, dynamic> service, String currentWaiterId) {
+  Widget _buildServiceCard(Map<String, dynamic> service, String currentWaiterId, AppDictionary l10n) {
     final bool isCleaning = service['service_type'] == 'CLEANING';
     final Color themeColor = isCleaning ? Colors.blue : Colors.purple;
     final String? assignedId = service['waiter_id'];
@@ -234,7 +245,12 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: themeColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(13))),
-            child: Center(child: Text('PHÒNG ${service['room_number']}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24))),
+            child: Center(
+              child: Text(
+                '${l10n.room.toUpperCase()} ${service['room_number']}', 
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24)
+              ),
+            ),
           ),
           Expanded(
             child: Column(
@@ -242,12 +258,12 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
               children: [
                 Icon(isCleaning ? Icons.cleaning_services : Icons.person_search, size: 80, color: themeColor),
                 const SizedBox(height: 12),
-                Text(isCleaning ? "CẦN DỌN DẸP" : "KHÁCH CẦN HỖ TRỢ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: themeColor)),
+                Text(isCleaning ? l10n.cleaningTask : l10n.supportTask, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: themeColor)),
                 if (service['notes'] != null && service['notes'].toString().isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
-                      'Lý do: ${service['notes']}',
+                      '${l10n.notes}: ${service['notes']}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic),
                     ),
@@ -262,7 +278,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: isIAmDoing ? Colors.orange : themeColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 onPressed: isOtherDoing ? null : (isIAmDoing ? () => _completeService(service['id']) : () => _receiveService(service['id'], currentWaiterId)),
-                child: Text(isOtherDoing ? 'ĐÃ CÓ NGƯỜI NHẬN' : (isIAmDoing ? 'XÁC NHẬN XONG' : 'NHẬN NHIỆM VỤ'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(isOtherDoing ? l10n.alreadyTaken : (isIAmDoing ? l10n.confirmDone : l10n.takeTask), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
           )
@@ -271,7 +287,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     );
   }
 
-  Widget _buildOrderCard(WaiterOrderModel orderData, List<Map<String, dynamic>> menuItems, String currentWaiterId) {
+  Widget _buildOrderCard(WaiterOrderModel orderData, List<Map<String, dynamic>> menuItems, String currentWaiterId, AppDictionary l10n) {
     final order = orderData.order;
     final tickets = orderData.tickets;
     final isFullyDone = orderData.isFullyDone;
@@ -290,8 +306,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('PHÒNG ${order['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Text(isFullyDone ? 'SẴN SÀNG' : 'ĐANG NẤU', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isFullyDone ? Colors.green[800] : Colors.orange)),
+                Text('${l10n.room.toUpperCase()} ${order['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                Text(isFullyDone ? l10n.ready : l10n.cooking.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isFullyDone ? Colors.green[800] : Colors.orange)),
               ],
             ),
           ),
@@ -303,6 +319,9 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
               itemBuilder: (context, idx) {
                 final t = tickets[idx];
                 final menuItem = menuItems.firstWhere((m) => m['id'] == t['item_id'], orElse: () => {'name': '...', 'price': 0});
+                final locale = ref.watch(localeProvider);
+                final String displayName = L10nUtils.getL10n(menuItem['name'], locale);
+                
                 final basePrice = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
                 final modifiers = t['selected_modifiers'] as List? ?? [];
                 final double modsTotal = modifiers.fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0));
@@ -318,7 +337,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
                         children: [
                           Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.timer, color: t['status'] == 'DONE' ? Colors.green : Colors.grey, size: 20),
                           const SizedBox(width: 8),
-                          Expanded(child: Text('${t['quantity']}x ${menuItem['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                          Expanded(child: Text('${t['quantity']}x $displayName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
                           Text('${NumberFormat('#,###', 'vi_VN').format(itemTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
@@ -353,7 +372,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
                child: Row(
                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                  children: [
-                   const Text('TỔNG BILL:', style: TextStyle(fontWeight: FontWeight.bold)),
+                   Text('${l10n.totalBill}:', style: const TextStyle(fontWeight: FontWeight.bold)),
                    Text(
                      '${NumberFormat('#,###', 'vi_VN').format(grandTotal)} VND',
                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red),
@@ -369,7 +388,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: isIAmDoing ? Colors.orange : (isFullyDone ? Colors.green : Colors.grey)),
                 onPressed: (isFullyDone && !isOtherDoing) ? (isIAmDoing ? () => _markAsDelivered(order['id']) : () => _startDelivery(order['id'], currentWaiterId)) : null,
-                child: Text(isOtherDoing ? 'ĐÃ CÓ NGƯỜI GIAO' : (isIAmDoing ? 'XÁC NHẬN ĐÃ GIAO' : (isFullyDone ? 'NHẬN GIAO MÓN' : 'ĐANG NẤU...'))),
+                child: Text(isOtherDoing ? l10n.alreadyTaken : (isIAmDoing ? l10n.confirmDone : l10n.takeTask)),
               ),
             ),
           )
@@ -379,29 +398,47 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
   }
 
   void _showHistoryDialog() {
+    final l10n = ref.read(l10nProvider);
     showDialog(
       context: context,
       builder: (context) => DefaultTabController(
         length: 2,
         child: AlertDialog(
-          title: const Text('LỊCH SỬ PHỤC VỤ', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
           contentPadding: EdgeInsets.zero,
           content: SizedBox(
-            width: 700, height: 600,
+            width: 700,
+            height: 600,
             child: Column(
               children: [
-                const TabBar(labelColor: Colors.blue, unselectedLabelColor: Colors.grey, tabs: [Tab(text: 'GIAO MÓN'), Tab(text: 'DỌN DẸP')]),
-                Expanded(child: TabBarView(children: [_buildHistoryList('orders', 'delivered_at'), _buildHistoryList('room_services', 'completed_at')])),
+                TabBar(
+                  labelColor: Colors.blue,
+                  unselectedLabelColor: Colors.grey,
+                  tabs: [Tab(text: l10n.deliveryTab), Tab(text: l10n.cleaningTab)],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildHistoryList('orders', 'delivered_at', l10n),
+                      _buildHistoryList('room_services', 'completed_at', l10n),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('ĐÓNG'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.close),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHistoryList(String table, String timeField) {
+  Widget _buildHistoryList(String table, String timeField, AppDictionary l10n) {
     final String selectQuery = table == 'orders' 
         ? '*, delivery:delivery_waiter_id(display_name)' 
         : '*, waiter:waiter_id(display_name)';
