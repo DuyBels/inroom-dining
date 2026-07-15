@@ -35,8 +35,8 @@ final userManualPreferenceProvider =
         UserManualPreferenceNotifier.new);
 
 final roomContextProvider = FutureProvider<RoomContext>((ref) async {
-  const String apiKey = '80aa8876944e14bd4a63ed69f7b20e03';
-  const String city = 'Da Lat';
+  const String apiKey = '39448cb0cb3380f9cc1efe5de1ad1982';
+  const String city = 'Can Tho';
   final now = DateTime.now();
   final manualPref = ref.watch(userManualPreferenceProvider);
 
@@ -101,12 +101,17 @@ final roomContextProvider = FutureProvider<RoomContext>((ref) async {
 
   // 3. DỰ PHÒNG: Nếu vẫn trống (không khớp quy tắc nào), tìm thẻ "Trưa" hoặc "Trời nóng" để luôn có gợi ý
   if (activeTagIds.isEmpty) {
-    final backupTags = await supabase
-        .from('tags')
-        .select('id')
-        .or('name.eq.Trưa,name.eq.Trời nóng');
-    if (backupTags.isNotEmpty) {
-      activeTagIds = (backupTags as List).map((t) => t['id'].toString()).toList();
+    try {
+      // Vì name là JSONB, chúng ta dùng mũi tên ->> để truy cập text bên trong 'vi'
+      final backupTags = await supabase
+          .from('tags')
+          .select('id')
+          .or('name->>vi.eq.Trưa,name->>vi.eq.Trời nóng');
+      if (backupTags.isNotEmpty) {
+        activeTagIds = (backupTags as List).map((t) => t['id'].toString()).toList();
+      }
+    } catch (e) {
+      print("LỖI DỰ PHÒNG TAG: $e");
     }
   }
 
@@ -123,7 +128,12 @@ final aiRecommendedItemsProvider = Provider<AsyncValue<List<Map<String, dynamic>
   final menuAsync = ref.watch(menuItemsWithTagsProvider);
   final contextAsync = ref.watch(roomContextProvider);
 
-  if (menuAsync.value == null || contextAsync.value == null) {
+  // XỬ LÝ LỖI TRƯỚC ĐỂ TRÁNH XOAY VÒNG VÔ TẬN
+  if (menuAsync.hasError) return AsyncValue.error(menuAsync.error!, menuAsync.stackTrace!);
+  if (contextAsync.hasError) return AsyncValue.error(contextAsync.error!, contextAsync.stackTrace!);
+
+  // CHỜ DỮ LIỆU
+  if (!menuAsync.hasValue || !contextAsync.hasValue) {
     return const AsyncValue.loading();
   }
 
