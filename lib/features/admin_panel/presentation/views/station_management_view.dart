@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
 import '../../providers/admin_provider.dart';
 import '../widgets/station_form_dialog.dart';
@@ -71,7 +72,7 @@ class StationManagementView extends ConsumerWidget {
                                   children: [
                                     const Icon(Icons.countertops, color: Colors.grey),
                                     const SizedBox(width: 8),
-                                    Text(station['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                                    Text(L10nUtils.getL10n(station['name'], 'vi'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                                   ],
                                 )
                             ),

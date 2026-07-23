@@ -28,13 +28,9 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
   void initState() {
     super.initState();
     if (widget.tag != null) {
-      final nameData = widget.tag!['name'];
-      if (nameData is Map) {
-        _nameViController.text = nameData['vi']?.toString() ?? '';
-        _nameEnController.text = nameData['en']?.toString() ?? '';
-      } else {
-        _nameViController.text = nameData?.toString() ?? '';
-      }
+      final nameMap = L10nUtils.decodeField(widget.tag!['name']);
+      _nameViController.text = nameMap['vi']?.toString() ?? '';
+      _nameEnController.text = nameMap['en']?.toString() ?? '';
       _selectedType = widget.tag!['tag_type'] ?? 'ALLERGY';
     }
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/models/menu_item_model.dart';
 import '../../../main.dart';
 import 'room_menu_provider.dart';
 
@@ -125,7 +126,7 @@ final roomContextProvider = FutureProvider<RoomContext>((ref) async {
   );
 });
 
-final aiRecommendedItemsProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+final aiRecommendedItemsProvider = Provider<AsyncValue<List<MenuItemModel>>>((ref) {
   final menuAsync = ref.watch(menuItemsWithTagsProvider);
   final contextAsync = ref.watch(roomContextProvider);
 
@@ -146,7 +147,7 @@ final aiRecommendedItemsProvider = Provider<AsyncValue<List<Map<String, dynamic>
   }
 
   var scoredItems = menu.map((item) {
-    final itemTagIds = (item['tag_ids'] as List? ?? []).cast<String>();
+    final itemTagIds = item.tagIds;
     int score = 0;
     for (var activeId in roomCtx.activeContextTags) {
       if (itemTagIds.contains(activeId)) score++;
@@ -159,7 +160,7 @@ final aiRecommendedItemsProvider = Provider<AsyncValue<List<Map<String, dynamic>
   final result = scoredItems
       .where((s) => (s['score'] as int) > 0)
       .take(4)
-      .map((s) => s['item'] as Map<String, dynamic>)
+      .map((s) => s['item'] as MenuItemModel)
       .toList();
 
   return AsyncValue.data(result);

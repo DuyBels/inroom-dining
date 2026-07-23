@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/models/menu_item_model.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 
 // ==========================================
-// 1. MODEL GIỎ HÀNG (Modifier Groups)
+// 1. MODEL GIỎ HÀNG
 // ==========================================
 class SelectedModifier {
   final String groupId;
@@ -31,7 +32,7 @@ class SelectedModifier {
 
 class CartItem {
   final String uniqueId;
-  final Map<String, dynamic> menuItem;
+  final MenuItemModel menuItem; // Dùng Model
   int quantity;
   String notes;
   final List<SelectedModifier> selectedModifiers;
@@ -45,9 +46,8 @@ class CartItem {
   });
 
   double get singlePrice {
-    double basePrice = num.tryParse(menuItem['price'].toString())?.toDouble() ?? 0.0;
     double modifiersPrice = selectedModifiers.fold(0.0, (sum, m) => sum + m.price);
-    return basePrice + modifiersPrice;
+    return menuItem.price + modifiersPrice;
   }
 
   double get totalPrice => singlePrice * quantity;
@@ -60,9 +60,9 @@ class CartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() => [];
 
-  void addToCart(Map<String, dynamic> item, List<SelectedModifier> modifiers, String notes) {
+  void addToCart(MenuItemModel item, List<SelectedModifier> modifiers, String notes) {
     final modIds = modifiers.map((m) => m.modifierId).toList()..sort();
-    final String uniqueKey = "${item['id']}_${modIds.join('_')}_$notes";
+    final String uniqueKey = "${item.id}_${modIds.join('_')}_$notes";
 
     final existingIndex = state.indexWhere((c) => c.uniqueId == uniqueKey);
 
@@ -132,13 +132,11 @@ class ActiveFiltersNotifier extends Notifier<List<String>> {
 }
 final activeFiltersProvider = NotifierProvider<ActiveFiltersNotifier, List<String>>(ActiveFiltersNotifier.new);
 
-// Stream lấy toàn bộ quan hệ Item-Tag để join phía Client
 final itemTagsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase.from('item_tags').stream(primaryKey: ['item_id', 'tag_id']);
 });
 
-// Provider kết hợp Món ăn và các Thẻ của nó
-final menuItemsWithTagsProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+final menuItemsWithTagsProvider = Provider<AsyncValue<List<MenuItemModel>>>((ref) {
   final menuAsync = ref.watch(menuItemsStreamProvider);
   final itemTagsAsync = ref.watch(itemTagsStreamProvider);
 
@@ -151,10 +149,10 @@ final menuItemsWithTagsProvider = Provider<AsyncValue<List<Map<String, dynamic>>
 
   final combined = items.map((item) {
     final tagIds = relations
-        .where((r) => r['item_id'] == item['id'])
+        .where((r) => r['item_id'] == item.id)
         .map((r) => r['tag_id'].toString())
         .toList();
-    return {...item, 'tag_ids': tagIds};
+    return item.copyWith(tagIds: tagIds);
   }).toList();
 
   return AsyncValue.data(combined);
@@ -185,7 +183,6 @@ final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, St
   return allTickets.where((t) => activeOrderIds.contains(t['order_id'])).toList();
 });
 
-// Provider lấy nhóm tùy chỉnh trực tiếp từ món ăn (Kiến trúc Độc lập)
 final itemModifiersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) async {
   try {
     final groupsData = await supabase
@@ -196,7 +193,6 @@ final itemModifiersProvider = FutureProvider.family<List<Map<String, dynamic>>, 
         
     return List<Map<String, dynamic>>.from(groupsData);
   } catch (e) {
-    print("LỖI PROVIDER: $e");
     return [];
   }
 });

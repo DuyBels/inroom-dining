@@ -73,6 +73,16 @@ class AppDictionary {
   final String cleaningTab;
   final String totalBill;
   final String totalItem;
+  final String chatGroup;
+  final String typeMessage;
+  // New phrases for Kitchen and History
+  final String overtime;
+  final String finishIn;
+  final String startIn;
+  final String cookNow;
+  final String waitPrimary;
+  final String orderNo;
+  final String atTime;
 
   AppDictionary({
     required this.room,
@@ -147,6 +157,15 @@ class AppDictionary {
     required this.cleaningTab,
     required this.totalBill,
     required this.totalItem,
+    required this.chatGroup,
+    required this.typeMessage,
+    required this.overtime,
+    required this.finishIn,
+    required this.startIn,
+    required this.cookNow,
+    required this.waitPrimary,
+    required this.orderNo,
+    required this.atTime,
   });
 }
 
@@ -218,11 +237,20 @@ final viDict = AppDictionary(
   takeTask: "NHẬN NHIỆM VỤ",
   confirmDone: "XÁC NHẬN XONG",
   alreadyTaken: "ĐÃ CÓ NGƯỜI NHẬN",
-  historyTitle: "LỊCH SỬ PHỤC VỤ",
+  historyTitle: "LỊCH SỬ",
   deliveryTab: "GIAO MÓN",
-  cleaningTab: "DỌN DẸP",
+  cleaningTab: "DỌN BÀN",
   totalBill: "TỔNG BILL",
   totalItem: "TỔNG MÓN",
+  chatGroup: "NHÓM PHỤC VỤ",
+  typeMessage: "Nhập tin nhắn...",
+  overtime: "QUÁ GIỜ",
+  finishIn: "Xong sau",
+  startIn: "Bắt đầu sau",
+  cookNow: "NẤU NGAY!",
+  waitPrimary: "Chờ món chính...",
+  orderNo: "Đơn hàng",
+  atTime: "Lúc",
 );
 
 final enDict = AppDictionary(
@@ -293,11 +321,20 @@ final enDict = AppDictionary(
   takeTask: "ACCEPT TASK",
   confirmDone: "MARK AS DONE",
   alreadyTaken: "TAKEN",
-  historyTitle: "SERVICE HISTORY",
+  historyTitle: "HISTORY",
   deliveryTab: "DELIVERY",
   cleaningTab: "CLEANING",
   totalBill: "TOTAL BILL",
   totalItem: "ITEM TOTAL",
+  chatGroup: "STAFF GROUP",
+  typeMessage: "Type a message...",
+  overtime: "OVERTIME",
+  finishIn: "Finish in",
+  startIn: "Start in",
+  cookNow: "COOK NOW!",
+  waitPrimary: "Wait for primary...",
+  orderNo: "Order",
+  atTime: "At",
 );
 
 class LocaleNotifier extends Notifier<String> {

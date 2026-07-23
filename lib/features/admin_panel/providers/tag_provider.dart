@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/models/tag_model.dart';
 import '../../../main.dart';
 
-// Lắng nghe danh sách Thẻ theo thời gian thực
-final tagsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+// Lắng nghe danh sách Thẻ (Dùng Model)
+final tagsStreamProvider = StreamProvider<List<TagModel>>((ref) {
   return supabase
       .from('tags')
       .stream(primaryKey: ['id'])
-      .order('tag_type', ascending: true) // Nhóm theo loại thẻ cho dễ nhìn
-      .order('created_at', ascending: false);
+      .order('created_at', ascending: true)
+      .map((data) => data.map((json) => TagModel.fromSupabase(json)).toList());
 });

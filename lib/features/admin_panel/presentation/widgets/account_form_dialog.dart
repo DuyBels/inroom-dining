@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart'; // Chứa biến supabase global
 import '../../providers/admin_provider.dart';
 
@@ -205,7 +206,7 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                       decoration: const InputDecoration(labelText: 'Chọn Trạm Bếp', border: OutlineInputBorder()),
                       items: stations.map((s) => DropdownMenuItem(
                           value: s['id'].toString(),
-                          child: Text(s['name'])
+                          child: Text(L10nUtils.getL10n(s['name'], 'vi'))
                       )).toList(),
                       onChanged: (val) => setState(() => _selectedStationId = val),
                       validator: (val) => val == null ? 'Vui lòng chọn trạm' : null,

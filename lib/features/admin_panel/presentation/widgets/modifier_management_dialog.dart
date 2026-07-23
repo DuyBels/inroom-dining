@@ -248,13 +248,20 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
 
   @override
   Widget build(BuildContext context) {
-    final String itemName = L10nUtils.getL10n(widget.menuItem['name'], 'vi');
+    final l10n = ref.watch(l10nProvider);
+    final locale = ref.watch(localeProvider);
+    final String itemName = L10nUtils.getL10n(widget.menuItem['name'], locale);
+
     return AlertDialog(
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text('Tùy chỉnh: $itemName', overflow: TextOverflow.ellipsis)),
-          ElevatedButton.icon(onPressed: () => _showGroupDialog(), icon: const Icon(Icons.add), label: const Text('Thêm nhóm mới')),
+          Expanded(child: Text('${locale == 'vi' ? 'Tùy chỉnh' : 'Customization'}: $itemName', overflow: TextOverflow.ellipsis)),
+          ElevatedButton.icon(
+            onPressed: () => _showGroupDialog(), 
+            icon: const Icon(Icons.add), 
+            label: Text(locale == 'vi' ? 'Thêm nhóm mới' : 'Add new group')
+          ),
         ],
       ),
       content: SizedBox(
@@ -262,13 +269,13 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
         child: _isLoading 
           ? const Center(child: CircularProgressIndicator())
           : _groups.isEmpty 
-            ? const Center(child: Text('Chưa có tùy chỉnh nào cho món này.\nNhấn "Thêm nhóm mới" để bắt đầu.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)))
+            ? Center(child: Text(locale == 'vi' ? 'Chưa có tùy chỉnh nào cho món này.\nNhấn "Thêm nhóm mới" để bắt đầu.' : 'No customizations for this item.\nClick "Add new group" to start.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)))
             : ListView.builder(
                 itemCount: _groups.length,
                 itemBuilder: (ctx, i) {
                   final group = _groups[i];
                   final List modifiers = group['modifiers'] ?? [];
-                  final String groupName = L10nUtils.getL10n(group['name'], 'vi');
+                  final String groupName = L10nUtils.getL10n(group['name'], locale);
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
@@ -276,7 +283,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                     child: ExpansionTile(
                       initiallyExpanded: true,
                       title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                      subtitle: Text('Bắt buộc: ${group['min_select'] > 0 ? 'Có' : 'Không'} | Chọn tối đa: ${group['max_select']}'),
+                      subtitle: Text('${locale == 'vi' ? 'Bắt buộc' : 'Required'}: ${group['min_select'] > 0 ? (locale == 'vi' ? 'Có' : 'Yes') : (locale == 'vi' ? 'Không' : 'No')} | ${locale == 'vi' ? 'Chọn tối đa' : 'Max select'}: ${group['max_select']}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -290,7 +297,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                         ...modifiers.map((m) {
                           final price = num.tryParse(m['price'].toString()) ?? 0;
                           final formattedPrice = NumberFormat('#,###', 'vi_VN').format(price);
-                          final String modName = L10nUtils.getL10n(m['name'], 'vi');
+                          final String modName = L10nUtils.getL10n(m['name'], locale);
 
                           return ListTile(
                             dense: true,
@@ -310,7 +317,11 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                         }).toList(),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: TextButton.icon(onPressed: () => _showModifierDialog(group['id']), icon: const Icon(Icons.add_circle_outline), label: const Text('Thêm lựa chọn')),
+                          child: TextButton.icon(
+                            onPressed: () => _showModifierDialog(group['id']), 
+                            icon: const Icon(Icons.add_circle_outline), 
+                            label: Text(locale == 'vi' ? 'Thêm lựa chọn' : 'Add option')
+                          ),
                         )
                       ],
                     ),
@@ -318,7 +329,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                 },
               ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Xong'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.done))],
     );
   }
 }

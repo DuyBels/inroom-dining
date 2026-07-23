@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/gemini_service.dart';
+import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
-import '../../providers/admin_provider.dart'; // Chứa stationsStreamProvider
+import '../../providers/admin_provider.dart'; 
 
 class StationFormDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic>? station;
@@ -17,18 +19,15 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
   final _nameViController = TextEditingController();
   final _nameEnController = TextEditingController();
   bool _isLoading = false;
+  bool _isTranslating = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.station != null) {
-      final nameData = widget.station!['name'];
-      if (nameData is Map) {
-        _nameViController.text = nameData['vi']?.toString() ?? '';
-        _nameEnController.text = nameData['en']?.toString() ?? '';
-      } else {
-        _nameViController.text = nameData?.toString() ?? '';
-      }
+      final nameMap = L10nUtils.decodeField(widget.station!['name']);
+      _nameViController.text = nameMap['vi']?.toString() ?? '';
+      _nameEnController.text = nameMap['en']?.toString() ?? '';
     }
   }
 
@@ -37,6 +36,20 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
     _nameViController.dispose();
     _nameEnController.dispose();
     super.dispose();
+  }
+
+  Future<void> _translateWithAI() async {
+    if (_nameViController.text.isEmpty) return;
+    setState(() => _isTranslating = true);
+    try {
+      final gemini = ref.read(geminiServiceProvider);
+      final result = await gemini.translate(_nameViController.text);
+      _nameEnController.text = result;
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi dịch: $e')));
+    } finally {
+      if (mounted) setState(() => _isTranslating = false);
+    }
   }
 
   Future<void> _saveStation() async {
@@ -78,27 +91,37 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
     return AlertDialog(
       title: Text(widget.station == null ? 'Thêm Trạm Bếp Mới' : 'Sửa Trạm Bếp'),
       content: SizedBox(
-        width: 400,
+        width: 500,
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _nameViController,
-                decoration: const InputDecoration(
-                    labelText: 'Tên trạm bếp (VI)',
-                    border: OutlineInputBorder()
-                ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên trạm bếp' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameEnController,
-                decoration: const InputDecoration(
-                    labelText: 'Tên trạm bếp (EN)',
-                    border: OutlineInputBorder()
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nameViController,
+                      decoration: const InputDecoration(labelText: 'Tên trạm (VI)', border: OutlineInputBorder()),
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên trạm' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isTranslating ? null : _translateWithAI,
+                    icon: _isTranslating 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_awesome, color: Colors.purple),
+                    tooltip: 'AI Dịch sang tiếng Anh',
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _nameEnController,
+                      decoration: const InputDecoration(labelText: 'Tên trạm (EN)', border: OutlineInputBorder()),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

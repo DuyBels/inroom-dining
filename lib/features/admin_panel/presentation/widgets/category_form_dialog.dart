@@ -27,22 +27,13 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
   void initState() {
     super.initState();
     if (widget.category != null) {
-      final nameData = widget.category!['name'];
-      final descData = widget.category!['description'];
+      final nameMap = L10nUtils.decodeField(widget.category!['name']);
+      final descMap = L10nUtils.decodeField(widget.category!['description']);
 
-      if (nameData is Map) {
-        _nameController.text = nameData['vi']?.toString() ?? '';
-        _nameEnController.text = nameData['en']?.toString() ?? '';
-      } else {
-        _nameController.text = nameData?.toString() ?? '';
-      }
-
-      if (descData is Map) {
-        _descController.text = descData['vi']?.toString() ?? '';
-        _descEnController.text = descData['en']?.toString() ?? '';
-      } else {
-        _descController.text = descData?.toString() ?? '';
-      }
+      _nameController.text = nameMap['vi']?.toString() ?? '';
+      _nameEnController.text = nameMap['en']?.toString() ?? '';
+      _descController.text = descMap['vi']?.toString() ?? '';
+      _descEnController.text = descMap['en']?.toString() ?? '';
     }
   }
 

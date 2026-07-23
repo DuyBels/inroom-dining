@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../providers/chat_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
 
@@ -34,6 +35,7 @@ class _StaffChatDrawerState extends ConsumerState<StaffChatDrawer> {
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(staffMessagesStreamProvider);
     final myId = ref.watch(currentUserProvider)?.id;
+    final l10n = ref.watch(l10nProvider);
 
     // Lắng nghe tin nhắn mới: Nếu Drawer đang mở thì mark as read ngay lập tức
     ref.listen<AsyncValue<List<Map<String, dynamic>>>>(staffMessagesStreamProvider, (prev, next) {
@@ -50,11 +52,11 @@ class _StaffChatDrawerState extends ConsumerState<StaffChatDrawer> {
           Container(
             padding: const EdgeInsets.only(top: 50, bottom: 15, left: 16, right: 16),
             decoration: BoxDecoration(color: Colors.blue[800]),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.group, color: Colors.white),
-                SizedBox(width: 12),
-                Text('NHÓM PHỤC VỤ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                const Icon(Icons.group, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(l10n.chatGroup, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
           ),
@@ -116,16 +118,16 @@ class _StaffChatDrawerState extends ConsumerState<StaffChatDrawer> {
                 },
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, s) => Center(child: Text('Lỗi: $e')),
+              error: (e, s) => Center(child: Text('${l10n.errorLoading}: $e')),
             ),
           ),
-          _buildInputArea(),
+          _buildInputArea(l10n),
         ],
       ),
     );
   }
 
-  Widget _buildInputArea() {
+  Widget _buildInputArea(AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(12),
       color: Colors.white,
@@ -135,7 +137,7 @@ class _StaffChatDrawerState extends ConsumerState<StaffChatDrawer> {
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
-                hintText: 'Nhập tin nhắn...',
+                hintText: l10n.typeMessage,
                 filled: true, fillColor: const Color(0xFFF0F2F5),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
               ),
