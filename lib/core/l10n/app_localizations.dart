@@ -339,10 +339,10 @@ final enDict = AppDictionary(
 
 class LocaleNotifier extends Notifier<String> {
   @override
-  String build() => 'vi';
+  String build() => 'vi'; // Mặc định là Tiếng Việt
 
-  void toggleLanguage() {
-    state = (state == 'vi') ? 'en' : 'vi';
+  void setLocale(String code) {
+    state = code;
   }
 }
 

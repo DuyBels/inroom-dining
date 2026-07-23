@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../providers/kitchen_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
@@ -140,10 +141,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 title: Text(myStationName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 backgroundColor: Colors.orange[800],
                 actions: [
-                  TextButton(
-                    onPressed: () => ref.read(localeProvider.notifier).toggleLanguage(),
-                    child: Text(ref.watch(localeProvider) == 'vi' ? 'EN 🇺🇸' : 'VI 🇻🇳', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
+                  const LanguageSelector(),
+                  const SizedBox(width: 8),
                   IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: () => _showHistoryDialog(stationId)),
                   IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
                     ref.invalidate(userProfileProvider);

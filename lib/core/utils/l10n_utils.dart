@@ -2,8 +2,8 @@ import 'dart:convert';
 
 class L10nUtils {
   static const List<Map<String, String>> supportedLanguages = [
-    {'code': 'vi', 'name': 'Tiếng Việt'},
-    {'code': 'en', 'name': 'English'},
+    {'code': 'vi', 'name': 'Tiếng Việt', 'flag': '🇻🇳'},
+    {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
   ];
 
   static String getL10n(dynamic jsonField, String locale) {

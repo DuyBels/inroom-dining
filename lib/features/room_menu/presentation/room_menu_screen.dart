@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inroom_dining/features/room_menu/presentation/widgets/cart_and_tracking_panel.dart';
+import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/category_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
@@ -63,13 +64,8 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
         backgroundColor: Colors.grey[900],
         title: Text('${l10n.room} $currentRoomNumber', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
         actions: [
-          TextButton(
-            onPressed: () => ref.read(localeProvider.notifier).toggleLanguage(),
-            child: Text(
-              locale == 'vi' ? 'EN 🇺🇸' : 'VI 🇻🇳',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
+          const LanguageSelector(),
+          const SizedBox(width: 8),
           IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: () async {
             await supabase.auth.signOut();
             if (context.mounted) context.go('/login');

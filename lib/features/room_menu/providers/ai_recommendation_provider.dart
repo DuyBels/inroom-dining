@@ -36,7 +36,7 @@ final userManualPreferenceProvider =
         UserManualPreferenceNotifier.new);
 
 final roomContextProvider = FutureProvider<RoomContext>((ref) async {
-  const String apiKey = '80aa8876944e14bd4a63ed69f7b20e03';
+  const String apiKey = '39448cb0cb3380f9cc1efe5de1ad1982';
   const String city = 'Can Tho';
   final now = DateTime.now();
   final manualPref = ref.watch(userManualPreferenceProvider);

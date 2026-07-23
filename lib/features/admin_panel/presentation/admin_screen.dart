@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -73,6 +74,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         backgroundColor: Colors.blue[800],
         elevation: 2,
         actions: [
+          const LanguageSelector(),
+          const SizedBox(width: 8),
           // Nút Đăng xuất
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),

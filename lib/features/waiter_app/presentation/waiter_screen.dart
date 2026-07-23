@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inroom_dining/features/staff_chat/presentation/widgets/staff_chat_drawer.dart';
 import '../../staff_chat/providers/chat_provider.dart';
+import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -79,7 +80,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(l10n.waiterTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)), Text('${l10n.staffLabel}: ${currentProfile['display_name']}', style: const TextStyle(color: Colors.white70, fontSize: 12))]),
             backgroundColor: Colors.green[800],
             actions: [
-              TextButton(onPressed: () => ref.read(localeProvider.notifier).toggleLanguage(), child: Text(ref.watch(localeProvider) == 'vi' ? 'EN 🇺🇸' : 'VI 🇻🇳', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              const LanguageSelector(),
+              const SizedBox(width: 8),
               IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: _showHistoryDialog),
               IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async { ref.invalidate(userProfileProvider); await supabase.auth.signOut(); if (context.mounted) context.go('/login'); }),
               const SizedBox(width: 16),
