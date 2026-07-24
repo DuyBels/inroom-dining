@@ -156,14 +156,15 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                     data: (items) {
                       final allTags = tagsAsync.value ?? [];
                       
-                      // 1. Lọc theo trạng thái và tìm kiếm
+                      // 1. Lọc theo trạng thái và tìm kiếm (không phân biệt dấu)
                       var list = items.where((i) => i.isAvailable).toList();
                       
                       if (searchQuery.isNotEmpty) {
+                        final normalizedQuery = L10nUtils.removeDiacritics(searchQuery);
                         list = list.where((item) {
-                          final name = item.getName(locale).toLowerCase();
-                          final desc = item.getDescription(locale).toLowerCase();
-                          return name.contains(searchQuery) || desc.contains(searchQuery);
+                          final name = L10nUtils.removeDiacritics(item.getName(locale).toLowerCase());
+                          final desc = L10nUtils.removeDiacritics(item.getDescription(locale).toLowerCase());
+                          return name.contains(normalizedQuery) || desc.contains(normalizedQuery);
                         }).toList();
                       }
 

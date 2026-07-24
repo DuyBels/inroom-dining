@@ -55,4 +55,16 @@ class L10nUtils {
     }
     return {};
   }
+
+  /// Hàm loại bỏ dấu tiếng Việt để phục vụ tìm kiếm không dấu
+  static String removeDiacritics(String str) {
+    const vietnamese = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ';
+    const latin = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyydAAAAAAAAAAAAAAAAAEEEEEEEEEEEIIIIIOOOOOOOOOOOOOOOOOUUUUUUUUUUUYYYYYD';
+    
+    String result = str;
+    for (int i = 0; i < vietnamese.length; i++) {
+      result = result.replaceAll(vietnamese[i], latin[i]);
+    }
+    return result;
+  }
 }
