@@ -121,7 +121,7 @@ final cartTotalProvider = Provider<double>((ref) {
 });
 
 // ==========================================
-// 3. QUẢN LÝ BỘ LỌC & STREAMS
+// 3. QUẢN LÝ BỘ LỌC, TÌM KIẾM & STREAMS
 // ==========================================
 class ActiveFiltersNotifier extends Notifier<List<String>> {
   @override
@@ -131,6 +131,13 @@ class ActiveFiltersNotifier extends Notifier<List<String>> {
   }
 }
 final activeFiltersProvider = NotifierProvider<ActiveFiltersNotifier, List<String>>(ActiveFiltersNotifier.new);
+
+class SearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+  void update(String query) => state = query;
+}
+final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
 
 final itemTagsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   return supabase.from('item_tags').stream(primaryKey: ['item_id', 'tag_id']);

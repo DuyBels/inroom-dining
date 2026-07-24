@@ -75,6 +75,8 @@ class AppDictionary {
   final String totalItem;
   final String chatGroup;
   final String typeMessage;
+  final String searchHint;
+  final String searchTypewriter;
   // New phrases for Kitchen and History
   final String overtime;
   final String finishIn;
@@ -159,6 +161,8 @@ class AppDictionary {
     required this.totalItem,
     required this.chatGroup,
     required this.typeMessage,
+    required this.searchHint,
+    required this.searchTypewriter,
     required this.overtime,
     required this.finishIn,
     required this.startIn,
@@ -244,6 +248,8 @@ final viDict = AppDictionary(
   totalItem: "TỔNG MÓN",
   chatGroup: "NHÓM PHỤC VỤ",
   typeMessage: "Nhập tin nhắn...",
+  searchHint: "Tìm kiếm món ăn...",
+  searchTypewriter: "Bạn thích những món nào...",
   overtime: "QUÁ GIỜ",
   finishIn: "Xong sau",
   startIn: "Bắt đầu sau",
@@ -328,6 +334,8 @@ final enDict = AppDictionary(
   totalItem: "ITEM TOTAL",
   chatGroup: "STAFF GROUP",
   typeMessage: "Type a message...",
+  searchHint: "Search dishes...",
+  searchTypewriter: "What would you like to eat...",
   overtime: "OVERTIME",
   finishIn: "Finish in",
   startIn: "Start in",

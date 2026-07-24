@@ -1,3 +1,5 @@
+import '../utils/l10n_utils.dart';
+
 class MenuItemModel {
   final String id;
   final double price;
@@ -8,7 +10,7 @@ class MenuItemModel {
   final String categoryId;
   final String stationId;
   final bool isAvailable;
-  final List<String> tagIds; // Thêm tagIds vào model
+  final List<String> tagIds;
 
   MenuItemModel({
     required this.id,
@@ -25,14 +27,14 @@ class MenuItemModel {
 
   factory MenuItemModel.fromSupabase(Map<String, dynamic> json, {List<String>? tags}) {
     return MenuItemModel(
-      id: json['id'],
-      price: num.tryParse(json['price'].toString())?.toDouble() ?? 0.0,
-      nameMap: json['name'] is Map ? json['name'] : {'vi': json['name'] ?? ''},
-      descriptionMap: json['description'] is Map ? json['description'] : {'vi': json['description'] ?? ''},
+      id: json['id']?.toString() ?? '',
+      price: num.tryParse(json['price']?.toString() ?? '0')?.toDouble() ?? 0.0,
+      nameMap: L10nUtils.decodeField(json['name']),
+      descriptionMap: L10nUtils.decodeField(json['description']),
       imageUrl: json['image_url'],
-      prepTime: json['prep_time_minutes'] ?? 15,
-      categoryId: json['category_id'] ?? '',
-      stationId: json['station_id'] ?? '',
+      prepTime: int.tryParse(json['prep_time_minutes']?.toString() ?? '15') ?? 15,
+      categoryId: json['category_id']?.toString() ?? '',
+      stationId: json['station_id']?.toString() ?? '',
       isAvailable: json['is_available'] ?? true,
       tagIds: tags ?? [],
     );
@@ -53,15 +55,6 @@ class MenuItemModel {
     );
   }
 
-  String getName(String locale) {
-    final val = nameMap[locale]?.toString();
-    if (val != null && val.trim().isNotEmpty) return val;
-    return nameMap['vi']?.toString() ?? '';
-  }
-
-  String getDescription(String locale) {
-    final val = descriptionMap[locale]?.toString();
-    if (val != null && val.trim().isNotEmpty) return val;
-    return descriptionMap['vi']?.toString() ?? '';
-  }
+  String getName(String locale) => L10nUtils.getL10n(nameMap, locale);
+  String getDescription(String locale) => L10nUtils.getL10n(descriptionMap, locale);
 }
