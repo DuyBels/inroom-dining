@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inroom_dining/features/staff_chat/presentation/widgets/staff_chat_drawer.dart';
+import '../../staff_chat/providers/chat_provider.dart';
 import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -11,6 +13,7 @@ import 'views/station_management_view.dart';
 import 'views/category_management_view.dart';
 import 'views/menu_management_view.dart';
 import 'views/tag_management_view.dart';
+import 'views/admin_history_view.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   final String? adminId;
@@ -21,6 +24,7 @@ class AdminScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminScreenState extends ConsumerState<AdminScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   // Trạng thái lưu tab đang được chọn (Mặc định là 0 - Quản lý tài khoản)
   int _selectedIndex = 0;
 
@@ -31,6 +35,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     const CategoryManagementView(),
     const MenuManagementView(),
     const TagManagementView(),
+    const AdminHistoryView(),
   ];
 
   @override
@@ -59,6 +64,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     }
 
     return Scaffold(
+      key: _scaffoldKey,
+      endDrawer: const StaffChatDrawer(),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Column(
@@ -76,6 +83,28 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         actions: [
           const LanguageSelector(),
           const SizedBox(width: 8),
+          Builder(
+            builder: (ctx) {
+              final hasUnread = ref.watch(hasUnreadMessagesProvider);
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                    onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                  ),
+                  if (hasUnread)
+                    Positioned(
+                      right: 12, top: 12,
+                      child: Container(
+                        width: 10, height: 10,
+                        decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.blue[800]!, width: 1.5)),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           // Nút Đăng xuất
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
@@ -141,6 +170,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 icon: Icon(Icons.local_offer_outlined),
                 selectedIcon: Icon(Icons.local_offer),
                 label: Text('Thẻ dữ liệu'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history),
+                label: Text('Lịch sử'),
               ),
             ],
           ),

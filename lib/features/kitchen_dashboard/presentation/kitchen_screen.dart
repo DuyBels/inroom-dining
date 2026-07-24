@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inroom_dining/features/staff_chat/presentation/widgets/staff_chat_drawer.dart';
+import '../../staff_chat/providers/chat_provider.dart';
 import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../providers/kitchen_provider.dart';
@@ -22,6 +24,7 @@ class KitchenScreen extends ConsumerStatefulWidget {
 
 class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   Timer? _timer;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -135,6 +138,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
 
             return Scaffold(
+              key: _scaffoldKey,
+              endDrawer: const StaffChatDrawer(),
               backgroundColor: Colors.grey[200],
               appBar: AppBar(
                 automaticallyImplyLeading: false,
@@ -143,6 +148,28 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 actions: [
                   const LanguageSelector(),
                   const SizedBox(width: 8),
+                  Builder(
+                    builder: (ctx) {
+                      final hasUnread = ref.watch(hasUnreadMessagesProvider);
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                          ),
+                          if (hasUnread)
+                            Positioned(
+                              right: 12, top: 12,
+                              child: Container(
+                                width: 10, height: 10,
+                                decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.orange[800]!, width: 1.5)),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                   IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: () => _showHistoryDialog(stationId)),
                   IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
                     ref.invalidate(userProfileProvider);

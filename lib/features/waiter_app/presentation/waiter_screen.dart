@@ -82,6 +82,28 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             actions: [
               const LanguageSelector(),
               const SizedBox(width: 8),
+              Builder(
+                builder: (ctx) {
+                  final hasUnread = ref.watch(hasUnreadMessagesProvider);
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                        onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                      ),
+                      if (hasUnread)
+                        Positioned(
+                          right: 12, top: 12,
+                          child: Container(
+                            width: 10, height: 10,
+                            decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.green[800]!, width: 1.5)),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: _showHistoryDialog),
               IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async { ref.invalidate(userProfileProvider); await supabase.auth.signOut(); if (context.mounted) context.go('/login'); }),
               const SizedBox(width: 16),
