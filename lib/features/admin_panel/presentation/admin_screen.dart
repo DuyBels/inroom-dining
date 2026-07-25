@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inroom_dining/core/theme/admin_theme.dart';
 import 'package:inroom_dining/features/staff_chat/presentation/widgets/staff_chat_drawer.dart';
 import '../../staff_chat/providers/chat_provider.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -31,14 +32,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   int _selectedIndex = 0;
 
   // Danh sách các màn hình tính năng tương ứng với các mục ở thanh Menu
-  final List<Widget> _views = [
-    const AccountManagementView(),
-    const StationManagementView(),
-    const CategoryManagementView(),
-    const MenuManagementView(),
-    const TagManagementView(),
-    const AdminHistoryView(),
-    const QrGeneratorView(),
+  final List<Widget> _views = const [
+    AccountManagementView(),
+    StationManagementView(),
+    CategoryManagementView(),
+    MenuManagementView(),
+    TagManagementView(),
+    AdminHistoryView(),
+    QrGeneratorView(),
   ];
 
   @override
@@ -67,135 +68,224 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       );
     }
 
-    return Scaffold(
-      key: _scaffoldKey,
-      endDrawer: const StaffChatDrawer(),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          l10n.adminPanelTitle,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        backgroundColor: Colors.blue[800],
-        elevation: 2,
-        actions: [
-          Builder(
-            builder: (ctx) {
-              final hasUnread = ref.watch(hasUnreadMessagesProvider);
-              return Stack(
-                alignment: Alignment.center,
+    return Theme(
+      data: AdminTheme.themeData,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
+          final isDesktop = constraints.maxWidth >= 1024;
+
+          final tabTitles = [
+            l10n.accountsTab,
+            l10n.stationsTab,
+            l10n.categoriesTab,
+            l10n.menuTab,
+            l10n.tagsTab,
+            l10n.adminHistoryTab,
+            l10n.qrCodeTab,
+          ];
+
+          final tabIcons = const [
+            Icons.people_outline,
+            Icons.countertops_outlined,
+            Icons.category_outlined,
+            Icons.restaurant_menu_outlined,
+            Icons.local_offer_outlined,
+            Icons.history_outlined,
+            Icons.qr_code_2_outlined,
+          ];
+
+          final selectedTabIcons = const [
+            Icons.people,
+            Icons.countertops,
+            Icons.category,
+            Icons.restaurant_menu,
+            Icons.local_offer,
+            Icons.history,
+            Icons.qr_code_2,
+          ];
+
+          return Scaffold(
+            key: _scaffoldKey,
+            endDrawer: const StaffChatDrawer(),
+            // Drawer cho màn hình điện thoại (Mobile)
+            drawer: isMobile
+                ? NavigationDrawer(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: (int index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                      Navigator.pop(context); // Đóng drawer sau khi chọn tab
+                    },
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 20, 16, 10),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AdminTheme.primaryWood,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.admin_panel_settings, color: Colors.white, size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                l10n.adminPanelTitle,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AdminTheme.textDarkWood,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(indent: 16, endIndent: 16, height: 16),
+                      ...List.generate(tabTitles.length, (index) {
+                        return NavigationDrawerDestination(
+                          icon: Icon(tabIcons[index]),
+                          selectedIcon: Icon(selectedTabIcons[index], color: AdminTheme.primaryWood),
+                          label: Text(tabTitles[index]),
+                        );
+                      }),
+                    ],
+                  )
+                : null,
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              leading: isMobile
+                  ? IconButton(
+                      icon: const Icon(Icons.menu, color: Colors.white),
+                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                      tooltip: 'Menu',
+                    )
+                  : null,
+              title: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-                    onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                  const Icon(Icons.admin_panel_settings, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Text(
+                    isMobile ? tabTitles[_selectedIndex] : l10n.adminPanelTitle,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                   ),
-                  if (hasUnread)
-                    Positioned(
-                      right: 12, top: 12,
-                      child: Container(
-                        width: 10, height: 10,
-                        decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.blue[800]!, width: 1.5)),
+                ],
+              ),
+              backgroundColor: AdminTheme.primaryWood,
+              elevation: 2,
+              actions: [
+                Builder(
+                  builder: (ctx) {
+                    final hasUnread = ref.watch(hasUnreadMessagesProvider);
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                          tooltip: 'Trò chuyện nhân viên',
+                          onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                        ),
+                        if (hasUnread)
+                          Positioned(
+                            right: 12,
+                            top: 12,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.amber[400],
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AdminTheme.primaryWood, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                const LanguageSelector(),
+                const SizedBox(width: 4),
+                // Nút Đăng xuất
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white),
+                  tooltip: l10n.logout,
+                  onPressed: () async {
+                    ref.invalidate(userProfileProvider);
+                    await supabase.auth.signOut();
+                    if (context.mounted) {
+                      context.go('/login');
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            body: Row(
+              children: [
+                // ==========================================
+                // SIDEBAR: THANH MENU BÊN TRÁI (cho Desktop & Tablet)
+                // ==========================================
+                if (!isMobile)
+                  NavigationRail(
+                    extended: isDesktop,
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: (int index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                    },
+                    labelType: isDesktop ? NavigationRailLabelType.none : NavigationRailLabelType.selected,
+                    backgroundColor: AdminTheme.surfaceWhite,
+                    indicatorColor: AdminTheme.lightWoodCream,
+                    selectedIconTheme: const IconThemeData(color: AdminTheme.primaryWood, size: 26),
+                    unselectedIconTheme: const IconThemeData(color: AdminTheme.textMutedWood, size: 22),
+                    selectedLabelTextStyle: const TextStyle(
+                      color: AdminTheme.primaryWood,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    unselectedLabelTextStyle: const TextStyle(
+                      color: AdminTheme.textMutedWood,
+                      fontSize: 12,
+                    ),
+                    destinations: List.generate(tabTitles.length, (index) {
+                      return NavigationRailDestination(
+                        icon: Icon(tabIcons[index]),
+                        selectedIcon: Icon(selectedTabIcons[index]),
+                        label: Text(tabTitles[index]),
+                      );
+                    }),
+                  ),
+
+                // Đường kẻ dọc phân cách giữa Menu và Nội dung
+                if (!isMobile)
+                  const VerticalDivider(thickness: 1, width: 1, color: AdminTheme.borderWood),
+
+                // ==========================================
+                // KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH
+                // ==========================================
+                Expanded(
+                  child: Container(
+                    color: AdminTheme.bgWarmWhite,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: KeyedSubtree(
+                        key: ValueKey<int>(_selectedIndex),
+                        child: _views[_selectedIndex],
                       ),
                     ),
-                ],
-              );
-            },
-          ),
-          const LanguageSelector(),
-          const SizedBox(width: 8),
-          // Nút Đăng xuất
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: l10n.logout,
-            onPressed: () async {
-              ref.invalidate(userProfileProvider);
-              await supabase.auth.signOut();
-              if (context.mounted) {
-                context.go('/login');
-              }
-            },
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Row(
-        children: [
-          // ==========================================
-          // SIDEBAR: THANH MENU ĐIỀU HƯỚNG BÊN TRÁI
-          // ==========================================
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (int index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            labelType: NavigationRailLabelType.all,
-            backgroundColor: Colors.blue[50],
-            selectedIconTheme: IconThemeData(color: Colors.blue[800], size: 28),
-            unselectedIconTheme: IconThemeData(color: Colors.grey[700]),
-            selectedLabelTextStyle: TextStyle(
-              color: Colors.blue[800],
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
+                  ),
+                ),
+              ],
             ),
-            unselectedLabelTextStyle: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 12,
-            ),
-            destinations: [
-              NavigationRailDestination(
-                icon: const Icon(Icons.people_outline),
-                selectedIcon: const Icon(Icons.people),
-                label: Text(l10n.accountsTab),
-              ),
-              NavigationRailDestination(
-                icon: const Icon(Icons.countertops_outlined),
-                selectedIcon: const Icon(Icons.countertops),
-                label: Text(l10n.stationsTab),
-              ),
-              NavigationRailDestination(
-                icon: const Icon(Icons.category_outlined),
-                selectedIcon: const Icon(Icons.category),
-                label: Text(l10n.categoriesTab),
-              ),
-              NavigationRailDestination(
-                icon: const Icon(Icons.restaurant_menu_outlined),
-                selectedIcon: const Icon(Icons.restaurant_menu),
-                label: Text(l10n.menuTab),
-              ),
-              NavigationRailDestination(
-                icon: const Icon(Icons.local_offer_outlined),
-                selectedIcon: const Icon(Icons.local_offer),
-                label: Text(l10n.tagsTab),
-              ),
-              NavigationRailDestination(
-                icon: const Icon(Icons.history_outlined),
-                selectedIcon: const Icon(Icons.history),
-                label: Text(l10n.adminHistoryTab),
-              ),
-              NavigationRailDestination(
-                icon: const Icon(Icons.qr_code_2_outlined),
-                selectedIcon: const Icon(Icons.qr_code_2),
-                label: Text(l10n.qrCodeTab),
-              ),
-            ],
-          ),
-
-          // Đường kẻ dọc phân cách giữa Menu và Nội dung
-          const VerticalDivider(thickness: 1, width: 1, color: Colors.black12),
-
-          // ==========================================
-          // KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH
-          // ==========================================
-          Expanded(
-            child: Container(
-              color: Colors.grey[50],
-              child: _views[_selectedIndex],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
-}
+}

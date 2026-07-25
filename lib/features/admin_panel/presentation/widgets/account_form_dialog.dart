@@ -184,7 +184,6 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                   onChanged: (val) {
                     setState(() {
                       _selectedRole = val!;
-                      // Reset các trường liên quan khi đổi role
                       if (_selectedRole != 'STATION') _selectedStationId = null;
                       if (_selectedRole != 'ROOM') _roomController.clear();
                     });
@@ -192,7 +191,6 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Thay đổi giao diện động dựa trên Role được chọn
                 if (_selectedRole == 'ROOM')
                   TextFormField(
                     controller: _roomController,

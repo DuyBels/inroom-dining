@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:inroom_dining/core/theme/admin_theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
@@ -36,47 +37,60 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
   @override
   Widget build(BuildContext context) {
     final l10n = ref.watch(l10nProvider);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.systemHistoryTitle,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        return Padding(
+          padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.systemHistoryTitle,
+                style: TextStyle(
+                  fontSize: isMobile ? 20 : 24,
+                  fontWeight: FontWeight.bold,
+                  color: AdminTheme.textDarkWood,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AdminTheme.surfaceWhite,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AdminTheme.borderWood),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: AdminTheme.primaryWood,
+                  unselectedLabelColor: AdminTheme.textMutedWood,
+                  indicatorColor: AdminTheme.primaryWood,
+                  indicatorWeight: 3,
+                  tabs: [
+                    Tab(icon: const Icon(Icons.shopping_cart, size: 20), text: l10n.ordersTab),
+                    Tab(icon: const Icon(Icons.restaurant, size: 20), text: l10n.kitchenTab),
+                    Tab(icon: const Icon(Icons.person_pin_circle, size: 20), text: l10n.staffTab),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOrderHistory(l10n),
+                    _buildKitchenHistory(l10n),
+                    _buildStaffActivityHistory(l10n),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Colors.blue[800],
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.blue[800],
-              tabs: [
-                Tab(icon: const Icon(Icons.shopping_cart), text: l10n.ordersTab),
-                Tab(icon: const Icon(Icons.restaurant), text: l10n.kitchenTab),
-                Tab(icon: const Icon(Icons.person_pin_circle), text: l10n.staffTab),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOrderHistory(l10n),
-                _buildKitchenHistory(l10n),
-                _buildStaffActivityHistory(l10n),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -89,16 +103,23 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            leading: CircleAvatar(backgroundColor: statusColor.withOpacity(0.1), child: Icon(Icons.room_service, color: statusColor)),
-            title: Text('${l10n.room} ${order['room_number']} - ${order['status']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            leading: CircleAvatar(
+              backgroundColor: statusColor.withValues(alpha: 0.15),
+              child: Icon(Icons.room_service, color: statusColor),
+            ),
+            title: Text(
+              '${l10n.room} ${order['room_number']} - ${order['status']}',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${l10n.timeLabel}: ${_formatDateTime(order['created_at'])}'),
-                if (order['profiles'] != null) Text('${l10n.deliveryPersonLabel}: ${order['profiles']['display_name']}'),
+                const SizedBox(height: 4),
+                Text('${l10n.timeLabel}: ${_formatDateTime(order['created_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                if (order['profiles'] != null) Text('${l10n.deliveryPersonLabel}: ${order['profiles']['display_name']}', style: const TextStyle(color: AdminTheme.textMutedWood)),
               ],
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right, color: AdminTheme.textMutedWood),
             onTap: () => _showOrderDetails(order['id'], order['room_number'], l10n),
           ),
         );
@@ -117,13 +138,19 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.check, color: Colors.white)),
-            title: Text('${ticket['quantity']}x $itemName', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${l10n.stationsTab}: $stationName | ${l10n.done}: ${_formatDateTime(ticket['finished_at'])}'),
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFF2E7D32),
+              child: Icon(Icons.check, color: Colors.white),
+            ),
+            title: Text('${ticket['quantity']}x $itemName', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text('${l10n.stationsTab}: $stationName | ${l10n.done}: ${_formatDateTime(ticket['finished_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
+            ),
             trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
-              child: Text(l10n.done.toUpperCase(), style: TextStyle(fontSize: 10, color: Colors.grey[800], fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: AdminTheme.lightWoodCream, borderRadius: BorderRadius.circular(6)),
+              child: Text(l10n.done.toUpperCase(), style: const TextStyle(fontSize: 10, color: AdminTheme.primaryDarkWood, fontWeight: FontWeight.bold)),
             ),
           ),
         );
@@ -141,14 +168,24 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
-            leading: Icon(isCleaning ? Icons.cleaning_services : Icons.support_agent, color: isCleaning ? Colors.blue : Colors.purple),
-            title: Text('${isCleaning ? l10n.cleaningTab : l10n.supportTask} - ${l10n.room} ${service['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            leading: CircleAvatar(
+              backgroundColor: isCleaning ? const Color(0xFFE3F2FD) : const Color(0xFFF3E5F5),
+              child: Icon(
+                isCleaning ? Icons.cleaning_services : Icons.support_agent,
+                color: isCleaning ? const Color(0xFF1565C0) : const Color(0xFF6A1B9A),
+              ),
+            ),
+            title: Text(
+              '${isCleaning ? l10n.cleaningTab : l10n.supportTask} - ${l10n.room} ${service['room_number']}',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${l10n.performerLabel}: $name'),
-                Text('${l10n.requestedAtLabel}: ${_formatDateTime(service['created_at'])}'),
-                if (service['completed_at'] != null) Text('${l10n.completedAtLabel}: ${_formatDateTime(service['completed_at'])}', style: const TextStyle(color: Colors.green)),
+                const SizedBox(height: 4),
+                Text('${l10n.performerLabel}: $name', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                Text('${l10n.requestedAtLabel}: ${_formatDateTime(service['created_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                if (service['completed_at'] != null) Text('${l10n.completedAtLabel}: ${_formatDateTime(service['completed_at'])}', style: const TextStyle(color: Color(0xFF2E7D32))),
               ],
             ),
           ),
@@ -178,8 +215,8 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
                   final locale = ref.watch(localeProvider);
                   final name = L10nUtils.getL10n(t['menu_items']?['name'], locale);
                   return ListTile(
-                    leading: Text('${t['quantity']}x', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    title: Text(name),
+                    leading: Text('${t['quantity']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryWood)),
+                    title: Text(name, style: const TextStyle(color: AdminTheme.textDarkWood)),
                     subtitle: Text('${l10n.statusLabel}: ${t['status']}'),
                   );
                 },
@@ -187,7 +224,7 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
             },
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.close))],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.close, style: const TextStyle(color: AdminTheme.primaryWood)))],
       ),
     );
   }
@@ -199,9 +236,9 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
       future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) return Center(child: Text('${l10n.errorLoading}: ${snapshot.error}'));
+        if (snapshot.hasError) return Center(child: Text('${l10n.errorLoading}: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
         final data = snapshot.data ?? [];
-        if (data.isEmpty) return Center(child: Text(l10n.noOptions));
+        if (data.isEmpty) return Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
         return ListView.builder(
           itemCount: data.length,
           itemBuilder: (context, index) => itemBuilder(data[index]),
@@ -212,11 +249,17 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
 
   Color _getOrderStatusColor(String status) {
     switch (status) {
-      case 'PENDING': return Colors.orange;
-      case 'PROCESSING': return Colors.blue;
-      case 'READY_FOR_DELIVERY': return Colors.green;
-      case 'DELIVERED': return Colors.grey;
-      default: return Colors.blueGrey;
+      case 'PENDING':
+        return Colors.orange;
+      case 'PROCESSING':
+        return const Color(0xFF1565C0);
+      case 'READY_FOR_DELIVERY':
+        return const Color(0xFF2E7D32);
+      case 'DELIVERED':
+        return AdminTheme.textMutedWood;
+      default:
+        return Colors.blueGrey;
     }
   }
 }
+

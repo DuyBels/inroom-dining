@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:inroom_dining/core/theme/admin_theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/l10n_utils.dart';
 import '../../../../core/models/menu_item_model.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../../main.dart';
 import '../../../admin_panel/providers/menu_provider.dart';
 import '../../providers/room_menu_provider.dart';
@@ -11,7 +12,12 @@ import '../../../waiter_app/providers/room_service_provider.dart';
 
 class CartAndTrackingPanel extends ConsumerStatefulWidget {
   final String roomNumber;
-  const CartAndTrackingPanel({super.key, required this.roomNumber});
+  final bool isMobile;
+  const CartAndTrackingPanel({
+    super.key,
+    required this.roomNumber,
+    this.isMobile = false,
+  });
 
   @override
   ConsumerState<CartAndTrackingPanel> createState() => _CartAndTrackingPanelState();
@@ -29,43 +35,63 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.confirmOrder, style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AdminTheme.surfaceWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.confirmOrder, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
         content: SizedBox(
           width: 450,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('${l10n.checkOrderList}:'),
-              const Divider(),
-              Flexible(child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: cart.length,
-                itemBuilder: (c, i) {
-                   return ListTile(
-                    dense: true,
-                    title: Text('${cart[i].quantity}x ${cart[i].menuItem.getName(locale)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(cart[i].selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')),
-                    trailing: Text('${NumberFormat('#,###', 'vi_VN').format(cart[i].totalPrice)} VND'),
-                  );
-                },
-              )),
-              const Divider(),
+              Text('${l10n.checkOrderList}:', style: const TextStyle(color: AdminTheme.textMutedWood)),
+              const Divider(color: AdminTheme.borderWood),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: cart.length,
+                  itemBuilder: (c, i) {
+                    return ListTile(
+                      dense: true,
+                      title: Text('${cart[i].quantity}x ${cart[i].menuItem.getName(locale)}', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+                      subtitle: Text(
+                        cart[i].selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', '),
+                        style: const TextStyle(color: AdminTheme.textMutedWood),
+                      ),
+                      trailing: Text(
+                        '${NumberFormat('#,###', 'vi_VN').format(cart[i].totalPrice)} VND',
+                        style: const TextStyle(color: AdminTheme.primaryWood, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const Divider(color: AdminTheme.borderWood),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('${l10n.total}:', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text('${NumberFormat('#,###', 'vi_VN').format(total)} VND', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.red)),
+                  Text('${l10n.total}:', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+                  Text(
+                    '${NumberFormat('#,###', 'vi_VN').format(total)} VND',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AdminTheme.accentAmber),
+                  ),
                 ],
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.changeLabel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.changeLabel, style: const TextStyle(color: AdminTheme.textMutedWood)),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AdminTheme.primaryWood,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.sendRequest, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(l10n.sendRequest, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -89,9 +115,17 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
       await supabase.from('tickets').insert(tickets);
       ref.read(cartProvider.notifier).clearCart();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.orderSuccess), backgroundColor: Colors.green));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.orderSuccess), backgroundColor: const Color(0xFF2E7D32)),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${ref.read(l10nProvider).errorPrefix}: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${ref.read(l10nProvider).errorPrefix}: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -103,11 +137,33 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       bool? confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(l10n.supportQuestion),
-          content: TextField(controller: controller, maxLines: 3, decoration: InputDecoration(hintText: l10n.supportHint, border: const OutlineInputBorder())),
+          backgroundColor: AdminTheme.surfaceWhite,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(l10n.supportQuestion, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+          content: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: l10n.supportHint,
+              filled: true,
+              fillColor: AdminTheme.bgWarmWhite,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminTheme.borderWood)),
+            ),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
-            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.sendRequest)),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel, style: const TextStyle(color: AdminTheme.textMutedWood)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.primaryWood,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.sendRequest),
+            ),
           ],
         ),
       );
@@ -116,13 +172,27 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     }
 
     try {
-      await supabase.from('room_services').insert({'room_number': widget.roomNumber, 'service_type': type, 'status_id': 1, 'notes': notes});
+      await supabase.from('room_services').insert({
+        'room_number': widget.roomNumber,
+        'service_type': type,
+        'status_id': 1,
+        'notes': notes,
+      });
       if (mounted) {
         String msg = type == 'CLEANING' ? l10n.roomCleaningCalled : l10n.staffCalled;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: type == 'CLEANING' ? Colors.blue : Colors.purple));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: AdminTheme.primaryWood,
+          ),
+        );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -130,7 +200,6 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final l10n = ref.read(l10nProvider);
     final locale = ref.read(localeProvider);
 
-    // Cố định Future ngay từ đầu để tránh loop
     final ordersFuture = supabase
         .from('orders')
         .select('*, tickets(quantity, menu_items(name))')
@@ -141,44 +210,52 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+        backgroundColor: AdminTheme.surfaceWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
-          width: 600, height: 500,
+          width: 550,
+          height: 480,
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: ordersFuture,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
               final orders = snapshot.data ?? [];
-              if (orders.isEmpty) return Center(child: Text(l10n.noOptions));
+              if (orders.isEmpty) {
+                return Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
+              }
 
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: orders.length,
-                separatorBuilder: (_, __) => const Divider(height: 32),
+                separatorBuilder: (_, __) => const Divider(height: 24, color: AdminTheme.borderWood),
                 itemBuilder: (ctx, i) {
                   final o = orders[i];
                   final date = DateTime.parse(o['created_at']).toLocal();
                   final List tickets = o['tickets'] ?? [];
-                  
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('${l10n.orderNo} #${o['id'].toString().substring(0, 5)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('${l10n.orderNo} #${o['id'].toString().substring(0, 5)}', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
                           _buildStatusBadge(_translateOrderStatus(o['status'], l10n)),
                         ],
                       ),
-                      Text('${l10n.atTime}: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 2),
+                      Text('${l10n.atTime}: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)}', style: const TextStyle(fontSize: 12, color: AdminTheme.textMutedWood)),
+                      const SizedBox(height: 6),
                       ...tickets.map((t) {
                         final dynamic rawName = t['menu_items'] != null ? t['menu_items']['name'] : l10n.menuItemFallback;
                         final String itemName = L10nUtils.getL10n(rawName, locale);
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('• ${t['quantity']}x $itemName', style: const TextStyle(fontSize: 13)),
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Text('• ${t['quantity']}x $itemName', style: const TextStyle(fontSize: 13, color: AdminTheme.textDarkWood)),
                         );
                       }),
                     ],
@@ -188,16 +265,28 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             },
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.close))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.close, style: const TextStyle(color: AdminTheme.primaryWood, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStatusBadge(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: Colors.blueGrey[50], borderRadius: BorderRadius.circular(4)),
-      child: Text(text, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AdminTheme.lightWoodCream,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AdminTheme.borderWood),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood),
+      ),
     );
   }
 
@@ -230,12 +319,34 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final menuAsync = ref.watch(menuItemsStreamProvider);
 
     return Container(
-      width: 400,
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
+      width: widget.isMobile ? double.infinity : 360,
+      decoration: BoxDecoration(
+        color: AdminTheme.surfaceWhite,
+        border: Border(
+          left: widget.isMobile ? BorderSide.none : const BorderSide(color: AdminTheme.borderWood, width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(color: AdminTheme.primaryDarkWood.withValues(alpha: 0.05), blurRadius: 10),
+        ],
+      ),
       child: Column(
         children: [
           _buildActionHeader(l10n),
-          Expanded(flex: 3, child: cart.isEmpty ? Center(child: Text(l10n.emptyCart, style: const TextStyle(color: Colors.grey))) : _buildCartList(cart, l10n)),
+          Expanded(
+            flex: 3,
+            child: cart.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.shopping_bag_outlined, size: 40, color: AdminTheme.textMutedWood.withValues(alpha: 0.5)),
+                        const SizedBox(height: 8),
+                        Text(l10n.emptyCart, style: const TextStyle(color: AdminTheme.textMutedWood)),
+                      ],
+                    ),
+                  )
+                : _buildCartList(cart, l10n),
+          ),
           if (cart.isNotEmpty) _buildCheckoutSection(cartTotal, l10n),
           if (roomTicketsAsync.isNotEmpty || (roomServicesAsync.value?.isNotEmpty ?? false))
             _buildTrackingSection(roomTicketsAsync, roomServicesAsync.value ?? [], menuAsync.value ?? [], l10n),
@@ -247,24 +358,65 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
   Widget _buildActionHeader(AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.grey[50],
+      color: AdminTheme.woodTint,
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(children: [const Icon(Icons.shopping_bag_outlined), const SizedBox(width: 8), Text(l10n.cart, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))]),
-              TextButton.icon(onPressed: _showOrderHistory, icon: const Icon(Icons.history, size: 18), label: Text(l10n.history, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+              Row(
+                children: [
+                  const Icon(Icons.shopping_bag_outlined, color: AdminTheme.primaryWood),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.cart,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AdminTheme.textDarkWood),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: _showOrderHistory,
+                icon: const Icon(Icons.history, size: 18, color: AdminTheme.primaryWood),
+                label: Text(
+                  l10n.history,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.primaryWood),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.person, size: 16), label: Text(l10n.callStaff), onPressed: () => _requestService('CALL_STAFF'), style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[50], foregroundColor: Colors.purple[800], elevation: 0))),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.person, size: 16),
+                  label: Text(l10n.callStaff),
+                  onPressed: () => _requestService('CALL_STAFF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AdminTheme.lightWoodCream,
+                    foregroundColor: AdminTheme.primaryDarkWood,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.cleaning_services, size: 16), label: Text(l10n.cleaning), onPressed: () => _requestService('CLEANING'), style: OutlinedButton.styleFrom(foregroundColor: Colors.blue[800], side: BorderSide(color: Colors.blue[200]!)))),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cleaning_services, size: 16),
+                  label: Text(l10n.cleaning),
+                  onPressed: () => _requestService('CLEANING'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AdminTheme.primaryWood,
+                    side: const BorderSide(color: AdminTheme.primaryWood),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -279,18 +431,39 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         final item = cart[index];
         final String displayName = item.menuItem.getName(locale);
         return Card(
-          elevation: 0, color: Colors.grey[50], margin: const EdgeInsets.only(bottom: 8),
+          elevation: 0,
+          color: AdminTheme.bgWarmWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: AdminTheme.borderWood, width: 0.8),
+          ),
+          margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: item.selectedModifiers.isNotEmpty ? Text('${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}', style: const TextStyle(fontSize: 11)) : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+            subtitle: item.selectedModifiers.isNotEmpty
+                ? Text(
+                    '${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}',
+                    style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood),
+                  )
+                : null,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${NumberFormat('#,###', 'vi_VN').format(item.totalPrice)} VND', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, -1)),
-                Text('${item.quantity}'),
-                IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, 1)),
+                Text(
+                  '${NumberFormat('#,###', 'vi_VN').format(item.totalPrice)} VND',
+                  style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, size: 20, color: AdminTheme.textMutedWood),
+                  onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, -1),
+                ),
+                Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 20, color: AdminTheme.primaryWood),
+                  onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, 1),
+                ),
               ],
             ),
           ),
@@ -302,12 +475,37 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
   Widget _buildCheckoutSection(double total, AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey[200]!))),
+      decoration: const BoxDecoration(
+        color: AdminTheme.surfaceWhite,
+        border: Border(top: BorderSide(color: AdminTheme.borderWood)),
+      ),
       child: Column(
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.totalPayment}:'), Text('${NumberFormat('#,###', 'vi_VN').format(total)} VND', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red))]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${l10n.totalPayment}:', style: const TextStyle(color: AdminTheme.textDarkWood, fontWeight: FontWeight.w600)),
+              Text(
+                '${NumberFormat('#,###', 'vi_VN').format(total)} VND',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.accentAmber),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
-          SizedBox(width: double.infinity, height: 50, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, elevation: 0), onPressed: _submitOrderWithConfirmation, child: Text(l10n.orderNow, style: const TextStyle(fontWeight: FontWeight.bold)))),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.primaryWood,
+                foregroundColor: Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _submitOrderWithConfirmation,
+              child: Text(l10n.orderNow, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
+          ),
         ],
       ),
     );
@@ -315,15 +513,24 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
   Widget _buildTrackingSection(List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> services, List<MenuItemModel> menuItems, AppDictionary l10n) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      color: Colors.blueGrey[50],
+      padding: const EdgeInsets.all(16),
+      color: AdminTheme.woodTint,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(child: Text(l10n.history.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1))),
-          const SizedBox(height: 20),
-          if (tickets.isNotEmpty) ...[_buildFoodProgress(tickets, menuItems, l10n), const SizedBox(height: 25)],
-          if (services.isNotEmpty) ...[Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)), const SizedBox(height: 8), ...services.map((s) => _buildServiceRequestCard(s, l10n))],
+          Center(
+            child: Text(
+              l10n.history.toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1, color: AdminTheme.primaryDarkWood, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (tickets.isNotEmpty) ...[_buildFoodProgress(tickets, menuItems, l10n), const SizedBox(height: 16)],
+          if (services.isNotEmpty) ...[
+            Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+            const SizedBox(height: 8),
+            ...services.map((s) => _buildServiceRequestCard(s, l10n)),
+          ],
         ],
       ),
     );
@@ -335,7 +542,10 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     int currentStep = allDone ? 2 : (anyCooking ? 1 : 0);
     int maxPrepTime = 0;
     for (var t in tickets) {
-      final item = menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false));
+      final item = menuItems.firstWhere(
+        (m) => m.id == t['item_id'],
+        orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false),
+      );
       if (item.prepTime > maxPrepTime) maxPrepTime = item.prepTime;
     }
     final int estimatedTotal = maxPrepTime + 5;
@@ -343,27 +553,47 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     return Column(
       children: [
         _MinimalistTracker(currentStep: currentStep, l10n: l10n),
-        const SizedBox(height: 15),
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           width: double.infinity,
-          decoration: BoxDecoration(color: Colors.amber[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber[300]!)),
-          child: Column(children: [Text('${l10n.estimatedFinish} $estimatedTotal ${l10n.minute}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.brown, fontSize: 13)), const SizedBox(height: 4), Text("(${l10n.includeDelivery})", style: const TextStyle(fontSize: 10, color: Colors.brown))]),
+          decoration: BoxDecoration(
+            color: AdminTheme.lightWoodCream,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AdminTheme.borderWood),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '${l10n.estimatedFinish} $estimatedTotal ${l10n.minute}',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood, fontSize: 13),
+              ),
+              const SizedBox(height: 2),
+              Text("(${l10n.includeDelivery})", style: const TextStyle(fontSize: 10, color: AdminTheme.textMutedWood)),
+            ],
+          ),
         ),
-        const SizedBox(height: 15),
-        Container(
-          padding: const EdgeInsets.all(12),
-          width: double.infinity,
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-          child: Text(currentStep == 0 ? l10n.orderReceived : (currentStep == 1 ? l10n.orderPreparing : l10n.orderDelivering), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.blueGrey)),
-        ),
-        const SizedBox(height: 15),
+        const SizedBox(height: 10),
         ...tickets.map((t) {
           final locale = ref.watch(localeProvider);
-          final item = menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false));
+          final item = menuItems.firstWhere(
+            (m) => m.id == t['item_id'],
+            orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false),
+          );
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(children: [Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.radio_button_unchecked, size: 14, color: t['status'] == 'DONE' ? Colors.green : Colors.grey), const SizedBox(width: 8), Expanded(child: Text('${t['quantity']}x ${item.getName(locale)}', style: const TextStyle(fontSize: 12))), Text(_translateTicketStatus(t['status'], l10n), style: const TextStyle(fontSize: 11, color: Colors.blueGrey))]),
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                Icon(
+                  t['status'] == 'DONE' ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 14,
+                  color: t['status'] == 'DONE' ? const Color(0xFF2E7D32) : AdminTheme.textMutedWood,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text('${t['quantity']}x ${item.getName(locale)}', style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood))),
+                Text(_translateTicketStatus(t['status'], l10n), style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood)),
+              ],
+            ),
           );
         }),
       ],
@@ -376,14 +606,34 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final bool isPending = statusId == 1;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: isPending ? Colors.amber[200]! : Colors.blue[200]!)),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AdminTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AdminTheme.borderWood),
+      ),
       child: Row(
         children: [
-          CircleAvatar(backgroundColor: isPending ? Colors.amber[50] : Colors.blue[50], radius: 18, child: Icon(isCleaning ? Icons.cleaning_services : Icons.person, size: 18, color: isPending ? Colors.amber[800] : Colors.blue[800])),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(isCleaning ? l10n.cleaningRequest : l10n.supportRequest, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)), Text(isPending ? l10n.waitingStaff : l10n.staffProcessing, style: TextStyle(fontSize: 11, color: Colors.grey[600]))])),
-          if (!isPending) const Icon(Icons.sync, size: 16, color: Colors.blue),
+          CircleAvatar(
+            backgroundColor: AdminTheme.lightWoodCream,
+            radius: 16,
+            child: Icon(
+              isCleaning ? Icons.cleaning_services : Icons.person,
+              size: 16,
+              color: AdminTheme.primaryWood,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(isCleaning ? l10n.cleaningRequest : l10n.supportRequest, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+                Text(isPending ? l10n.waitingStaff : l10n.staffProcessing, style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood)),
+              ],
+            ),
+          ),
+          if (!isPending) const Icon(Icons.sync, size: 16, color: AdminTheme.primaryWood),
         ],
       ),
     );
@@ -394,15 +644,44 @@ class _MinimalistTracker extends StatelessWidget {
   final int currentStep;
   final AppDictionary l10n;
   const _MinimalistTracker({required this.currentStep, required this.l10n});
+
   @override
   Widget build(BuildContext context) {
-    return Row(children: [_buildStep(0, l10n.pending, Icons.assignment_turned_in), _buildLine(0), _buildStep(1, l10n.cooking, Icons.restaurant), _buildLine(1), _buildStep(2, l10n.delivery, Icons.delivery_dining)]);
+    return Row(
+      children: [
+        _buildStep(0, l10n.pending, Icons.assignment_turned_in),
+        _buildLine(0),
+        _buildStep(1, l10n.cooking, Icons.restaurant),
+        _buildLine(1),
+        _buildStep(2, l10n.delivery, Icons.delivery_dining),
+      ],
+    );
   }
+
   Widget _buildStep(int step, String label, IconData icon) {
     bool isActive = currentStep >= step;
-    return Column(children: [Icon(icon, color: isActive ? Colors.orange : Colors.grey[400], size: 24), const SizedBox(height: 4), Text(label, style: TextStyle(fontSize: 10, color: isActive ? Colors.black : Colors.grey, fontWeight: isActive ? FontWeight.bold : FontWeight.normal))]);
+    return Column(
+      children: [
+        Icon(icon, color: isActive ? AdminTheme.primaryWood : AdminTheme.borderWood, size: 22),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: isActive ? AdminTheme.textDarkWood : AdminTheme.textMutedWood,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
   }
+
   Widget _buildLine(int step) {
-    return Expanded(child: Container(height: 2, color: currentStep > step ? Colors.orange : Colors.grey[300]));
+    return Expanded(
+      child: Container(
+        height: 2,
+        color: currentStep > step ? AdminTheme.primaryWood : AdminTheme.borderWood,
+      ),
+    );
   }
 }

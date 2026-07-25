@@ -86,7 +86,6 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
     final String orderId = ticket['order_id'].toString();
     final bool isStarted = orderHasStarted[orderId] ?? false;
 
-    // SỬA: Tìm dùng Model
     final menuItem = menuItems.firstWhere(
       (m) => m.id == ticket['item_id'], 
       orElse: () => MenuItemModel(id: '', price: 0, nameMap: {'vi': 'Unknown'}, descriptionMap: {}, prepTime: 15, categoryId: '', stationId: '', isAvailable: false)

@@ -1,22 +1,23 @@
 import 'dart:async';
-import '../providers/ai_recommendation_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:inroom_dining/core/theme/admin_theme.dart';
+import 'package:inroom_dining/features/room_menu/presentation/widgets/cart_and_tracking_panel.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/utils/l10n_utils.dart';
 import '../../../core/models/menu_item_model.dart';
 import '../../../core/models/category_model.dart';
 import '../../../core/models/tag_model.dart';
-import 'package:intl/intl.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:inroom_dining/features/room_menu/presentation/widgets/cart_and_tracking_panel.dart';
 import '../../../core/widgets/language_selector.dart';
+import '../../../core/services/qr_session_service.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/category_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../admin_panel/providers/tag_provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../core/services/qr_session_service.dart';
+import '../providers/ai_recommendation_provider.dart';
 import '../providers/room_menu_provider.dart';
 
 class RoomMenuScreen extends ConsumerStatefulWidget {
@@ -54,12 +55,12 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     _typewriterTimer?.cancel();
     _charIndex = 0;
     _animatedHint = "";
-    
+
     _typewriterTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       if (!mounted) return;
       final l10n = ref.read(l10nProvider);
       final fullText = l10n.searchTypewriter;
-      
+
       if (_charIndex < fullText.length) {
         setState(() {
           _animatedHint += fullText[_charIndex];
@@ -105,67 +106,74 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     final String currentRoomNumber = widget.roomNumber!;
     final l10n = ref.watch(l10nProvider);
     final locale = ref.watch(localeProvider);
+    final cart = ref.watch(cartProvider);
+    final cartTotal = ref.watch(cartTotalProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.grey[900],
-        title: Text('${l10n.room} $currentRoomNumber', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-        actions: [
-          const LanguageSelector(),
-          const SizedBox(width: 8),
-          IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: () async {
-            await supabase.auth.signOut();
-            if (context.mounted) context.go('/login');
-          }),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Row(
-        children: [
-          NavigationRail(
-            backgroundColor: Colors.grey[900],
-            unselectedLabelTextStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-            selectedLabelTextStyle: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13),
-            unselectedIconTheme: const IconThemeData(color: Colors.grey),
-            selectedIconTheme: const IconThemeData(color: Colors.amber),
-            selectedIndex: _getSelectedIndex(categoriesAsync.value),
-            onDestinationSelected: (idx) {
-              if (idx == 0) setState(() => _selectedCategoryId = null);
-              else setState(() => _selectedCategoryId = categoriesAsync.value![idx - 1].id);
-            },
-            labelType: NavigationRailLabelType.all,
-            destinations: [
-              NavigationRailDestination(
-                icon: const Icon(Icons.menu_book), 
-                selectedIcon: const Icon(Icons.menu_book, color: Colors.amber),
-                label: Text(l10n.all)
-              ),
-              ...categoriesAsync.maybeWhen(
-                data: (cats) => cats.map((c) => NavigationRailDestination(
-                  icon: const Icon(Icons.restaurant_menu), 
-                  label: Text(c.getName(locale), textAlign: TextAlign.center)
-                )).toList(), 
-                orElse: () => []
+    return Theme(
+      data: AdminTheme.themeData,
+      child: Scaffold(
+        backgroundColor: AdminTheme.bgWarmWhite,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          backgroundColor: AdminTheme.primaryWood,
+          elevation: 0,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AdminTheme.lightWoodCream,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.meeting_room, color: AdminTheme.primaryDarkWood, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${l10n.room} $currentRoomNumber',
+                      style: const TextStyle(
+                        color: AdminTheme.primaryDarkWood,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          Expanded(
-            flex: 3,
-            child: Column(
+          actions: [
+            const LanguageSelector(),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              tooltip: 'Đăng xuất',
+              onPressed: () async {
+                await supabase.auth.signOut();
+                if (context.mounted) context.go('/login');
+              },
+            ),
+            const SizedBox(width: 12),
+          ],
+        ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 768;
+
+            Widget menuContent = Column(
               children: [
                 _buildQrSessionBanner(),
                 _buildSearchBar(l10n),
+                if (isMobile) _buildTopCategoryChips(categoriesAsync.value, l10n, locale),
+                _buildTagFilterBar(tagsAsync, activeFilters, locale),
                 _buildAISuggestionBar(),
                 Expanded(
                   child: menuWithTagsAsync.when(
                     data: (items) {
                       final allTags = tagsAsync.value ?? [];
-                      
-                      // 1. Lọc theo trạng thái và tìm kiếm (không phân biệt dấu)
+
                       var list = items.where((i) => i.isAvailable).toList();
-                      
+
                       if (searchQuery.isNotEmpty) {
                         final normalizedQuery = L10nUtils.removeDiacritics(searchQuery);
                         list = list.where((item) {
@@ -175,12 +183,10 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                         }).toList();
                       }
 
-                      // 2. Lọc theo Danh mục
                       if (_selectedCategoryId != null) {
                         list = list.where((i) => i.categoryId == _selectedCategoryId).toList();
                       }
 
-                      // 3. Lọc theo Thẻ Preferences (Không phải ALLERGY)
                       final selectedPrefTagIds = activeFilters.where((id) {
                         final tag = allTags.firstWhere((t) => t.id == id, orElse: () => TagModel(id: '', nameMap: {}, tagType: ''));
                         return tag.id.isNotEmpty && tag.tagType != 'ALLERGY';
@@ -193,13 +199,25 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       }
 
                       if (list.isEmpty) {
-                        return Center(child: Text(l10n.emptyCart, style: const TextStyle(color: Colors.grey, fontSize: 16)));
+                        return Center(
+                          child: Text(
+                            l10n.emptyCart,
+                            style: const TextStyle(color: AdminTheme.textMutedWood, fontSize: 15),
+                          ),
+                        );
                       }
 
+                      final crossCount = isMobile
+                          ? (constraints.maxWidth < 420 ? 1 : 2)
+                          : (constraints.maxWidth < 1100 ? 2 : 3);
+
                       return GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3, childAspectRatio: 0.72, crossAxisSpacing: 16, mainAxisSpacing: 16
+                        padding: EdgeInsets.all(isMobile ? 12 : 16),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossCount,
+                          childAspectRatio: isMobile ? 0.82 : 0.78,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
                         ),
                         itemCount: list.length,
                         itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags, l10n),
@@ -210,10 +228,164 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                   ),
                 ),
               ],
+            );
+
+            if (isMobile) {
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: cart.isNotEmpty ? 70.0 : 0),
+                      child: menuContent,
+                    ),
+                  ),
+                  if (cart.isNotEmpty)
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 12,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AdminTheme.primaryWood,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 4,
+                        ),
+                        onPressed: () => _openCartBottomSheet(context, currentRoomNumber),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.shopping_bag_outlined, color: Colors.white),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '${l10n.cart} (${cart.fold(0, (sum, i) => sum + i.quantity)})',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '${NumberFormat('#,###', 'vi_VN').format(cartTotal)} VND',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AdminTheme.lightWoodCream),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                NavigationRail(
+                  backgroundColor: AdminTheme.surfaceWhite,
+                  selectedIndex: _getSelectedIndex(categoriesAsync.value),
+                  onDestinationSelected: (idx) {
+                    if (idx == 0) {
+                      setState(() => _selectedCategoryId = null);
+                    } else {
+                      setState(() => _selectedCategoryId = categoriesAsync.value![idx - 1].id);
+                    }
+                  },
+                  labelType: NavigationRailLabelType.all,
+                  destinations: [
+                    NavigationRailDestination(
+                      icon: const Icon(Icons.menu_book),
+                      selectedIcon: const Icon(Icons.menu_book, color: AdminTheme.primaryWood),
+                      label: Text(l10n.all),
+                    ),
+                    ...categoriesAsync.maybeWhen(
+                      data: (cats) => cats.map((c) => NavigationRailDestination(
+                        icon: const Icon(Icons.restaurant_menu),
+                        selectedIcon: const Icon(Icons.restaurant_menu, color: AdminTheme.primaryWood),
+                        label: Text(c.getName(locale), textAlign: TextAlign.center),
+                      )).toList(),
+                      orElse: () => [],
+                    ),
+                  ],
+                ),
+                Expanded(child: menuContent),
+                CartAndTrackingPanel(roomNumber: currentRoomNumber, isMobile: false),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _openCartBottomSheet(BuildContext context, String roomNumber) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(ctx).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: AdminTheme.surfaceWhite,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: AdminTheme.borderWood, borderRadius: BorderRadius.circular(2)),
             ),
-          ),
-          CartAndTrackingPanel(roomNumber: currentRoomNumber),
-        ],
+            Expanded(child: CartAndTrackingPanel(roomNumber: roomNumber, isMobile: true)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopCategoryChips(List<CategoryModel>? cats, AppDictionary l10n, String locale) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: AdminTheme.surfaceWhite,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(l10n.all),
+                selected: _selectedCategoryId == null,
+                selectedColor: AdminTheme.primaryWood,
+                labelStyle: TextStyle(
+                  color: _selectedCategoryId == null ? Colors.white : AdminTheme.textDarkWood,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+                onSelected: (_) => setState(() => _selectedCategoryId = null),
+              ),
+            ),
+            if (cats != null)
+              ...cats.map((c) {
+                final isSelected = _selectedCategoryId == c.id;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(c.getName(locale)),
+                    selected: isSelected,
+                    selectedColor: AdminTheme.primaryWood,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : AdminTheme.textDarkWood,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                    onSelected: (_) => setState(() => _selectedCategoryId = c.id),
+                  ),
+                );
+              }),
+          ],
+        ),
       ),
     );
   }
@@ -232,21 +404,21 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
     if (isExpired) {
       return Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.red[50],
+          color: const Color(0xFFFFEBEE),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red),
+          border: Border.all(color: const Color(0xFFC62828)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.timer_off, color: Colors.red, size: 28),
-            const SizedBox(width: 12),
+            const Icon(Icons.timer_off, color: Color(0xFFC62828), size: 24),
+            const SizedBox(width: 10),
             const Expanded(
               child: Text(
                 '🔴 Mã QR của phòng này đã hết hạn. Vui lòng liên hệ lễ tân để lấy mã mới.',
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Color(0xFFC62828), fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ],
@@ -255,41 +427,41 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isWarning ? Colors.amber[50] : Colors.blue[50],
+        color: isWarning ? const Color(0xFFFFF3E0) : AdminTheme.lightWoodCream,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isWarning ? Colors.orange : Colors.blue[300]!),
+        border: Border.all(color: isWarning ? const Color(0xFFE65100) : AdminTheme.borderWood),
       ),
       child: Row(
         children: [
-          Icon(Icons.qr_code_2, color: isWarning ? Colors.deepOrange : Colors.blue[800], size: 22),
-          const SizedBox(width: 10),
+          Icon(Icons.qr_code_2, color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryWood, size: 20),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Phòng ${activeQr.roomNumber} • QR đăng nhập tự động',
+              'Phòng ${activeQr.roomNumber} • QR tự động',
               style: TextStyle(
-                color: isWarning ? Colors.deepOrange[900] : Colors.blue[900],
+                color: isWarning ? const Color(0xFFE65100) : AdminTheme.textDarkWood,
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: 12,
               ),
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: isWarning ? Colors.deepOrange : Colors.blue[800],
-              borderRadius: BorderRadius.circular(20),
+              color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryWood,
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer, color: Colors.white, size: 14),
+                const Icon(Icons.timer, color: Colors.white, size: 12),
                 const SizedBox(width: 4),
                 Text(
                   'Còn $minutes:$seconds',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                 ),
               ],
             ),
@@ -312,14 +484,18 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       data: (roomCtx) {
         if (roomCtx.isApiError && manualPref == null) {
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.blueGrey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.blueGrey[100]!)),
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AdminTheme.lightWoodCream,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AdminTheme.borderWood),
+            ),
             child: Row(
               children: [
-                const Icon(Icons.auto_awesome, color: Colors.blueGrey, size: 20),
-                const SizedBox(width: 12),
-                Expanded(child: Text(l10n.aiIntro, style: const TextStyle(fontSize: 13, color: Colors.blueGrey))),
+                const Icon(Icons.auto_awesome, color: AdminTheme.primaryWood, size: 18),
+                const SizedBox(width: 10),
+                Expanded(child: Text(l10n.aiIntro, style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood))),
                 TextButton(onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('COOL'), child: Text(l10n.cool)),
                 TextButton(onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('WARM'), child: Text(l10n.warm)),
               ],
@@ -333,16 +509,23 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
           data: (items) {
             if (items.isEmpty) return const SizedBox();
             return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.amber[50]!, Colors.white]), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.amber[200]!)),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AdminTheme.woodTint,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AdminTheme.borderWood),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${l10n.aiSuggestion}: ${roomCtx.isApiError ? (manualPref == 'COOL' ? l10n.cool : l10n.warm) : "${roomCtx.temp.toInt()}°C"}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(
+                    '${l10n.aiSuggestion}: ${roomCtx.isApiError ? (manualPref == 'COOL' ? l10n.cool : l10n.warm) : "${roomCtx.temp.toInt()}°C"}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminTheme.primaryDarkWood),
+                  ),
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 80,
+                    height: 75,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: items.length,
@@ -351,15 +534,32 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                         return GestureDetector(
                           onTap: () => _showCustomizationDialog(item.id),
                           child: Container(
-                            width: 200, margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)]),
+                            width: 180,
+                            margin: const EdgeInsets.only(right: 10),
+                            decoration: BoxDecoration(
+                              color: AdminTheme.surfaceWhite,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AdminTheme.borderWood),
+                            ),
                             child: Row(
                               children: [
                                 ClipRRect(
                                   borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
-                                  child: item.imageUrl != null ? Image.network(item.imageUrl!, width: 60, height: 80, fit: BoxFit.cover) : Container(width: 60, color: Colors.grey[200]),
+                                  child: item.imageUrl != null
+                                      ? Image.network(item.imageUrl!, width: 55, height: 75, fit: BoxFit.cover)
+                                      : Container(width: 55, color: AdminTheme.lightWoodCream),
                                 ),
-                                Expanded(child: Padding(padding: const EdgeInsets.all(8.0), child: Text(item.getName(locale), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis))),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(6.0),
+                                    child: Text(
+                                      item.getName(locale),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AdminTheme.textDarkWood),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -384,50 +584,26 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
   Widget _buildSearchBar(AppDictionary l10n) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      color: AdminTheme.bgWarmWhite,
       child: TextField(
         onChanged: (val) => ref.read(searchQueryProvider.notifier).update(val),
         decoration: InputDecoration(
           hintText: _animatedHint,
-          prefixIcon: const Icon(Icons.search, color: Colors.amber),
+          prefixIcon: const Icon(Icons.search, color: AdminTheme.primaryWood),
           filled: true,
-          fillColor: Colors.grey[50],
-          contentPadding: const EdgeInsets.symmetric(vertical: 0),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: Colors.grey[200]!)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide(color: Colors.grey[200]!)),
+          fillColor: AdminTheme.surfaceWhite,
+          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AdminTheme.borderWood)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AdminTheme.borderWood)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AdminTheme.primaryWood, width: 1.5)),
         ),
       ),
     );
   }
 
   Widget _buildTagFilterBar(AsyncValue<List<TagModel>> tagsAsync, List<String> activeFilters, String locale) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Colors.grey[100]!))),
-      child: tagsAsync.maybeWhen(
-        data: (tags) => SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: tags.map((t) {
-              final isSelected = activeFilters.contains(t.id);
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(t.getName(locale), style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
-                  selected: isSelected,
-                  selectedColor: Colors.amber[700],
-                  checkmarkColor: Colors.white,
-                  onSelected: (_) => ref.read(activeFiltersProvider.notifier).toggle(t.id),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        orElse: () => const SizedBox(height: 50),
-      ),
-    );
+    return const SizedBox();
   }
 
   void _showCustomizationDialog(String itemId) {
@@ -450,32 +626,67 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     }
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: AdminTheme.borderWood, width: 0.8)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: hasAllergyWarning ? null : () => _showCustomizationDialog(item.id),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: Stack(fit: StackFit.expand, children: [
-              item.imageUrl != null ? Image.network(item.imageUrl!, fit: BoxFit.cover) : Container(color: Colors.grey[200], child: const Icon(Icons.restaurant, color: Colors.white, size: 40)),
-              if (hasAllergyWarning) Container(color: Colors.red.withOpacity(0.8), child: Center(child: Padding(padding: const EdgeInsets.all(8.0), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.warning, color: Colors.white), const SizedBox(height: 4), Text(l10n.allergyWarning, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)), Text(allergyNames, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 8))])))),
-            ])),
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  item.imageUrl != null
+                      ? Image.network(item.imageUrl!, fit: BoxFit.cover)
+                      : Container(color: AdminTheme.lightWoodCream, child: const Icon(Icons.restaurant, color: AdminTheme.primaryWood, size: 36)),
+                  if (hasAllergyWarning)
+                    Container(
+                      color: Colors.red.withValues(alpha: 0.85),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(6.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.warning, color: Colors.white, size: 22),
+                              const SizedBox(height: 4),
+                              Text(l10n.allergyWarning, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
+                              Text(allergyNames, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.getName(locale), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    item.getName(locale),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AdminTheme.textDarkWood),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Text('${NumberFormat('#,###', 'vi_VN').format(item.price)} VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
-                    Text('⏱️ ${item.prepTime}p', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ]),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${NumberFormat('#,###', 'vi_VN').format(item.price)} VND',
+                        style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      Text('⏱️ ${item.prepTime}p', style: const TextStyle(fontSize: 10, color: AdminTheme.textMutedWood)),
+                    ],
+                  ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -510,45 +721,98 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
     final modifiersAsync = ref.watch(itemModifiersProvider(widget.item.id));
 
     return Dialog(
+      backgroundColor: AdminTheme.surfaceWhite,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 600,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final dialogWidth = constraints.maxWidth < 600 ? constraints.maxWidth * 0.95 : 550.0;
+          return SizedBox(
+            width: dialogWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.item.imageUrl != null) Image.network(widget.item.imageUrl!, height: 200, width: double.infinity, fit: BoxFit.cover) else Container(height: 100, color: Colors.amber),
-                Positioned(top: 10, right: 10, child: CircleAvatar(backgroundColor: Colors.black26, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)))),
-                Positioned(bottom: 0, left: 0, right: 0, child: Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Colors.black.withOpacity(0.8), Colors.transparent])), child: Text(widget.item.getName(locale), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)))),
+                Stack(
+                  children: [
+                    if (widget.item.imageUrl != null)
+                      Image.network(widget.item.imageUrl!, height: 180, width: double.infinity, fit: BoxFit.cover)
+                    else
+                      Container(height: 100, color: AdminTheme.primaryWood),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black38,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
+                          ),
+                        ),
+                        child: Text(
+                          widget.item.getName(locale),
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Flexible(
+                  child: modifiersAsync.when(
+                    data: (groups) {
+                      if (groups.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(30),
+                          child: Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood))),
+                        );
+                      }
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ...groups.map((group) => _buildModifierGroup(group, l10n, locale)),
+                            const SizedBox(height: 12),
+                            Text(l10n.specialNotes, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AdminTheme.textDarkWood)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _noteController,
+                              decoration: InputDecoration(
+                                hintText: l10n.specialInstructions,
+                                filled: true,
+                                fillColor: AdminTheme.bgWarmWhite,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminTheme.borderWood)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, s) => Padding(padding: const EdgeInsets.all(20), child: Text('${l10n.errorLoading}: $e')),
+                  ),
+                ),
+                modifiersAsync.maybeWhen(
+                  data: (groups) => _buildFooter(_isSelectionValid(groups), l10n),
+                  orElse: () => const SizedBox(),
+                ),
               ],
             ),
-            Flexible(
-              child: modifiersAsync.when(
-                data: (groups) {
-                  if (groups.isEmpty) return Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(l10n.noOptions, style: const TextStyle(color: Colors.grey))));
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ...groups.map((group) => _buildModifierGroup(group, l10n, locale)),
-                        const SizedBox(height: 16),
-                        Text(l10n.specialNotes, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 8),
-                        TextField(controller: _noteController, decoration: InputDecoration(hintText: l10n.specialInstructions, filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
-                      ],
-                    ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, s) => Padding(padding: const EdgeInsets.all(20), child: Text('${l10n.errorLoading}: $e')),
-              ),
-            ),
-            modifiersAsync.maybeWhen(data: (groups) => _buildFooter(_isSelectionValid(groups), l10n), orElse: () => const SizedBox()),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -562,29 +826,44 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), if (min > 0) Padding(padding: const EdgeInsets.only(left: 8), child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(4)), child: Text(l10n.requiredLabel, style: const TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold))))]),
-        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AdminTheme.textDarkWood)),
+            if (min > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFFFFEBEE), borderRadius: BorderRadius.circular(4)),
+                  child: Text(l10n.requiredLabel, style: const TextStyle(color: Color(0xFFC62828), fontSize: 9, fontWeight: FontWeight.bold)),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
         ...modifiers.map((m) {
           final modName = L10nUtils.getL10n(m['name'], locale);
           final price = (m['price'] ?? 0).toDouble();
           final isSelected = _selectedModifiers.any((sm) => sm.modifierId == m['id']);
           return CheckboxListTile(
-            title: Text(modName, style: const TextStyle(fontSize: 14)),
-            subtitle: price > 0 ? Text('+${NumberFormat('#,###', 'vi_VN').format(price)} VND', style: const TextStyle(color: Colors.green, fontSize: 12)) : null,
+            title: Text(modName, style: const TextStyle(fontSize: 13, color: AdminTheme.textDarkWood)),
+            subtitle: price > 0
+                ? Text('+${NumberFormat('#,###', 'vi_VN').format(price)} VND', style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 12))
+                : null,
             value: isSelected,
-            activeColor: Colors.amber[800],
+            activeColor: AdminTheme.primaryWood,
             dense: true,
             onChanged: (val) {
               setState(() {
                 if (val!) {
                   if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {
                     _selectedModifiers.add(SelectedModifier(
-                      groupId: group['id'], 
+                      groupId: group['id'],
                       rawGroup: group['name'],
-                      groupName: groupName, 
-                      modifierId: m['id'], 
+                      groupName: groupName,
+                      modifierId: m['id'],
                       rawModifier: m['name'],
-                      modifierName: modName, 
+                      modifierName: modName,
                       price: price,
                     ));
                   }
@@ -595,7 +874,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
             },
           );
         }).toList(),
-        const Divider(height: 30),
+        const Divider(height: 20, color: AdminTheme.borderWood),
       ],
     );
   }
@@ -603,13 +882,42 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
   Widget _buildFooter(bool isValid, AppDictionary l10n) {
     final double totalPrice = widget.item.price + _selectedModifiers.fold(0, (sum, m) => sum + m.price);
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: AdminTheme.surfaceWhite,
+        border: Border(top: BorderSide(color: AdminTheme.borderWood)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(l10n.total, style: const TextStyle(fontSize: 12, color: Colors.grey)), Text('${NumberFormat('#,###', 'vi_VN').format(totalPrice)} VND', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.amber[900]))]),
-          SizedBox(height: 48, width: 200, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: isValid ? Colors.amber[800] : Colors.grey[300], foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: isValid ? () { ref.read(cartProvider.notifier).addToCart(widget.item, _selectedModifiers, _noteController.text); Navigator.pop(context); } : null, child: Text(isValid ? l10n.orderNow : l10n.selectFullLabel, style: const TextStyle(fontWeight: FontWeight.bold)))),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.total, style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood)),
+              Text(
+                '${NumberFormat('#,###', 'vi_VN').format(totalPrice)} VND',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.accentAmber),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 44,
+            width: 180,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isValid ? AdminTheme.primaryWood : AdminTheme.borderWood,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: isValid
+                  ? () {
+                      ref.read(cartProvider.notifier).addToCart(widget.item, _selectedModifiers, _noteController.text);
+                      Navigator.pop(context);
+                    }
+                  : null,
+              child: Text(isValid ? l10n.orderNow : l10n.selectFullLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
         ],
       ),
     );

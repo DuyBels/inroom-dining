@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:inroom_dining/core/theme/admin_theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/services/qr_session_service.dart';
 import '../../../../main.dart';
@@ -18,7 +19,7 @@ class QrGeneratorView extends ConsumerStatefulWidget {
 
 class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
   String? _selectedRoomNumber;
-  int _selectedDurationMinutes = 60; // Mặc định 1 tiếng (60 phút)
+  int _selectedDurationMinutes = 60;
   QrSessionData? _generatedSession;
   bool _isGenerating = false;
   List<QrSessionData> _sessionsList = [];
@@ -106,7 +107,7 @@ class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
     final url = _buildQrUrl(session);
     Clipboard.setData(ClipboardData(text: url));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('📋 Đã sao chép đường dẫn đăng nhập QR!'), backgroundColor: Colors.blue),
+      const SnackBar(content: Text('📋 Đã sao chép đường dẫn đăng nhập QR!'), backgroundColor: AdminTheme.primaryWood),
     );
   }
 
@@ -133,9 +134,9 @@ class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.print, color: Colors.blue),
+            const Icon(Icons.print, color: AdminTheme.primaryWood),
             const SizedBox(width: 8),
-            Text('Thẻ QR Phòng ${session.roomNumber}'),
+            Text('Thẻ QR Phòng ${session.roomNumber}', style: const TextStyle(fontSize: 18, color: AdminTheme.textDarkWood)),
           ],
         ),
         content: SizedBox(
@@ -148,19 +149,19 @@ class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[300]!, width: 2),
+                  border: Border.all(color: AdminTheme.borderWood, width: 2),
                   boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.restaurant, size: 36, color: Colors.deepOrange),
+                    const Icon(Icons.restaurant, size: 36, color: AdminTheme.primaryWood),
                     const SizedBox(height: 4),
-                    const Text('IN-ROOM DINING', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2)),
-                    const Divider(height: 20),
+                    const Text('IN-ROOM DINING', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2, color: AdminTheme.textDarkWood)),
+                    const Divider(height: 20, color: AdminTheme.borderWood),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(20)),
-                      child: Text('PHÒNG ${session.roomNumber}', style: TextStyle(color: Colors.blue[900], fontWeight: FontWeight.bold, fontSize: 18)),
+                      decoration: BoxDecoration(color: AdminTheme.lightWoodCream, borderRadius: BorderRadius.circular(20)),
+                      child: Text('PHÒNG ${session.roomNumber}', style: const TextStyle(color: AdminTheme.primaryDarkWood, fontWeight: FontWeight.bold, fontSize: 18)),
                     ),
                     const SizedBox(height: 16),
                     QrImageView(
@@ -169,7 +170,7 @@ class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
                       size: 200.0,
                     ),
                     const SizedBox(height: 12),
-                    const Text('Quét mã QR để đặt món trực tiếp', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const Text('Quét mã QR để đặt món trực tiếp', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AdminTheme.textDarkWood)),
                     const SizedBox(height: 6),
                     Text('Hạn sử dụng: $formattedTime', style: const TextStyle(fontSize: 11, color: Colors.redAccent, fontWeight: FontWeight.bold)),
                   ],
@@ -179,10 +180,11 @@ class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng', style: TextStyle(color: AdminTheme.textMutedWood))),
           ElevatedButton.icon(
-            icon: const Icon(Icons.copy),
+            icon: const Icon(Icons.copy, size: 16),
             label: const Text('Sao chép Link'),
+            style: ElevatedButton.styleFrom(backgroundColor: AdminTheme.primaryWood, foregroundColor: Colors.white),
             onPressed: () {
               _copyLink(session);
               Navigator.pop(ctx);
@@ -198,267 +200,281 @@ class _QrGeneratorViewState extends ConsumerState<QrGeneratorView> {
     final l10n = ref.watch(l10nProvider);
     final profilesAsync = ref.watch(profilesStreamProvider);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.qr_code_2, size: 32, color: Colors.blue),
-              const SizedBox(width: 12),
-              Text(l10n.generateQrTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        Widget formPanel = Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('1. Chọn Phòng & Thời gian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AdminTheme.textDarkWood)),
+                const SizedBox(height: 16),
+
+                profilesAsync.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, s) => Text('Lỗi tải phòng: $e', style: const TextStyle(color: Colors.red)),
+                  data: (profiles) {
+                    final roomProfiles = profiles
+                        .where((p) => p['role'] == 'ROOM' && p['room_number'] != null)
+                        .toList();
+
+                    return DropdownButtonFormField<String>(
+                      value: _selectedRoomNumber,
+                      decoration: InputDecoration(
+                        labelText: l10n.selectRoom,
+                        prefixIcon: const Icon(Icons.meeting_room, color: AdminTheme.primaryWood),
+                      ),
+                      items: roomProfiles.map((p) {
+                        final roomNum = p['room_number'].toString();
+                        return DropdownMenuItem(
+                          value: roomNum,
+                          child: Text('Phòng $roomNum (${p['display_name'] ?? ''})', style: const TextStyle(color: AdminTheme.textDarkWood)),
+                        );
+                      }).toList(),
+                      onChanged: (val) => setState(() => _selectedRoomNumber = val),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                DropdownButtonFormField<int>(
+                  value: _selectedDurationMinutes,
+                  decoration: InputDecoration(
+                    labelText: l10n.selectDuration,
+                    prefixIcon: const Icon(Icons.timer, color: AdminTheme.accentAmber),
+                  ),
+                  items: _durationOptions.map((opt) {
+                    return DropdownMenuItem<int>(
+                      value: opt['minutes'] as int,
+                      child: Text(opt['label'].toString(), style: const TextStyle(color: AdminTheme.textDarkWood)),
+                    );
+                  }).toList(),
+                  onChanged: (val) => setState(() => _selectedDurationMinutes = val!),
+                ),
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _isGenerating ? null : _generateQrCode,
+                    icon: const Icon(Icons.qr_code),
+                    label: _isGenerating
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(l10n.generateQrBtn, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AdminTheme.primaryWood,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // BẢNG BÊN TRÁI: FORM CHỌN PHÒNG & THỜI GIAN
-              Expanded(
-                flex: 4,
-                child: Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
+        );
+
+        Widget previewPanel = _generatedSession == null
+            ? Card(
+                child: SizedBox(
+                  height: 300,
+                  child: Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('1. Chọn Phòng & Thời gian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 16),
-                        
-                        profilesAsync.when(
-                          loading: () => const LinearProgressIndicator(),
-                          error: (e, s) => Text('Lỗi tải phòng: $e'),
-                          data: (profiles) {
-                            // Lọc lấy danh sách tài khoản phòng
-                            final roomProfiles = profiles
-                                .where((p) => p['role'] == 'ROOM' && p['room_number'] != null)
-                                .toList();
-
-                            return DropdownButtonFormField<String>(
-                              value: _selectedRoomNumber,
-                              decoration: InputDecoration(
-                                labelText: l10n.selectRoom,
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.meeting_room, color: Colors.blue),
-                              ),
-                              items: roomProfiles.map((p) {
-                                final roomNum = p['room_number'].toString();
-                                return DropdownMenuItem(
-                                  value: roomNum,
-                                  child: Text('Phòng $roomNum (${p['display_name'] ?? ''})'),
-                                );
-                              }).toList(),
-                              onChanged: (val) => setState(() => _selectedRoomNumber = val),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        DropdownButtonFormField<int>(
-                          value: _selectedDurationMinutes,
-                          decoration: InputDecoration(
-                            labelText: l10n.selectDuration,
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.timer, color: Colors.orange),
-                          ),
-                          items: _durationOptions.map((opt) {
-                            return DropdownMenuItem<int>(
-                              value: opt['minutes'] as int,
-                              child: Text(opt['label'].toString()),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setState(() => _selectedDurationMinutes = val!),
-                        ),
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: _isGenerating ? null : _generateQrCode,
-                            icon: const Icon(Icons.qr_code),
-                            label: _isGenerating
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : Text(l10n.generateQrBtn, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[800],
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                        ),
+                        const Icon(Icons.qr_code_2, size: 64, color: AdminTheme.borderWood),
+                        const SizedBox(height: 12),
+                        Text('Vui lòng chọn phòng và nhấn "${l10n.generateQrBtn}"', style: const TextStyle(color: AdminTheme.textMutedWood, fontSize: 14)),
                       ],
                     ),
                   ),
                 ),
+              )
+            : Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(color: AdminTheme.lightWoodCream, borderRadius: BorderRadius.circular(12)),
+                            child: Text('PHÒNG ${_generatedSession!.roomNumber}', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
+                          ),
+                          Text(
+                            'Hạn dùng: ${DateFormat('HH:mm').format(_generatedSession!.expiresAt)}',
+                            style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      QrImageView(
+                        data: _buildQrUrl(_generatedSession!),
+                        version: QrVersions.auto,
+                        size: 180.0,
+                      ),
+                      const SizedBox(height: 12),
+
+                      SelectableText(
+                        _buildQrUrl(_generatedSession!),
+                        style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _showPrintDialog(_generatedSession!),
+                            icon: const Icon(Icons.print, size: 18),
+                            label: Text(l10n.printQr),
+                            style: ElevatedButton.styleFrom(backgroundColor: AdminTheme.primaryWood, foregroundColor: Colors.white),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _copyLink(_generatedSession!),
+                            icon: const Icon(Icons.copy, size: 18),
+                            label: Text(l10n.copyQrLink),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _revokeSession(_generatedSession!.token),
+                            icon: const Icon(Icons.cancel, size: 18, color: Colors.redAccent),
+                            label: Text(l10n.revokeQr, style: const TextStyle(color: Colors.redAccent)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AdminTheme.lightWoodCream, borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.qr_code_2, size: 28, color: AdminTheme.primaryWood),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    l10n.generateQrTitle,
+                    style: TextStyle(
+                      fontSize: isMobile ? 20 : 24,
+                      fontWeight: FontWeight.bold,
+                      color: AdminTheme.textDarkWood,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 20),
+              const SizedBox(height: 20),
 
-              // BẢNG BÊN PHẢI: HIỂN THỊ THẺ MA QR VỪA TẠO
-              Expanded(
-                flex: 5,
-                child: _generatedSession == null
-                    ? Container(
-                        height: 320,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.qr_code_2, size: 64, color: Colors.grey),
-                              SizedBox(height: 12),
-                              Text('Vui lòng chọn phòng và nhấn "Tạo mã QR"', style: TextStyle(color: Colors.grey, fontSize: 15)),
-                            ],
-                          ),
-                        ),
+              // Layout Responsive: Column on Mobile, Row on Tablet/Desktop
+              if (isMobile) ...[
+                formPanel,
+                const SizedBox(height: 16),
+                previewPanel,
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 4, child: formPanel),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 5, child: previewPanel),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 32),
+
+              // DANH SÁCH MÃ QR ĐÃ TẠO VÀ TRẠNG THÁI
+              const Text(
+                'Danh sách mã QR đã cấp',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+              ),
+              const SizedBox(height: 12),
+
+              Card(
+                child: _sessionsList.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Center(child: Text('Chưa có mã QR nào được tạo.', style: TextStyle(color: AdminTheme.textMutedWood))),
                       )
-                    : Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(color: Colors.blue[100], borderRadius: BorderRadius.circular(12)),
-                                    child: Text('PHÒNG ${_generatedSession!.roomNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[900])),
-                                  ),
-                                  Text(
-                                    'Hạn dùng: ${DateFormat('HH:mm').format(_generatedSession!.expiresAt)}',
-                                    style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _sessionsList.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, color: AdminTheme.borderWood),
+                        itemBuilder: (ctx, i) {
+                          final s = _sessionsList[i];
+                          final isValid = s.isValid;
+                          final remaining = s.remainingTime;
 
-                              QrImageView(
-                                data: _buildQrUrl(_generatedSession!),
-                                version: QrVersions.auto,
-                                size: 180.0,
-                              ),
-                              const SizedBox(height: 12),
-
-                              SelectableText(
-                                _buildQrUrl(_generatedSession!),
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => _showPrintDialog(_generatedSession!),
-                                    icon: const Icon(Icons.print, size: 18),
-                                    label: Text(l10n.printQr),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isValid ? const Color(0xFFE8F5E9) : AdminTheme.lightWoodCream,
+                              child: Icon(Icons.qr_code, color: isValid ? const Color(0xFF2E7D32) : AdminTheme.textMutedWood),
+                            ),
+                            title: Text('Phòng ${s.roomNumber}', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+                            subtitle: Text(
+                              'Tạo lúc: ${DateFormat('HH:mm - dd/MM').format(s.createdAt)} | Hết hạn: ${DateFormat('HH:mm').format(s.expiresAt)}',
+                              style: const TextStyle(color: AdminTheme.textMutedWood, fontSize: 12),
+                            ),
+                            trailing: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 4,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isValid ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: isValid ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
                                   ),
-                                  const SizedBox(width: 8),
-                                  OutlinedButton.icon(
-                                    onPressed: () => _copyLink(_generatedSession!),
-                                    icon: const Icon(Icons.copy, size: 18),
-                                    label: Text(l10n.copyQrLink),
+                                  child: Text(
+                                    isValid
+                                        ? '🟢 Còn ${remaining.inMinutes} phút'
+                                        : '🔴 Hết hạn / Đã hủy',
+                                    style: TextStyle(
+                                      color: isValid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  TextButton.icon(
-                                    onPressed: () => _revokeSession(_generatedSession!.token),
-                                    icon: const Icon(Icons.cancel, size: 18, color: Colors.red),
-                                    label: Text(l10n.revokeQr, style: const TextStyle(color: Colors.red)),
+                                ),
+                                if (isValid)
+                                  IconButton(
+                                    icon: const Icon(Icons.print, color: AdminTheme.primaryWood),
+                                    tooltip: l10n.printQr,
+                                    onPressed: () => _showPrintDialog(s),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                                if (isValid)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                    tooltip: l10n.revokeQr,
+                                    onPressed: () => _revokeSession(s.token),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
-
-          // DANH SÁCH MÃ QR ĐÃ TẠO VÀ TRẠNG THÁI
-          const Text('Danh sách mã QR đã cấp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: _sessionsList.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: Center(child: Text('Chưa có mã QR nào được tạo.', style: TextStyle(color: Colors.grey))),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _sessionsList.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (ctx, i) {
-                      final s = _sessionsList[i];
-                      final isValid = s.isValid;
-                      final remaining = s.remainingTime;
-
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isValid ? Colors.green[100] : Colors.grey[200],
-                          child: Icon(Icons.qr_code, color: isValid ? Colors.green[800] : Colors.grey),
-                        ),
-                        title: Text('Phòng ${s.roomNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          'Tạo lúc: ${DateFormat('HH:mm - dd/MM').format(s.createdAt)} | Hết hạn: ${DateFormat('HH:mm').format(s.expiresAt)}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isValid ? Colors.green[50] : Colors.red[50],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isValid ? Colors.green : Colors.red),
-                              ),
-                              child: Text(
-                                isValid
-                                    ? '🟢 Còn ${remaining.inMinutes} phút'
-                                    : '🔴 Hết hạn / Đã hủy',
-                                style: TextStyle(
-                                  color: isValid ? Colors.green[800] : Colors.red[800],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (isValid)
-                              IconButton(
-                                icon: const Icon(Icons.print, color: Colors.indigo),
-                                onPressed: () => _showPrintDialog(s),
-                              ),
-                            if (isValid)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => _revokeSession(s.token),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
+

@@ -11,6 +11,7 @@ import '../../staff_chat/providers/chat_provider.dart';
 import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../providers/kitchen_provider.dart';
+import '../../admin_panel/providers/admin_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
