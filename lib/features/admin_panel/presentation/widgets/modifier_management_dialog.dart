@@ -51,6 +51,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
 
   // --- QUẢN LÝ NHÓM (GROUP) ---
   void _showGroupDialog({Map<String, dynamic>? group}) {
+    final l10n = ref.read(l10nProvider);
     final nameData = group?['name'];
     final nameViController = TextEditingController();
     final nameEnController = TextEditingController();
@@ -69,21 +70,24 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(group == null ? 'Thêm Nhóm Tùy Chọn' : 'Sửa Nhóm'),
+          title: Text(group == null ? l10n.addGroupTitle : l10n.editGroupTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Expanded(child: TextField(controller: nameViController, decoration: const InputDecoration(labelText: 'Tên nhóm (VI)'))),
+                  Expanded(child: TextField(controller: nameViController, decoration: InputDecoration(labelText: '${l10n.groupNameLang} (VI)'))),
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed: _isTranslating ? null : () async {
-                      if (nameViController.text.isEmpty) return;
+                      if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) return;
                       setDialogState(() => _isTranslating = true);
                       try {
-                        final result = await ref.read(geminiServiceProvider).translate(nameViController.text);
-                        nameEnController.text = result;
+                        await ref.read(geminiServiceProvider).autoTranslatePair(
+                          viController: nameViController,
+                          enController: nameEnController,
+                          force: true,
+                        );
                       } finally {
                         setDialogState(() => _isTranslating = false);
                       }
@@ -93,19 +97,27 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                       : const Icon(Icons.auto_awesome, color: Colors.purple),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: nameEnController, decoration: const InputDecoration(labelText: 'Tên nhóm (EN)'))),
+                  Expanded(child: TextField(controller: nameEnController, decoration: InputDecoration(labelText: '${l10n.groupNameLang} (EN)'))),
                 ],
               ),
-              TextField(controller: minController, decoration: const InputDecoration(labelText: 'Chọn tối thiểu (1: Bắt buộc, 0: Tùy chọn)'), keyboardType: TextInputType.number),
-              TextField(controller: maxController, decoration: const InputDecoration(labelText: 'Chọn tối đa'), keyboardType: TextInputType.number),
+              TextField(controller: minController, decoration: InputDecoration(labelText: l10n.minSelectLabel), keyboardType: TextInputType.number),
+              TextField(controller: maxController, decoration: InputDecoration(labelText: l10n.maxSelectLabel), keyboardType: TextInputType.number),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
             ElevatedButton(
               onPressed: () async {
-                if (nameViController.text.isEmpty) return;
+                setDialogState(() => _isTranslating = true);
                 try {
+                  await ref.read(geminiServiceProvider).autoTranslatePair(
+                    viController: nameViController,
+                    enController: nameEnController,
+                  );
+                  if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) {
+                    setDialogState(() => _isTranslating = false);
+                    return;
+                  }
                   final data = {
                     'name': {
                       'vi': nameViController.text.trim(),
@@ -125,10 +137,12 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                   if (ctx.mounted) Navigator.pop(ctx);
                   _fetchData();
                 } catch (e) {
-                  _showError('Lỗi khi lưu nhóm: $e');
+                  _showError('${l10n.errorSaveGroup}: $e');
+                } finally {
+                  setDialogState(() => _isTranslating = false);
                 }
               },
-              child: const Text('Lưu'),
+              child: Text(l10n.save),
             )
           ],
         ),
@@ -137,19 +151,21 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
   }
 
   Future<void> _deleteGroup(String groupId) async {
-    final confirmed = await _showConfirm('Xóa Nhóm?', 'Mọi lựa chọn bên trong nhóm này cũng sẽ bị xóa. Bạn chắc chắn chứ?');
+    final l10n = ref.read(l10nProvider);
+    final confirmed = await _showConfirm(l10n.deleteGroupTitle, l10n.deleteGroupConfirm);
     if (confirmed == true) {
       try {
         await supabase.from('modifier_groups').delete().eq('id', groupId);
         _fetchData();
       } catch (e) {
-        _showError('Lỗi khi xóa nhóm: $e');
+        _showError('${l10n.errorDeleteGroup}: $e');
       }
     }
   }
 
   // --- QUẢN LÝ LỰA CHỌN (MODIFIER) ---
   void _showModifierDialog(String groupId, {Map<String, dynamic>? modifier}) {
+    final l10n = ref.read(l10nProvider);
     final nameData = modifier?['name'];
     final nameViController = TextEditingController();
     final nameEnController = TextEditingController();
@@ -167,21 +183,24 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(modifier == null ? 'Thêm Lựa Chọn' : 'Sửa Lựa Chọn'),
+          title: Text(modifier == null ? l10n.addOptionTitle : l10n.editOptionTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Expanded(child: TextField(controller: nameViController, decoration: const InputDecoration(labelText: 'Tên (VI)'))),
+                  Expanded(child: TextField(controller: nameViController, decoration: InputDecoration(labelText: '${l10n.optionNameLang} (VI)'))),
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed: _isTranslating ? null : () async {
-                      if (nameViController.text.isEmpty) return;
+                      if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) return;
                       setDialogState(() => _isTranslating = true);
                       try {
-                        final result = await ref.read(geminiServiceProvider).translate(nameViController.text);
-                        nameEnController.text = result;
+                        await ref.read(geminiServiceProvider).autoTranslatePair(
+                          viController: nameViController,
+                          enController: nameEnController,
+                          force: true,
+                        );
                       } finally {
                         setDialogState(() => _isTranslating = false);
                       }
@@ -191,16 +210,25 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                       : const Icon(Icons.auto_awesome, color: Colors.purple),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: nameEnController, decoration: const InputDecoration(labelText: 'Tên (EN)'))),
+                  Expanded(child: TextField(controller: nameEnController, decoration: InputDecoration(labelText: '${l10n.optionNameLang} (EN)'))),
                 ],
               ),
-              TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Giá cộng thêm'), keyboardType: TextInputType.number),
+              TextField(controller: priceController, decoration: InputDecoration(labelText: l10n.extraPrice), keyboardType: TextInputType.number),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
             ElevatedButton(onPressed: () async {
+              setDialogState(() => _isTranslating = true);
               try {
+                await ref.read(geminiServiceProvider).autoTranslatePair(
+                  viController: nameViController,
+                  enController: nameEnController,
+                );
+                if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) {
+                  setDialogState(() => _isTranslating = false);
+                  return;
+                }
                 String cleanPrice = priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
                 final data = {
                   'group_id': groupId,
@@ -218,9 +246,11 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                 if (ctx.mounted) Navigator.pop(ctx);
                 _fetchData();
               } catch (e) {
-                _showError('Lỗi khi lưu lựa chọn: $e');
+                _showError('${l10n.errorSaveOption}: $e');
+              } finally {
+                setDialogState(() => _isTranslating = false);
               }
-            }, child: const Text('Lưu')),
+            }, child: Text(l10n.save)),
           ],
         ),
       ),
@@ -228,21 +258,23 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
   }
 
   Future<void> _deleteModifier(String modifierId) async {
-    final confirmed = await _showConfirm('Xóa Lựa Chọn?', 'Bạn muốn xóa vĩnh viễn lựa chọn này?');
+    final l10n = ref.read(l10nProvider);
+    final confirmed = await _showConfirm(l10n.deleteOptionTitle, l10n.deleteOptionConfirm);
     if (confirmed == true) {
       try {
         await supabase.from('modifiers').delete().eq('id', modifierId);
         _fetchData();
       } catch (e) {
-        _showError('Lỗi khi xóa lựa chọn: $e');
+        _showError('${l10n.errorDeleteOption}: $e');
       }
     }
   }
 
   Future<bool?> _showConfirm(String title, String body) {
+    final l10n = ref.read(l10nProvider);
     return showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: Text(title), content: Text(body),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), onPressed: () => Navigator.pop(ctx, true), child: const Text('Xác nhận Xóa'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.confirmDeleteBtn))],
     ));
   }
 
@@ -256,11 +288,11 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text('${locale == 'vi' ? 'Tùy chỉnh' : 'Customization'}: $itemName', overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text('${l10n.customization}: $itemName', overflow: TextOverflow.ellipsis)),
           ElevatedButton.icon(
             onPressed: () => _showGroupDialog(), 
             icon: const Icon(Icons.add), 
-            label: Text(locale == 'vi' ? 'Thêm nhóm mới' : 'Add new group')
+            label: Text(l10n.addNewGroup)
           ),
         ],
       ),
@@ -269,7 +301,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
         child: _isLoading 
           ? const Center(child: CircularProgressIndicator())
           : _groups.isEmpty 
-            ? Center(child: Text(locale == 'vi' ? 'Chưa có tùy chỉnh nào cho món này.\nNhấn "Thêm nhóm mới" để bắt đầu.' : 'No customizations for this item.\nClick "Add new group" to start.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)))
+            ? Center(child: Text(l10n.noCustomizations, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)))
             : ListView.builder(
                 itemCount: _groups.length,
                 itemBuilder: (ctx, i) {
@@ -283,7 +315,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                     child: ExpansionTile(
                       initiallyExpanded: true,
                       title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                      subtitle: Text('${locale == 'vi' ? 'Bắt buộc' : 'Required'}: ${group['min_select'] > 0 ? (locale == 'vi' ? 'Có' : 'Yes') : (locale == 'vi' ? 'Không' : 'No')} | ${locale == 'vi' ? 'Chọn tối đa' : 'Max select'}: ${group['max_select']}'),
+                      subtitle: Text('${l10n.requiredLabel}: ${group['min_select'] > 0 ? l10n.requiredYes : l10n.requiredNo} | ${l10n.maxSelect}: ${group['max_select']}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -320,7 +352,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                           child: TextButton.icon(
                             onPressed: () => _showModifierDialog(group['id']), 
                             icon: const Icon(Icons.add_circle_outline), 
-                            label: Text(locale == 'vi' ? 'Thêm lựa chọn' : 'Add option')
+                            label: Text(l10n.addOption)
                           ),
                         )
                       ],

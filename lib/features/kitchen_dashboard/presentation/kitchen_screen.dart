@@ -41,12 +41,13 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   }
 
   Future<void> _updateTicketStatus(String ticketId, String newStatus) async {
+    final l10n = ref.read(l10nProvider);
     try {
       final Map<String, dynamic> updates = {'status': newStatus};
       if (newStatus == 'DONE') updates['finished_at'] = DateTime.now().toUtc().toIso8601String();
       await supabase.from('tickets').update(updates).eq('id', ticketId);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi cập nhật: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.updateError}: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -62,7 +63,17 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
   void _showHistoryDialog(String myStationId) {
     final l10n = ref.read(l10nProvider);
-    final locale = ref.watch(localeProvider);
+    final locale = ref.read(localeProvider);
+    
+    // Khởi tạo Future ngay tại đây để nó không bị khởi tạo lại khi rebuild
+    final historyFuture = supabase
+        .from('tickets')
+        .select('*, menu_items(name), orders(room_number)')
+        .eq('station_id', myStationId)
+        .eq('status', 'DONE')
+        .order('finished_at', ascending: false)
+        .limit(30);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -70,7 +81,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
         content: SizedBox(
           width: 600, height: 500,
           child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: supabase.from('tickets').select('*, menu_items(name)').eq('station_id', myStationId).eq('status', 'DONE').order('finished_at', ascending: false).limit(30),
+            future: historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               final data = snapshot.data ?? [];
@@ -99,14 +110,15 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   @override
   Widget build(BuildContext context) {
     final stationId = widget.stationId;
+    final l10n = ref.watch(l10nProvider);
     if (stationId == null) {
       final defaultIdAsync = ref.watch(defaultStationIdProvider);
       return defaultIdAsync.when(
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        error: (e, s) => Scaffold(body: Center(child: Text('${l10n.errorPrefix}: $e'))),
         data: (id) {
           if (id != null) { Future.microtask(() => context.go('/kitchen/$id')); return const Scaffold(body: Center(child: CircularProgressIndicator())); }
-          return const Scaffold(body: Center(child: Text('Tài khoản chưa được gán trạm.')));
+          return Scaffold(body: Center(child: Text(l10n.stationNotAssigned)));
         },
       );
     }
@@ -114,11 +126,10 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     final smartTickets = ref.watch(smartKitchenTicketsProvider(stationId));
     final profileAsync = ref.watch(userProfileProvider);
     final stationDetailAsync = ref.watch(stationDetailProvider(stationId));
-    final l10n = ref.watch(l10nProvider);
 
     return profileAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+      error: (e, s) => Scaffold(body: Center(child: Text('${l10n.errorPrefix}: $e'))),
       data: (profile) {
         if (profile == null || (profile['role'] != 'STATION' && profile['role'] != 'ADMIN')) {
           Future.microtask(() => context.go('/'));
@@ -127,9 +138,9 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
 
         return stationDetailAsync.when(
           loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-          error: (e, s) => Scaffold(body: Center(child: Text('Lỗi tải trạm: $e'))),
+          error: (e, s) => Scaffold(body: Center(child: Text('${l10n.loadStationError}: $e'))),
           data: (station) {
-            if (station == null) return const Scaffold(body: Center(child: Text('Trạm không tồn tại.')));
+            if (station == null) return Scaffold(body: Center(child: Text(l10n.stationNotExist)));
 
             final locale = ref.watch(localeProvider);
             final String myStationName = L10nUtils.getL10n(station['name'], locale);
@@ -146,8 +157,6 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                 title: Text(myStationName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 backgroundColor: Colors.orange[800],
                 actions: [
-                  const LanguageSelector(),
-                  const SizedBox(width: 8),
                   Builder(
                     builder: (ctx) {
                       final hasUnread = ref.watch(hasUnreadMessagesProvider);
@@ -170,6 +179,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                       );
                     },
                   ),
+                  const LanguageSelector(),
+                  const SizedBox(width: 8),
                   IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: () => _showHistoryDialog(stationId)),
                   IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
                     ref.invalidate(userProfileProvider);
@@ -196,7 +207,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   Widget _buildTicketColumn({required String title, required Color headerColor, required List<SmartTicket> tickets, required bool isCookingColumn}) {
     return Column(children: [
       Container(width: double.infinity, padding: const EdgeInsets.all(16), color: headerColor, child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-      Expanded(child: tickets.isEmpty ? Center(child: Text('Trống', style: TextStyle(color: Colors.grey[500], fontSize: 20))) : ListView.builder(padding: const EdgeInsets.all(12), itemCount: tickets.length, itemBuilder: (context, index) => _buildTicketCard(tickets[index], isCookingColumn))),
+      Expanded(child: tickets.isEmpty ? Center(child: Text(ref.watch(l10nProvider).empty, style: TextStyle(color: Colors.grey[500], fontSize: 20))) : ListView.builder(padding: const EdgeInsets.all(12), itemCount: tickets.length, itemBuilder: (context, index) => _buildTicketCard(tickets[index], isCookingColumn))),
     ]);
   }
 
@@ -235,8 +246,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               Expanded(child: Text('${ticket.rawTicket['quantity']}x ${ticket.itemName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
               Text('${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND', style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold)),
             ]),
-            if (ticket.rawTicket['selected_modifiers'] != null) Column(crossAxisAlignment: CrossAxisAlignment.start, children: (ticket.rawTicket['selected_modifiers'] as List).map((m) => Text('↳ ${m['group_name']}: ${m['modifier_name']}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))).toList()),
-            if (ticket.rawTicket['notes']?.toString().isNotEmpty ?? false) Text('Ghi chú: ${ticket.rawTicket['notes']}', style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
+            if (ticket.rawTicket['selected_modifiers'] != null) Column(crossAxisAlignment: CrossAxisAlignment.start, children: (ticket.rawTicket['selected_modifiers'] as List).map((m) => Text('↳ ${L10nUtils.getL10n(m['group_name'], ref.watch(localeProvider))}: ${L10nUtils.getL10n(m['modifier_name'], ref.watch(localeProvider))}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))).toList()),
+            if (ticket.rawTicket['notes']?.toString().isNotEmpty ?? false) Text('${l10n.notePrefix}: ${ticket.rawTicket['notes']}', style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
             Padding(padding: const EdgeInsets.only(top: 12), child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text('${l10n.totalItem}: ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), Text('${NumberFormat('#,###', 'vi_VN').format((ticket.basePrice + (ticket.rawTicket['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0))) * ticket.rawTicket['quantity'])} VND', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green))])),
             const Divider(height: 24),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -248,7 +259,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                   final bool isEarly = now.isBefore(ticket.targetStartTime);
                   bool hasUnfinishedPrimary = allTickets.any((t) => t['order_id'] == ticket.rawTicket['order_id'] && t['id'] != ticket.rawTicket['id'] && t['status'] != 'DONE' && (menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false)).prepTime > ticket.prepTime));
                   if (isEarly || hasUnfinishedPrimary) {
-                    bool? proceed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Cảnh báo'), content: Text('${isEarly ? "Chưa đến giờ nấu." : "Món chính chưa xong."}\nTiếp tục?'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('VẪN NẤU'))]));
+                    bool? proceed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(l10n.warningTitle), content: Text('${isEarly ? l10n.notCookingTime : l10n.primaryNotDone}\n${l10n.continueQuestion}'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.stillCook))]));
                     if (proceed != true) return;
                   }
                   _updateTicketStatus(ticket.rawTicket['id'], 'COOKING');

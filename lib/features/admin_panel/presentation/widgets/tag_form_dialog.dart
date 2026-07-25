@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/gemini_service.dart';
 import '../../../../core/utils/l10n_utils.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../main.dart';
 import '../../providers/tag_provider.dart';
 
@@ -43,24 +44,32 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
   }
 
   Future<void> _translateWithAI() async {
-    if (_nameViController.text.isEmpty) return;
+    if (_nameViController.text.trim().isEmpty && _nameEnController.text.trim().isEmpty) return;
     setState(() => _isTranslating = true);
+    final l10n = ref.read(l10nProvider);
     try {
       final gemini = ref.read(geminiServiceProvider);
-      final result = await gemini.translate(_nameViController.text);
-      _nameEnController.text = result;
+      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController, force: true);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi dịch: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
     } finally {
       if (mounted) setState(() => _isTranslating = false);
     }
   }
 
   Future<void> _saveTag() async {
-    if (!_formKey.currentState!.validate()) return;
+    final l10n = ref.read(l10nProvider);
     setState(() => _isLoading = true);
 
     try {
+      final gemini = ref.read(geminiServiceProvider);
+      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController);
+
+      if (!_formKey.currentState!.validate()) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final data = {
         'name': {
           'vi': _nameViController.text.trim(),
@@ -83,7 +92,7 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -92,8 +101,9 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
     return AlertDialog(
-      title: Text(widget.tag == null ? 'Thêm Thẻ Mới' : 'Sửa Thông Tin Thẻ'),
+      title: Text(widget.tag == null ? l10n.addTag : l10n.editTag),
       content: SizedBox(
         width: 500,
         child: Form(
@@ -106,8 +116,8 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _nameViController,
-                      decoration: const InputDecoration(labelText: 'Tên thẻ (VI)', border: OutlineInputBorder()),
-                      validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên' : null,
+                      decoration: InputDecoration(labelText: '${l10n.tagNameLang} (VI)', border: const OutlineInputBorder()),
+                      validator: (val) => val == null || val.trim().isEmpty ? l10n.validName : null,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -116,13 +126,13 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
                     icon: _isTranslating 
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.auto_awesome, color: Colors.purple),
-                    tooltip: 'AI Dịch sang tiếng Anh',
+                    tooltip: l10n.aiTranslateTooltip,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
                       controller: _nameEnController,
-                      decoration: const InputDecoration(labelText: 'Tên thẻ (EN)', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: '${l10n.tagNameLang} (EN)', border: const OutlineInputBorder()),
                     ),
                   ),
                 ],
@@ -130,12 +140,12 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedType,
-                decoration: const InputDecoration(labelText: 'Phân loại', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'ALLERGY', child: Text('Dị ứng (ALLERGY)')),
-                  DropdownMenuItem(value: 'WEATHER', child: Text('Thời tiết (WEATHER)')),
-                  DropdownMenuItem(value: 'TIME', child: Text('Buổi trong ngày (TIME)')),
-                  DropdownMenuItem(value: 'TASTE', child: Text('Khẩu vị / Loại bếp (TASTE)')),
+                decoration: InputDecoration(labelText: l10n.tagTypeLabel, border: const OutlineInputBorder()),
+                items: [
+                  DropdownMenuItem(value: 'ALLERGY', child: Text(l10n.allergyType)),
+                  DropdownMenuItem(value: 'WEATHER', child: Text(l10n.weatherType)),
+                  DropdownMenuItem(value: 'TIME', child: Text(l10n.timeType)),
+                  DropdownMenuItem(value: 'TASTE', child: Text(l10n.tasteType)),
                 ],
                 onChanged: (val) => setState(() => _selectedType = val!),
               ),
@@ -146,14 +156,14 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy')
+            child: Text(l10n.cancel)
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _saveTag,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
           child: _isLoading
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Lưu'),
+              : Text(l10n.save),
         ),
       ],
     );

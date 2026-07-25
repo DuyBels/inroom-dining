@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/gemini_service.dart';
 import '../../../../core/utils/l10n_utils.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../main.dart';
 import '../../providers/admin_provider.dart'; 
 
@@ -39,24 +40,32 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
   }
 
   Future<void> _translateWithAI() async {
-    if (_nameViController.text.isEmpty) return;
+    if (_nameViController.text.trim().isEmpty && _nameEnController.text.trim().isEmpty) return;
+    final l10n = ref.read(l10nProvider);
     setState(() => _isTranslating = true);
     try {
       final gemini = ref.read(geminiServiceProvider);
-      final result = await gemini.translate(_nameViController.text);
-      _nameEnController.text = result;
+      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController, force: true);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi dịch: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
     } finally {
       if (mounted) setState(() => _isTranslating = false);
     }
   }
 
   Future<void> _saveStation() async {
-    if (!_formKey.currentState!.validate()) return;
+    final l10n = ref.read(l10nProvider);
     setState(() => _isLoading = true);
 
     try {
+      final gemini = ref.read(geminiServiceProvider);
+      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController);
+
+      if (!_formKey.currentState!.validate()) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final data = {
         'name': {
           'vi': _nameViController.text.trim(),
@@ -79,7 +88,7 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -88,8 +97,9 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
     return AlertDialog(
-      title: Text(widget.station == null ? 'Thêm Trạm Bếp Mới' : 'Sửa Trạm Bếp'),
+      title: Text(widget.station == null ? l10n.addStation : l10n.editStation),
       content: SizedBox(
         width: 500,
         child: Form(
@@ -102,8 +112,8 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _nameViController,
-                      decoration: const InputDecoration(labelText: 'Tên trạm (VI)', border: OutlineInputBorder()),
-                      validator: (val) => val == null || val.trim().isEmpty ? 'Vui lòng nhập tên trạm' : null,
+                      decoration: InputDecoration(labelText: '${l10n.stationNameLang} (VI)', border: const OutlineInputBorder()),
+                      validator: (val) => val == null || val.trim().isEmpty ? l10n.validStationName : null,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -112,13 +122,13 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
                     icon: _isTranslating 
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.auto_awesome, color: Colors.purple),
-                    tooltip: 'AI Dịch sang tiếng Anh',
+                    tooltip: l10n.aiTranslateTooltip,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
                       controller: _nameEnController,
-                      decoration: const InputDecoration(labelText: 'Tên trạm (EN)', border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: '${l10n.stationNameLang} (EN)', border: const OutlineInputBorder()),
                     ),
                   ),
                 ],
@@ -128,13 +138,13 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
         ElevatedButton(
           onPressed: _isLoading ? null : _saveStation,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
           child: _isLoading
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Lưu'),
+              : Text(l10n.save),
         ),
       ],
     );

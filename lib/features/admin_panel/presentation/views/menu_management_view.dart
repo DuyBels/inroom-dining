@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/utils/l10n_utils.dart';
 import '../../../../core/models/menu_item_model.dart';
 import '../../../../core/models/category_model.dart';
@@ -20,10 +21,11 @@ class MenuManagementView extends ConsumerWidget {
     final menuAsync = ref.watch(menuItemsStreamProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final stationsAsync = ref.watch(stationsStreamProvider);
+    final l10n = ref.watch(l10nProvider);
 
     return categoriesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Lỗi tải danh mục: $err')),
+      error: (err, stack) => Center(child: Text('${l10n.errorLoading}: $err')),
       data: (categories) {
         final List<Map<String, dynamic>> fullCategories = [
           {'id': 'all', 'name': {'vi': 'Tất cả', 'en': 'All'}},
@@ -40,10 +42,10 @@ class MenuManagementView extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Quản lý Thực đơn', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(l10n.manageMenu, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.add),
-                      label: const Text('Thêm Món Mới', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(l10n.addItem, style: const TextStyle(fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16)),
                       onPressed: () => _showMenuDialog(context, null),
                     ),
@@ -55,16 +57,16 @@ class MenuManagementView extends ConsumerWidget {
                   child: TabBar(
                     isScrollable: true,
                     labelColor: Colors.blue[800], unselectedLabelColor: Colors.grey, indicatorColor: Colors.blue[800],
-                    tabs: fullCategories.map((c) => Tab(text: L10nUtils.getL10n(c['name'], 'vi'))).toList(),
+                    tabs: fullCategories.map((c) => Tab(text: L10nUtils.getL10n(c['name'], ref.watch(localeProvider)))).toList(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: menuAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Center(child: Text('Lỗi: $err')),
+                    error: (err, stack) => Center(child: Text('${l10n.errorLoading}: $err')),
                     data: (menuItems) {
-                      if (menuItems.isEmpty) return const Center(child: Text('Chưa có món ăn nào.'));
+                      if (menuItems.isEmpty) return Center(child: Text(l10n.noOptions));
                       return TabBarView(
                         children: fullCategories.map((cat) {
                           final filteredItems = cat['id'] == 'all' ? menuItems : menuItems.where((item) => item.categoryId == cat['id']).toList();
@@ -83,7 +85,8 @@ class MenuManagementView extends ConsumerWidget {
   }
 
   Widget _buildMenuTable(BuildContext context, WidgetRef ref, List<MenuItemModel> menuItems, List<CategoryModel> categories, List<Map<String, dynamic>> stations) {
-    if (menuItems.isEmpty) return const Center(child: Text('Không có món ăn nào trong danh mục này.'));
+    final l10n = ref.watch(l10nProvider);
+    if (menuItems.isEmpty) return Center(child: Text(l10n.noOptions));
     return Card(
       elevation: 2, color: Colors.white, clipBehavior: Clip.antiAlias, margin: EdgeInsets.zero,
       child: ListView(
@@ -91,29 +94,30 @@ class MenuManagementView extends ConsumerWidget {
           DataTable(
             headingRowColor: WidgetStateProperty.all(Colors.blue[50]),
             dataRowMinHeight: 70, dataRowMaxHeight: 70,
-            columns: const [
-              DataColumn(label: Text('Món ăn', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Giá', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Thông tin', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Hành động', style: TextStyle(fontWeight: FontWeight.bold))),
+            columns: [
+              DataColumn(label: Text(l10n.menuTab, style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text(l10n.price, style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text(l10n.infoLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text(l10n.statusLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text(l10n.actionsLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: menuItems.map((item) {
+              final locale = ref.watch(localeProvider);
               final categoryMatch = categories.where((c) => c.id == item.categoryId);
-              final categoryName = categoryMatch.isNotEmpty ? categoryMatch.first.getName('vi') : 'Chưa phân loại';
+              final categoryName = categoryMatch.isNotEmpty ? categoryMatch.first.getName(locale) : '...';
               final stationMatch = stations.where((s) => s['id'] == item.stationId);
-              final stationName = stationMatch.isNotEmpty ? L10nUtils.getL10n(stationMatch.first['name'], 'vi') : 'Chưa gán bếp';
+              final stationName = stationMatch.isNotEmpty ? L10nUtils.getL10n(stationMatch.first['name'], locale) : '...';
               return DataRow(cells: [
                 DataCell(Row(children: [
                   ClipRRect(borderRadius: BorderRadius.circular(8), child: item.imageUrl != null && item.imageUrl!.isNotEmpty ? Image.network(item.imageUrl!, width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(width: 50, height: 50, color: Colors.grey[300], child: const Icon(Icons.broken_image))) : Container(width: 50, height: 50, color: Colors.grey[300], child: const Icon(Icons.restaurant))),
                   const SizedBox(width: 12),
-                  Text(item.getName('vi'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(item.getName(locale), style: const TextStyle(fontWeight: FontWeight.bold)),
                 ])),
                 DataCell(Text('${_formatPrice(item.price)} VND', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
-                DataCell(Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(categoryName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)), Text('Trạm: $stationName', style: TextStyle(fontSize: 11, color: Colors.grey[600]))])),
+                DataCell(Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(categoryName, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)), Text('${l10n.stationsTab}: $stationName', style: TextStyle(fontSize: 11, color: Colors.grey[600]))])),
                 DataCell(Switch(value: item.isAvailable, activeColor: Colors.green, onChanged: (val) async { await supabase.from('menu_items').update({'is_available': val}).eq('id', item.id); })),
                 DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-                  IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.blueGrey), tooltip: 'Quản lý Topping', onPressed: () => _showToppingsDialog(context, item)),
+                  IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.blueGrey), tooltip: l10n.manageToppingTooltip, onPressed: () => _showToppingsDialog(context, item)),
                   IconButton(icon: const Icon(Icons.edit_square, color: Colors.orange), onPressed: () => _showMenuDialog(context, item)),
                   IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _confirmDelete(context, ref, item.id)),
                 ])),
@@ -134,6 +138,7 @@ class MenuManagementView extends ConsumerWidget {
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, String id) {
-    showDialog(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Xác nhận xóa'), content: const Text('Bạn có chắc chắn muốn xóa món này khỏi Menu?'), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), onPressed: () async { try { Navigator.pop(dialogContext); await supabase.from('menu_items').delete().eq('id', id); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'))); } }, child: const Text('Xóa'))]));
+    final l10n = ref.read(l10nProvider);
+    showDialog(context: context, builder: (dialogContext) => AlertDialog(title: Text(l10n.confirmDeleteTitle), content: Text(l10n.deleteItemConfirm), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l10n.cancel)), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), onPressed: () async { try { Navigator.pop(dialogContext); await supabase.from('menu_items').delete().eq('id', id); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e'))); } }, child: Text(l10n.delete))]));
   }
 }

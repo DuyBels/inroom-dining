@@ -8,24 +8,28 @@ import '../../admin_panel/providers/menu_provider.dart';
 // ==========================================
 class SelectedModifier {
   final String groupId;
+  final dynamic rawGroup;
   final String groupName;
   final String modifierId;
+  final dynamic rawModifier;
   final String modifierName;
   final double price;
 
   SelectedModifier({
     required this.groupId,
+    this.rawGroup,
     required this.groupName,
     required this.modifierId,
+    this.rawModifier,
     required this.modifierName,
     required this.price,
   });
 
   Map<String, dynamic> toJson() => {
     'group_id': groupId,
-    'group_name': groupName,
+    'group_name': rawGroup ?? groupName,
     'modifier_id': modifierId,
-    'modifier_name': modifierName,
+    'modifier_name': rawModifier ?? modifierName,
     'price': price,
   };
 }

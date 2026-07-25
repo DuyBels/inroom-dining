@@ -47,3 +47,18 @@ LocalStorage? getIsolatedLocalStorage() => const MySessionStorage();
 void disableBroadcastChannel() {
   js.context['BroadcastChannel'] = null;
 }
+
+String? getSavedLocale() {
+  try {
+    return html.window.localStorage['app_locale'];
+  } catch (_) {
+    return null;
+  }
+}
+
+void saveSavedLocale(String code) {
+  try {
+    html.window.localStorage['app_locale'] = code;
+  } catch (_) {}
+}
+

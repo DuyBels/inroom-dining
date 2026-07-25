@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/l10n/app_localizations.dart';
+import '../../../../core/services/qr_session_service.dart';
 import '../../../../main.dart'; // Biến supabase global
 import '../../providers/admin_provider.dart';
 import '../widgets/account_form_dialog.dart';
@@ -11,6 +13,7 @@ class AccountManagementView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Lắng nghe dữ liệu danh sách tài khoản từ Provider
     final profilesAsync = ref.watch(profilesStreamProvider);
+    final l10n = ref.watch(l10nProvider);
 
     return DefaultTabController(
       length: 5,
@@ -25,13 +28,13 @@ class AccountManagementView extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                    'Quản lý Tài khoản',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
+                Text(
+                    l10n.manageAccounts,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
                 ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.add),
-                  label: const Text('Thêm Tài Khoản', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: Text(l10n.addAccount, style: const TextStyle(fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -56,12 +59,12 @@ class AccountManagementView extends ConsumerWidget {
                 labelColor: Colors.blue[800],
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: Colors.blue[800],
-                tabs: const [
-                  Tab(text: 'Tất cả'),
-                  Tab(text: 'Quản trị (Admin)'),
-                  Tab(text: 'Phòng (Room)'),
-                  Tab(text: 'Bếp (Station)'),
-                  Tab(text: 'Phục vụ (Waiter)'),
+                tabs: [
+                  Tab(text: l10n.allTab),
+                  Tab(text: l10n.adminRole),
+                  Tab(text: l10n.roomRole),
+                  Tab(text: l10n.stationRole),
+                  Tab(text: l10n.waiterRole),
                 ],
               ),
             ),
@@ -73,7 +76,7 @@ class AccountManagementView extends ConsumerWidget {
             Expanded(
               child: profilesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Lỗi tải dữ liệu: $err', style: const TextStyle(color: Colors.red))),
+                error: (err, stack) => Center(child: Text('${l10n.loadDataError}: $err', style: const TextStyle(color: Colors.red))),
                 data: (rawProfiles) {
                   // Chống trùng lặp ID
                   final seenIds = <String>{};
@@ -99,8 +102,9 @@ class AccountManagementView extends ConsumerWidget {
 
   // Hàm xây dựng bảng danh sách cho từng Tab
   Widget _buildAccountTable(BuildContext context, WidgetRef ref, List<Map<String, dynamic>> filteredProfiles, {bool isRoomTab = false}) {
+    final l10n = ref.watch(l10nProvider);
     if (filteredProfiles.isEmpty) {
-      return const Center(child: Text('Không có tài khoản nào trong nhóm này.'));
+      return Center(child: Text(l10n.noOptions));
     }
 
     return Card(
@@ -114,15 +118,15 @@ class AccountManagementView extends ConsumerWidget {
             headingRowColor: WidgetStateProperty.all(Colors.blue[50]),
             dataRowMinHeight: 60,
             dataRowMaxHeight: 60,
-            columns: const [
-              DataColumn(label: Text('Tên hiển thị', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Phân quyền', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Hành động', style: TextStyle(fontWeight: FontWeight.bold))),
+            columns: [
+              DataColumn(label: Text(l10n.displayName, style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text(l10n.roleLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text(l10n.actionsLabel, style: const TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: filteredProfiles.map((profile) {
               return DataRow(cells: [
-                DataCell(Text(profile['display_name'] ?? 'Chưa đặt tên', style: const TextStyle(fontWeight: FontWeight.w500))),
-                DataCell(_buildRoleBadge(profile['role'] ?? 'UNKNOWN')),
+                DataCell(Text(profile['display_name'] ?? l10n.noNameSet, style: const TextStyle(fontWeight: FontWeight.w500))),
+                DataCell(_buildRoleBadge(profile['role'] ?? 'UNKNOWN', l10n)),
                 DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -133,18 +137,18 @@ class AccountManagementView extends ConsumerWidget {
                             profile['room_number'].toString().isNotEmpty)
                           IconButton(
                             icon: const Icon(Icons.exit_to_app, color: Colors.blueAccent),
-                            tooltip: 'Trả phòng (Xóa lịch sử của phòng ${profile['room_number']})',
+                            tooltip: l10n.checkoutRoomTooltip,
                             onPressed: () => _confirmCheckout(context, ref, profile['room_number'].toString()),
                           ),
 
                         IconButton(
                           icon: const Icon(Icons.edit_square, color: Colors.orange),
-                          tooltip: 'Sửa tài khoản',
+                          tooltip: l10n.editAccountTooltip,
                           onPressed: () => _showAccountDialog(context, profile),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          tooltip: 'Xóa tài khoản',
+                          tooltip: l10n.deleteAccountTooltip,
                           onPressed: () => _confirmDelete(context, ref, profile['id']),
                         ),
                       ],
@@ -158,14 +162,15 @@ class AccountManagementView extends ConsumerWidget {
     );
   }
 
-  Widget _buildRoleBadge(String role) {
+  Widget _buildRoleBadge(String role, AppDictionary l10n) {
     Color color;
+    String label;
     switch (role) {
-      case 'ADMIN': color = Colors.red; break;
-      case 'WAITER': color = Colors.green; break;
-      case 'STATION': color = Colors.orange; break;
-      case 'ROOM': color = Colors.purple; break;
-      default: color = Colors.grey;
+      case 'ADMIN': color = Colors.red; label = l10n.adminRole; break;
+      case 'WAITER': color = Colors.green; label = l10n.waiterRole; break;
+      case 'STATION': color = Colors.orange; label = l10n.stationRole; break;
+      case 'ROOM': color = Colors.purple; label = l10n.roomRole; break;
+      default: color = Colors.grey; label = role;
     }
 
     return Container(
@@ -176,7 +181,7 @@ class AccountManagementView extends ConsumerWidget {
           border: Border.all(color: color.withOpacity(0.5))
       ),
       child: Text(
-          role,
+          label.toUpperCase(),
           style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5)
       ),
     );
@@ -191,13 +196,14 @@ class AccountManagementView extends ConsumerWidget {
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, String id) {
+    final l10n = ref.read(l10nProvider);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: const Text('Bạn có chắc chắn muốn xóa tài khoản này không?'),
+        title: Text(l10n.confirmDeleteTitle),
+        content: Text(l10n.deleteAccountConfirm),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l10n.cancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
@@ -206,19 +212,19 @@ class AccountManagementView extends ConsumerWidget {
                 await deleteProfile(id);
                 if (context.mounted) {
                    ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Đã xóa tài khoản thành công.'), backgroundColor: Colors.green)
+                    SnackBar(content: Text('✅ ${l10n.deleteAccountSuccess}'), backgroundColor: Colors.green)
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   // Hiển thị lỗi thật từ hệ thống để dễ kiểm tra
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('❌ Lỗi hệ thống: $e'), backgroundColor: Colors.red)
+                    SnackBar(content: Text('❌ ${l10n.systemError}: $e'), backgroundColor: Colors.red)
                   );
                 }
               }
             },
-            child: const Text('Xác nhận Xóa'),
+            child: Text(l10n.confirmDeleteBtn),
           ),
         ],
       ),
@@ -227,33 +233,35 @@ class AccountManagementView extends ConsumerWidget {
 
   // HÀM XÁC NHẬN TRẢ PHÒNG
   void _confirmCheckout(BuildContext context, WidgetRef ref, String roomNumber) {
+    final l10n = ref.read(l10nProvider);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Trả phòng $roomNumber'),
-        content: const Text('Hành động này sẽ xóa toàn bộ lịch sử đơn hàng và yêu cầu dịch vụ của phòng này. Bạn có chắc chắn muốn tiếp tục?'),
+        title: Text('${l10n.checkoutRoomTitle} $roomNumber'),
+        content: Text(l10n.checkoutRoomConfirm),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l10n.cancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
             onPressed: () async {
               try {
                 Navigator.pop(dialogContext);
                 await checkoutRoom(roomNumber);
+                await ref.read(qrSessionServiceProvider).revokeRoomSessions(roomNumber);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Đã trả phòng $roomNumber & dọn dẹp lịch sử thành công'), backgroundColor: Colors.green)
+                    SnackBar(content: Text('${l10n.checkoutRoomTitle} $roomNumber - ${l10n.checkoutRoomSuccess} (Mã QR đã hủy)'), backgroundColor: Colors.green)
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red)
+                    SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red)
                   );
                 }
               }
             },
-            child: const Text('Xác nhận Trả phòng'),
+            child: Text(l10n.confirmCheckoutBtn),
           ),
         ],
       ),

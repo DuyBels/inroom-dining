@@ -31,7 +31,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
   Future<void> _markAsDelivered(String orderId) async {
     await supabase.from('orders').update({'status': 'DELIVERED', 'delivered_at': DateTime.now().toUtc().toIso8601String()}).eq('id', orderId);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Giao món thành công!'), backgroundColor: Colors.green));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ ${ref.read(l10nProvider).deliverySuccess}'), backgroundColor: Colors.green));
   }
 
   Future<void> _receiveService(String serviceId, String waiterId) async {
@@ -39,13 +39,56 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
   }
 
   Future<void> _completeService(String serviceId) async {
-    try { await supabase.from('room_services').update({'status_id': ServiceStatus.completed, 'completed_at': DateTime.now().toUtc().toIso8601String()}).eq('id', serviceId); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Hoàn tất nhiệm vụ!'), backgroundColor: Colors.blue)); } catch (e) { debugPrint('Lỗi xong dịch vụ: $e'); }
+    try { await supabase.from('room_services').update({'status_id': ServiceStatus.completed, 'completed_at': DateTime.now().toUtc().toIso8601String()}).eq('id', serviceId); if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ ${ref.read(l10nProvider).taskDone}'), backgroundColor: Colors.blue)); } catch (e) { debugPrint('Lỗi xong dịch vụ: $e'); }
   }
 
   String _formatDateTime(String? isoString) {
     if (isoString == null) return '--:--';
     final dt = DateTime.parse(isoString).toLocal();
     return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day}/${dt.month}";
+  }
+
+  void _setupNotificationListeners() {
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(staffMessagesStreamProvider, (prev, next) {
+      final messages = next.value;
+      if (messages != null && messages.isNotEmpty) {
+        final newMsg = messages.first;
+        final myId = ref.read(currentUserProvider)?.id;
+        final lastMsgId = prev?.value?.isNotEmpty == true ? prev!.value!.first['id'] : null;
+        final isDrawerOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+        final List readBy = newMsg['read_by'] ?? [];
+        if (newMsg['sender_id'] != myId && newMsg['id'] != lastMsgId && !isDrawerOpen && !readBy.contains(myId)) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('💬 ${newMsg['sender_name']}: ${newMsg['message']}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.blueGrey[900],
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(label: ref.read(l10nProvider).viewAction, textColor: Colors.amber, onPressed: () => _scaffoldKey.currentState?.openEndDrawer()),
+          ));
+        }
+      }
+    });
+
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (prev, next) {
+      if (next.hasValue && prev?.hasValue == true) {
+        for (var t in next.value!) {
+          if (t['status'] == 'DONE' && !prev!.value!.any((p) => p['id'] == t['id'] && p['status'] == 'DONE')) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🔔 ${ref.read(l10nProvider).dishReady}'), backgroundColor: Colors.green));
+          }
+        }
+      }
+    });
+
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeRoomServicesStreamProvider, (prev, next) {
+      if (next.hasValue && prev?.hasValue == true) {
+        for (var s in next.value!) {
+          if (!prev!.value!.any((p) => p['id'] == s['id'])) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🧹 ${ref.read(l10nProvider).room} ${s['room_number']} ${ref.read(l10nProvider).roomServiceNotify}'), backgroundColor: Colors.blue[900]));
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -55,13 +98,15 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     if (waiterId == null) {
       return profileAsync.when(
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        error: (e, s) => Scaffold(body: Center(child: Text('${ref.watch(l10nProvider).errorPrefix}: $e'))),
         data: (profile) {
           if (profile != null) { Future.microtask(() => context.go('/waiter/${profile['id']}')); return const Scaffold(body: Center(child: CircularProgressIndicator())); }
-          return const Scaffold(body: Center(child: Text('Vui lòng đăng nhập.')));
+          return Scaffold(body: Center(child: Text(ref.watch(l10nProvider).pleaseLogin)));
         },
       );
     }
+
+    _setupNotificationListeners();
 
     final l10n = ref.watch(l10nProvider);
     final waiterOrders = ref.watch(waiterOrdersProvider);
@@ -70,9 +115,9 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
 
     return profileAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+      error: (e, s) => Scaffold(body: Center(child: Text('${l10n.errorPrefix}: $e'))),
       data: (currentProfile) {
-        if (currentProfile == null) return const Scaffold(body: Center(child: Text('Lỗi xác thực.')));
+        if (currentProfile == null) return Scaffold(body: Center(child: Text(l10n.authError)));
         return Scaffold(
           key: _scaffoldKey, endDrawer: const StaffChatDrawer(), backgroundColor: Colors.grey[100],
           appBar: AppBar(
@@ -80,8 +125,6 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
             title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(l10n.waiterTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)), Text('${l10n.staffLabel}: ${currentProfile['display_name']}', style: const TextStyle(color: Colors.white70, fontSize: 12))]),
             backgroundColor: Colors.green[800],
             actions: [
-              const LanguageSelector(),
-              const SizedBox(width: 8),
               Builder(
                 builder: (ctx) {
                   final hasUnread = ref.watch(hasUnreadMessagesProvider);
@@ -104,6 +147,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
                   );
                 },
               ),
+              const LanguageSelector(),
+              const SizedBox(width: 8),
               IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: _showHistoryDialog),
               IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async { ref.invalidate(userProfileProvider); await supabase.auth.signOut(); if (context.mounted) context.go('/login'); }),
               const SizedBox(width: 16),
@@ -111,9 +156,9 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
           ),
           body: roomServicesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Lỗi tải dữ liệu: $err', style: const TextStyle(color: Colors.red))),
+            error: (err, stack) => Center(child: Text('${l10n.loadDataError}: $err', style: const TextStyle(color: Colors.red))),
             data: (roomServices) {
-              if (waiterOrders.isEmpty && roomServices.isEmpty) return const Center(child: Text('Hiện không có yêu cầu nào.', style: TextStyle(fontSize: 18, color: Colors.grey)));
+              if (waiterOrders.isEmpty && roomServices.isEmpty) return Center(child: Text(l10n.noRequests, style: const TextStyle(fontSize: 18, color: Colors.grey)));
               return GridView.builder(
                 padding: const EdgeInsets.all(24), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 24, mainAxisSpacing: 24, childAspectRatio: 0.82),
                 itemCount: roomServices.length + waiterOrders.length,
@@ -185,7 +230,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
     final String selectQuery = table == 'orders' ? '*, delivery:delivery_waiter_id(display_name)' : '*, waiter:waiter_id(display_name)';
     return FutureBuilder<List<Map<String, dynamic>>>(future: supabase.from(table).select(selectQuery).eq(table == 'orders' ? 'status' : 'status_id', table == 'orders' ? 'DELIVERED' : ServiceStatus.completed).order(timeField, ascending: false).limit(30), builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-      final data = snapshot.data ?? []; if (data.isEmpty) return const Center(child: Text('Chưa có lịch sử.'));
+      final data = snapshot.data ?? []; if (data.isEmpty) return Center(child: Text(l10n.noHistory));
       return ListView.separated(padding: const EdgeInsets.all(16), itemCount: data.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (context, idx) {
         final item = data[idx]; final name = table == 'orders' ? (item['delivery']?['display_name'] ?? '...') : (item['waiter']?['display_name'] ?? '...');
         return ListTile(leading: Icon(table == 'orders' ? Icons.check_circle : Icons.cleaning_services, color: table == 'orders' ? Colors.green : Colors.purple), title: Text('${l10n.room} ${item['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text('${l10n.done}: ${_formatDateTime(item[timeField])} | ${l10n.staffLabel}: $name'));

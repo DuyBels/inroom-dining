@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../main.dart';
 
-class LoginScreen extends StatefulWidget {
+import '../../../core/widgets/language_selector.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -38,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       _showError(e.message);
     } catch (e) {
-      _showError('Đã xảy ra lỗi không xác định.');
+      _showError(ref.read(l10nProvider).unknownError);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -52,7 +56,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: const [
+          LanguageSelector(color: Colors.deepOrange),
+          SizedBox(width: 16),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView( // Thêm để không bị tràn khi mở debug panel
           child: Container(
@@ -68,19 +81,19 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Icon(Icons.restaurant, size: 64, color: Colors.deepOrange),
                 const SizedBox(height: 16),
-                const Text('HỆ THỐNG GỌI MÓN TẠI PHÒNG', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(l10n.systemTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 32),
           
                 TextField(
                   controller: _emailController,
-                  decoration: const InputDecoration(labelText: 'Tên đăng nhập', border: OutlineInputBorder()),
+                  decoration: InputDecoration(labelText: l10n.username, border: const OutlineInputBorder()),
                 ),
                 const SizedBox(height: 16),
           
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mật khẩu', border: OutlineInputBorder()),
+                  decoration: InputDecoration(labelText: l10n.password, border: const OutlineInputBorder()),
                   onSubmitted: (_) => _signIn(), // Nhấn Enter để đăng nhập
                 ),
                 const SizedBox(height: 32),
@@ -93,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('ĐĂNG NHẬP', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        : Text(l10n.loginButton, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
 
@@ -102,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 
                 // CÔNG TẮC DEBUG
                 SwitchListTile(
-                  title: const Text('Chế độ Debug (Đăng nhập nhanh)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  title: Text(l10n.debugMode, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   value: _showDebugPanel,
                   onChanged: (val) => setState(() => _showDebugPanel = val),
                 ),

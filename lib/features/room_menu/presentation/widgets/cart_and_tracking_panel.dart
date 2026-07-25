@@ -44,7 +44,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                    return ListTile(
                     dense: true,
                     title: Text('${cart[i].quantity}x ${cart[i].menuItem.getName(locale)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(cart[i].selectedModifiers.map((m) => m.modifierName).join(', ')),
+                    subtitle: Text(cart[i].selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')),
                     trailing: Text('${NumberFormat('#,###', 'vi_VN').format(cart[i].totalPrice)} VND'),
                   );
                 },
@@ -91,22 +91,23 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       ref.read(cartProvider.notifier).clearCart();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.orderSuccess), backgroundColor: Colors.green));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${ref.read(l10nProvider).errorPrefix}: $e')));
     }
   }
 
   Future<void> _requestService(String type) async {
+    final l10n = ref.read(l10nProvider);
     String notes = "";
     if (type == 'CALL_STAFF') {
       final controller = TextEditingController();
       bool? confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Bạn cần hỗ trợ gì?'),
-          content: TextField(controller: controller, maxLines: 3, decoration: const InputDecoration(hintText: 'Ví dụ: Mượn thêm máy sấy, hỏng điều hòa...', border: OutlineInputBorder())),
+          title: Text(l10n.supportQuestion),
+          content: TextField(controller: controller, maxLines: 3, decoration: InputDecoration(hintText: l10n.supportHint, border: const OutlineInputBorder())),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Gửi yêu cầu')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.sendRequest)),
           ],
         ),
       );
@@ -117,16 +118,26 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     try {
       await supabase.from('room_services').insert({'room_number': widget.roomNumber, 'service_type': type, 'status_id': 1, 'notes': notes});
       if (mounted) {
-        String msg = type == 'CLEANING' ? 'Đã gọi dọn phòng!' : 'Đã gọi nhân viên!';
+        String msg = type == 'CLEANING' ? l10n.roomCleaningCalled : l10n.staffCalled;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: type == 'CLEANING' ? Colors.blue : Colors.purple));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
     }
   }
 
   void _showOrderHistory() {
     final l10n = ref.read(l10nProvider);
+    final locale = ref.read(localeProvider);
+
+    // Cố định Future ngay từ đầu để tránh loop
+    final ordersFuture = supabase
+        .from('orders')
+        .select('*, tickets(quantity, menu_items(name))')
+        .eq('room_number', widget.roomNumber)
+        .order('created_at', ascending: false)
+        .limit(20);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -135,7 +146,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         content: SizedBox(
           width: 600, height: 500,
           child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: supabase.from('orders').select('*, tickets(quantity, menu_items(name))').eq('room_number', widget.roomNumber).order('created_at', ascending: false).limit(20),
+            future: ordersFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               final orders = snapshot.data ?? [];
@@ -149,7 +160,6 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                   final o = orders[i];
                   final date = DateTime.parse(o['created_at']).toLocal();
                   final List tickets = o['tickets'] ?? [];
-                  final locale = ref.watch(localeProvider);
                   
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,7 +174,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                       Text('${l10n.atTime}: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       const SizedBox(height: 8),
                       ...tickets.map((t) {
-                        final dynamic rawName = t['menu_items'] != null ? t['menu_items']['name'] : 'Món ăn';
+                        final dynamic rawName = t['menu_items'] != null ? t['menu_items']['name'] : l10n.menuItemFallback;
                         final String itemName = L10nUtils.getL10n(rawName, locale);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 4),
@@ -272,7 +282,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           elevation: 0, color: Colors.grey[50], margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: item.selectedModifiers.isNotEmpty ? Text('${l10n.extra}: ${item.selectedModifiers.map((m) => m.modifierName).join(', ')}', style: const TextStyle(fontSize: 11)) : null,
+            subtitle: item.selectedModifiers.isNotEmpty ? Text('${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}', style: const TextStyle(fontSize: 11)) : null,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -313,7 +323,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           Center(child: Text(l10n.history.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1))),
           const SizedBox(height: 20),
           if (tickets.isNotEmpty) ...[_buildFoodProgress(tickets, menuItems, l10n), const SizedBox(height: 25)],
-          if (services.isNotEmpty) ...[const Text('Dịch vụ tại phòng:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)), const SizedBox(height: 8), ...services.map((s) => _buildServiceRequestCard(s, l10n))],
+          if (services.isNotEmpty) ...[Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)), const SizedBox(height: 8), ...services.map((s) => _buildServiceRequestCard(s, l10n))],
         ],
       ),
     );

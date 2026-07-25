@@ -16,6 +16,7 @@ import '../../admin_panel/providers/category_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../admin_panel/providers/tag_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/services/qr_session_service.dart';
 import '../providers/room_menu_provider.dart';
 
 class RoomMenuScreen extends ConsumerStatefulWidget {
@@ -31,16 +32,21 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
   String _animatedHint = "";
   int _charIndex = 0;
   Timer? _typewriterTimer;
+  Timer? _qrCountdownTimer;
 
   @override
   void initState() {
     super.initState();
     _startTypewriter();
+    _qrCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _typewriterTimer?.cancel();
+    _qrCountdownTimer?.cancel();
     super.dispose();
   }
 
@@ -80,13 +86,13 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     if (roomNumber == null) {
       return profileAsync.when(
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        error: (e, s) => Scaffold(body: Center(child: Text('${ref.watch(l10nProvider).errorPrefix}: $e'))),
         data: (profile) {
           if (profile != null && (profile['role'] == 'ROOM' || profile['role'] == 'ADMIN')) {
             Future.microtask(() => context.go('/menu/${profile['room_number']}'));
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return const Scaffold(body: Center(child: Text('Vui lòng đăng nhập.')));
+          return Scaffold(body: Center(child: Text(ref.watch(l10nProvider).pleaseLogin)));
         },
       );
     }
@@ -149,6 +155,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
             flex: 3,
             child: Column(
               children: [
+                _buildQrSessionBanner(),
                 _buildSearchBar(l10n),
                 _buildAISuggestionBar(),
                 Expanded(
@@ -199,13 +206,94 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       );
                     },
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, s) => Center(child: Text('Lỗi tải thực đơn: $e')),
+                    error: (e, s) => Center(child: Text('${l10n.loadMenuError}: $e')),
                   ),
                 ),
               ],
             ),
           ),
           CartAndTrackingPanel(roomNumber: currentRoomNumber),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQrSessionBanner() {
+    final activeQr = ref.watch(activeRoomQrSessionProvider);
+    if (activeQr == null || activeQr.roomNumber != widget.roomNumber) {
+      return const SizedBox();
+    }
+
+    final remaining = activeQr.remainingTime;
+    final minutes = remaining.inMinutes;
+    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    final isWarning = remaining.inMinutes < 10;
+    final isExpired = activeQr.isExpired;
+
+    if (isExpired) {
+      return Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.timer_off, color: Colors.red, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '🔴 Mã QR của phòng này đã hết hạn. Vui lòng liên hệ lễ tân để lấy mã mới.',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isWarning ? Colors.amber[50] : Colors.blue[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isWarning ? Colors.orange : Colors.blue[300]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.qr_code_2, color: isWarning ? Colors.deepOrange : Colors.blue[800], size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Phòng ${activeQr.roomNumber} • QR đăng nhập tự động',
+              style: TextStyle(
+                color: isWarning ? Colors.deepOrange[900] : Colors.blue[900],
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: isWarning ? Colors.deepOrange : Colors.blue[800],
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer, color: Colors.white, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  'Còn $minutes:$seconds',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -449,7 +537,7 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                         const SizedBox(height: 16),
                         Text(l10n.specialNotes, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 8),
-                        TextField(controller: _noteController, decoration: InputDecoration(hintText: locale == 'vi' ? 'Ghi chú thêm...' : 'Special instructions...', filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+                        TextField(controller: _noteController, decoration: InputDecoration(hintText: l10n.specialInstructions, filled: true, fillColor: Colors.grey[50], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
                       ],
                     ),
                   );
@@ -490,7 +578,15 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
               setState(() {
                 if (val!) {
                   if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {
-                    _selectedModifiers.add(SelectedModifier(groupId: group['id'], groupName: groupName, modifierId: m['id'], modifierName: modName, price: price));
+                    _selectedModifiers.add(SelectedModifier(
+                      groupId: group['id'], 
+                      rawGroup: group['name'],
+                      groupName: groupName, 
+                      modifierId: m['id'], 
+                      rawModifier: m['name'],
+                      modifierName: modName, 
+                      price: price,
+                    ));
                   }
                 } else {
                   _selectedModifiers.removeWhere((sm) => sm.modifierId == m['id']);

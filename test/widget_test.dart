@@ -1,30 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:inroom_dining/main.dart';
+import 'package:inroom_dining/core/utils/l10n_utils.dart';
+import 'package:inroom_dining/core/l10n/app_localizations.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Multi-language L10nUtils Tests', () {
+    test('getL10n extracts correct language from Map', () {
+      final mapData = {'vi': 'Cơm chiên', 'en': 'Fried Rice'};
+      expect(L10nUtils.getL10n(mapData, 'vi'), 'Cơm chiên');
+      expect(L10nUtils.getL10n(mapData, 'en'), 'Fried Rice');
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('getL10n falls back to vi if requested locale missing', () {
+      final mapData = {'vi': 'Cơm chiên'};
+      expect(L10nUtils.getL10n(mapData, 'en'), 'Cơm chiên');
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('getL10n decodes JSON string correctly', () {
+      final jsonStr = '{"vi": "Phở bò", "en": "Beef Noodle"}';
+      expect(L10nUtils.getL10n(jsonStr, 'vi'), 'Phở bò');
+      expect(L10nUtils.getL10n(jsonStr, 'en'), 'Beef Noodle');
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('removeDiacritics strips Vietnamese accents', () {
+      expect(L10nUtils.removeDiacritics('Cơm Gà Hải Nam'), 'Com Ga Hai Nam');
+    });
+  });
+
+  group('AppDictionary Tests', () {
+    test('viDict and enDict are properly defined', () {
+      expect(viDict.login, 'Đăng nhập');
+      expect(enDict.login, 'Login');
+    });
   });
 }

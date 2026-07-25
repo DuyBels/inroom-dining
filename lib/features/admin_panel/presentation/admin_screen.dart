@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inroom_dining/features/staff_chat/presentation/widgets/staff_chat_drawer.dart';
 import '../../staff_chat/providers/chat_provider.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -14,6 +15,7 @@ import 'views/category_management_view.dart';
 import 'views/menu_management_view.dart';
 import 'views/tag_management_view.dart';
 import 'views/admin_history_view.dart';
+import 'views/qr_generator_view.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   final String? adminId;
@@ -36,27 +38,29 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     const MenuManagementView(),
     const TagManagementView(),
     const AdminHistoryView(),
+    const QrGeneratorView(),
   ];
 
   @override
   Widget build(BuildContext context) {
     final adminId = widget.adminId;
     final profileAsync = ref.watch(userProfileProvider);
+    final l10n = ref.watch(l10nProvider);
 
     // 1. Kiểm tra trạng thái Redirect (Nếu chưa có ID trên URL)
     if (adminId == null) {
       return profileAsync.when(
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (e, s) => Scaffold(body: Center(child: Text('Lỗi: $e'))),
+        error: (e, s) => Scaffold(body: Center(child: Text('${l10n.errorPrefix}: $e'))),
         data: (profile) {
           if (profile != null && profile['role'] == 'ADMIN') {
             final id = profile['id'];
             Future.microtask(() => context.go('/admin/$id'));
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return const Scaffold(
+          return Scaffold(
             body: Center(
-              child: Text('Bạn không có quyền quản trị.'),
+              child: Text(l10n.noPermission),
             ),
           );
         },
@@ -68,21 +72,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       endDrawer: const StaffChatDrawer(),
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Bảng Điều Khiển Admin',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            Text('Admin ID: ${adminId.substring(0, 8)}...', style: const TextStyle(color: Colors.white70, fontSize: 10)),
-          ],
+        title: Text(
+          l10n.adminPanelTitle,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: Colors.blue[800],
         elevation: 2,
         actions: [
-          const LanguageSelector(),
-          const SizedBox(width: 8),
           Builder(
             builder: (ctx) {
               final hasUnread = ref.watch(hasUnreadMessagesProvider);
@@ -105,10 +101,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               );
             },
           ),
+          const LanguageSelector(),
+          const SizedBox(width: 8),
           // Nút Đăng xuất
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Đăng xuất',
+            tooltip: l10n.logout,
             onPressed: () async {
               ref.invalidate(userProfileProvider);
               await supabase.auth.signOut();
@@ -145,36 +143,41 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               color: Colors.grey[700],
               fontSize: 12,
             ),
-            destinations: const [
+            destinations: [
               NavigationRailDestination(
-                icon: Icon(Icons.people_outline),
-                selectedIcon: Icon(Icons.people),
-                label: Text('Tài khoản'),
+                icon: const Icon(Icons.people_outline),
+                selectedIcon: const Icon(Icons.people),
+                label: Text(l10n.accountsTab),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.countertops_outlined),
-                selectedIcon: Icon(Icons.countertops),
-                label: Text('Trạm bếp'),
+                icon: const Icon(Icons.countertops_outlined),
+                selectedIcon: const Icon(Icons.countertops),
+                label: Text(l10n.stationsTab),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.category_outlined),
-                selectedIcon: Icon(Icons.category),
-                label: Text('Danh mục'),
+                icon: const Icon(Icons.category_outlined),
+                selectedIcon: const Icon(Icons.category),
+                label: Text(l10n.categoriesTab),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.restaurant_menu_outlined),
-                selectedIcon: Icon(Icons.restaurant_menu),
-                label: Text('Thực đơn'),
+                icon: const Icon(Icons.restaurant_menu_outlined),
+                selectedIcon: const Icon(Icons.restaurant_menu),
+                label: Text(l10n.menuTab),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.local_offer_outlined),
-                selectedIcon: Icon(Icons.local_offer),
-                label: Text('Thẻ dữ liệu'),
+                icon: const Icon(Icons.local_offer_outlined),
+                selectedIcon: const Icon(Icons.local_offer),
+                label: Text(l10n.tagsTab),
               ),
               NavigationRailDestination(
-                icon: Icon(Icons.history_outlined),
-                selectedIcon: Icon(Icons.history),
-                label: Text('Lịch sử'),
+                icon: const Icon(Icons.history_outlined),
+                selectedIcon: const Icon(Icons.history),
+                label: Text(l10n.adminHistoryTab),
+              ),
+              NavigationRailDestination(
+                icon: const Icon(Icons.qr_code_2_outlined),
+                selectedIcon: const Icon(Icons.qr_code_2),
+                label: Text(l10n.qrCodeTab),
               ),
             ],
           ),

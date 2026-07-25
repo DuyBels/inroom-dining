@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/gemini_service.dart';
 import '../../../../core/utils/l10n_utils.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/models/menu_item_model.dart';
 import '../../../../main.dart';
 import '../../providers/menu_provider.dart';
@@ -84,19 +85,46 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
   }
 
   Future<void> _translateWithAI(String targetCode, String type) async {
-    final viText = type == 'name' ? _nameControllers['vi']!.text : _descControllers['vi']!.text;
-    if (viText.isEmpty) return;
+    final l10n = ref.read(l10nProvider);
+    final controllers = type == 'name' ? _nameControllers : _descControllers;
+
+    String? sourceCode;
+    String? sourceText;
+    if (controllers['vi']?.text.trim().isNotEmpty == true) {
+      sourceCode = 'vi';
+      sourceText = controllers['vi']!.text.trim();
+    } else {
+      for (var entry in controllers.entries) {
+        if (entry.value.text.trim().isNotEmpty) {
+          sourceCode = entry.key;
+          sourceText = entry.value.text.trim();
+          break;
+        }
+      }
+    }
+
+    if (sourceText == null || sourceText.isEmpty) return;
+
+    final sourceLangName = L10nUtils.supportedLanguages.firstWhere(
+      (l) => l['code'] == sourceCode,
+      orElse: () => {'name': sourceCode == 'vi' ? 'Vietnamese' : 'English'},
+    )['name'];
 
     final targetLangName = L10nUtils.supportedLanguages.firstWhere((l) => l['code'] == targetCode)['name'];
-    
+
     setState(() => _isTranslating[targetCode] = true);
     try {
-      final result = await ref.read(geminiServiceProvider).translate(viText, targetLanguage: targetLangName!);
-      if (type == 'name') _nameControllers[targetCode]!.text = result;
-      else _descControllers[targetCode]!.text = result;
+      final result = await ref.read(geminiServiceProvider).translate(
+        sourceText,
+        sourceLanguage: sourceLangName!,
+        targetLanguage: targetLangName!,
+      );
+      controllers[targetCode]!.text = result;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi dịch: $e')));
-    } finally { setState(() => _isTranslating[targetCode] = false); }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
+    } finally {
+      if (mounted) setState(() => _isTranslating[targetCode] = false);
+    }
   }
 
   Future<void> _pickImage() async {
@@ -109,10 +137,19 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
   }
 
   Future<void> _saveMenu() async {
-    if (!_formKey.currentState!.validate()) return;
+    final l10n = ref.read(l10nProvider);
     setState(() => _isLoading = true);
 
     try {
+      final gemini = ref.read(geminiServiceProvider);
+      await gemini.autoTranslateMap(_nameControllers);
+      await gemini.autoTranslateMap(_descControllers);
+
+      if (!_formKey.currentState!.validate()) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
       String? finalImageUrl = _currentImageUrl;
       if (_selectedImageBytes != null) {
         final fileName = 'menu_${DateTime.now().millisecondsSinceEpoch}.$_selectedImageExt';
@@ -151,20 +188,24 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
       if (_selectedTagIds.isNotEmpty) {
         await supabase.from('item_tags').insert(_selectedTagIds.map((tagId) => {'item_id': menuItemId, 'tag_id': tagId}).toList());
       }
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
-    } finally { setState(() => _isLoading = false); }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
+    final locale = ref.watch(localeProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final stationsAsync = ref.watch(stationsStreamProvider);
     final tagsAsync = ref.watch(tagsStreamProvider);
 
     return AlertDialog(
-      title: Text(widget.item == null ? 'Thêm Món Mới' : 'Sửa Món Ăn'),
+      title: Text(widget.item == null ? l10n.addItemTitle : l10n.editItem),
       content: SizedBox(
         width: 800,
         child: SingleChildScrollView(
@@ -176,7 +217,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                 Expanded(flex: 2, child: Column(children: [
                   Container(height: 200, width: double.infinity, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: ClipRRect(borderRadius: BorderRadius.circular(12), child: _selectedImageBytes != null ? Image.memory(_selectedImageBytes!, fit: BoxFit.cover) : (_currentImageUrl != null ? Image.network(_currentImageUrl!, fit: BoxFit.cover) : const Icon(Icons.add_photo_alternate, size: 64)))),
                   const SizedBox(height: 12),
-                  ElevatedButton.icon(onPressed: _pickImage, icon: const Icon(Icons.upload_file), label: const Text('Chọn ảnh'))
+                  ElevatedButton.icon(onPressed: _pickImage, icon: const Icon(Icons.upload_file), label: Text(l10n.chooseImage))
                 ])),
                 const SizedBox(width: 24),
                 Expanded(flex: 5, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -187,7 +228,20 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: Row(
                         children: [
-                          Expanded(child: TextFormField(controller: _nameControllers[code], decoration: InputDecoration(labelText: 'Tên món (${lang['name']})', border: const OutlineInputBorder()))),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _nameControllers[code],
+                              decoration: InputDecoration(labelText: '${l10n.itemNameLang} (${lang['name']})', border: const OutlineInputBorder()),
+                              validator: (val) {
+                                if (code == 'vi' || code == 'en') {
+                                  if (_nameControllers.values.every((c) => c.text.trim().isEmpty)) {
+                                    return l10n.validName;
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
                           if (code != 'vi') IconButton(onPressed: _isTranslating[code] == true ? null : () => _translateWithAI(code, 'name'), icon: _isTranslating[code] == true ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, color: Colors.purple))
                         ],
                       ),
@@ -196,16 +250,73 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
 
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: TextFormField(controller: _priceController, decoration: const InputDecoration(labelText: 'Giá tiền', border: OutlineInputBorder(), suffixText: 'đ'))),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _priceController,
+                        decoration: InputDecoration(labelText: l10n.priceLabel, border: const OutlineInputBorder(), suffixText: 'đ'),
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return locale == 'vi' ? 'Vui lòng nhập giá món ăn' : 'Please enter price';
+                          }
+                          final cleanVal = val.replaceAll('.', '').replaceAll(',', '');
+                          final price = double.tryParse(cleanVal);
+                          if (price == null || price < 0) {
+                            return locale == 'vi' ? 'Giá tiền không hợp lệ' : 'Invalid price';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: TextFormField(controller: _prepTimeController, decoration: const InputDecoration(labelText: 'Thời gian nấu (phút)', border: OutlineInputBorder()))),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _prepTimeController,
+                        decoration: InputDecoration(labelText: l10n.cookTimeLabel, border: const OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return locale == 'vi' ? 'Vui lòng nhập thời gian' : 'Please enter cook time';
+                          }
+                          final time = int.tryParse(val.trim());
+                          if (time == null || time <= 0) {
+                            return locale == 'vi' ? 'Thời gian chế biến phải > 0' : 'Prep time must be > 0';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
                   ]),
 
                   const SizedBox(height: 16),
                   Row(children: [
-                    Expanded(child: categoriesAsync.when(loading: () => const LinearProgressIndicator(), error: (e, s) => const Text('Lỗi'), data: (cats) => DropdownButtonFormField<String>(value: _selectedCategoryId, decoration: const InputDecoration(labelText: 'Danh mục', border: OutlineInputBorder()), items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.getName('vi')))).toList(), onChanged: (v) => setState(() => _selectedCategoryId = v)))),
+                    Expanded(
+                      child: categoriesAsync.when(
+                        loading: () => const LinearProgressIndicator(),
+                        error: (e, s) => Text(l10n.errorPrefix),
+                        data: (cats) => DropdownButtonFormField<String>(
+                          value: cats.any((c) => c.id == _selectedCategoryId) ? _selectedCategoryId : null,
+                          decoration: InputDecoration(labelText: l10n.categoryLabel, border: const OutlineInputBorder()),
+                          items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.getName(locale)))).toList(),
+                          onChanged: (v) => setState(() => _selectedCategoryId = v),
+                          validator: (v) => v == null || v.isEmpty ? (locale == 'vi' ? 'Vui lòng chọn danh mục' : 'Please select category') : null,
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 12),
-                    Expanded(child: stationsAsync.when(loading: () => const LinearProgressIndicator(), error: (e, s) => const Text('Lỗi'), data: (stats) => DropdownButtonFormField<String>(value: _selectedStationId, decoration: const InputDecoration(labelText: 'Trạm bếp', border: OutlineInputBorder()), items: stats.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text(L10nUtils.getL10n(s['name'], 'vi')))).toList(), onChanged: (v) => setState(() => _selectedStationId = v)))),
+                    Expanded(
+                      child: stationsAsync.when(
+                        loading: () => const LinearProgressIndicator(),
+                        error: (e, s) => Text(l10n.errorPrefix),
+                        data: (stats) => DropdownButtonFormField<String>(
+                          value: stats.any((s) => s['id'].toString() == _selectedStationId) ? _selectedStationId : null,
+                          decoration: InputDecoration(labelText: l10n.stationLabel, border: const OutlineInputBorder()),
+                          items: stats.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text(L10nUtils.getL10n(s['name'], locale)))).toList(),
+                          onChanged: (v) => setState(() => _selectedStationId = v),
+                          validator: (v) => v == null || v.isEmpty ? l10n.validStation : null,
+                        ),
+                      ),
+                    ),
                   ]),
 
                   const SizedBox(height: 16),
@@ -216,24 +327,24 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: Row(
                         children: [
-                          Expanded(child: TextFormField(controller: _descControllers[code], maxLines: 2, decoration: InputDecoration(labelText: 'Mô tả (${lang['name']})', border: const OutlineInputBorder()))),
+                          Expanded(child: TextFormField(controller: _descControllers[code], maxLines: 2, decoration: InputDecoration(labelText: '${l10n.descriptionFieldLang} (${lang['name']})', border: const OutlineInputBorder()))),
                           if (code != 'vi') IconButton(onPressed: _isTranslating[code] == true ? null : () => _translateWithAI(code, 'description'), icon: _isTranslating[code] == true ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, color: Colors.purple))
                         ],
                       ),
                     );
                   }),
 
-                  const Text('Gắn Thẻ:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(l10n.attachTag, style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  tagsAsync.when(loading: () => const CircularProgressIndicator(), error: (e, s) => const Text('Lỗi'), data: (tags) => Wrap(spacing: 8, children: tags.map((t) => FilterChip(label: Text(t.getName('vi')), selected: _selectedTagIds.contains(t.id), onSelected: (v) => setState(() => v ? _selectedTagIds.add(t.id) : _selectedTagIds.remove(t.id)))).toList())),
-                  SwitchListTile(title: const Text('Trạng thái mở bán'), value: _isAvailable, onChanged: (v) => setState(() => _isAvailable = v), contentPadding: EdgeInsets.zero)
+                  tagsAsync.when(loading: () => const CircularProgressIndicator(), error: (e, s) => Text(l10n.errorPrefix), data: (tags) => Wrap(spacing: 8, children: tags.map((t) => FilterChip(label: Text(t.getName(locale)), selected: _selectedTagIds.contains(t.id), onSelected: (v) => setState(() => v ? _selectedTagIds.add(t.id) : _selectedTagIds.remove(t.id)))).toList())),
+                  SwitchListTile(title: Text(l10n.availabilityStatus), value: _isAvailable, onChanged: (v) => setState(() => _isAvailable = v), contentPadding: EdgeInsets.zero)
                 ]))
               ],
             ),
           ),
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')), ElevatedButton(onPressed: _isLoading ? null : _saveMenu, child: _isLoading ? const CircularProgressIndicator() : const Text('Lưu Món Ăn'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)), ElevatedButton(onPressed: _isLoading ? null : _saveMenu, child: _isLoading ? const CircularProgressIndicator() : Text(l10n.saveItem))],
     );
   }
 }
