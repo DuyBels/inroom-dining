@@ -23,6 +23,15 @@ class AppDictionary {
   final String prepTime;
   final String notes;
   final String addDelay;
+  final String remakeBtn;
+  final String remakeTitle;
+  final String remakeReasonBurnt;
+  final String remakeReasonDamaged;
+  final String remakeReasonCustomerChanged;
+  final String remakeReasonOther;
+  final String remakeSelectReason;
+  final String remakeSuccess;
+  final String remakeLabel;
   final String startCooking;
   final String cookingDone;
   final String confirmOrder;
@@ -315,6 +324,15 @@ class AppDictionary {
     required this.prepTime,
     required this.notes,
     required this.addDelay,
+    required this.remakeBtn,
+    required this.remakeTitle,
+    required this.remakeReasonBurnt,
+    required this.remakeReasonDamaged,
+    required this.remakeReasonCustomerChanged,
+    required this.remakeReasonOther,
+    required this.remakeSelectReason,
+    required this.remakeSuccess,
+    required this.remakeLabel,
     required this.startCooking,
     required this.cookingDone,
     required this.confirmOrder,
@@ -582,6 +600,15 @@ final viDict = AppDictionary(
   prepTime: "T.Gian",
   notes: "Ghi chú",
   addDelay: "Delay",
+  remakeBtn: "NẤU LẠI",
+  remakeTitle: "Nấu lại món ăn",
+  remakeReasonBurnt: "Hỏng / Cháy",
+  remakeReasonDamaged: "Đổ / Hư hại",
+  remakeReasonCustomerChanged: "Khách đổi ý",
+  remakeReasonOther: "Lý do khác",
+  remakeSelectReason: "Chọn lý do nấu lại:",
+  remakeSuccess: "Đã tạo lệnh nấu lại!",
+  remakeLabel: "[NẤU LẠI]",
   startCooking: "BẮT ĐẦU NẤU",
   cookingDone: "NẤU XONG",
   confirmOrder: "Xác nhận Đặt món",
@@ -848,6 +875,15 @@ final enDict = AppDictionary(
   prepTime: "Prep Time",
   notes: "Notes",
   addDelay: "Delay",
+  remakeBtn: "REMAKE",
+  remakeTitle: "Remake Dish",
+  remakeReasonBurnt: "Burnt / Spoiled",
+  remakeReasonDamaged: "Spilled / Damaged",
+  remakeReasonCustomerChanged: "Customer Changed Mind",
+  remakeReasonOther: "Other Reason",
+  remakeSelectReason: "Select remake reason:",
+  remakeSuccess: "Remake order created!",
+  remakeLabel: "[REMAKE]",
   startCooking: "START COOKING",
   cookingDone: "FINISHED",
   confirmOrder: "Confirm Order",

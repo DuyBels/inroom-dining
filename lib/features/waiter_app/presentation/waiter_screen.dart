@@ -205,12 +205,14 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
         Expanded(child: ListView.separated(padding: const EdgeInsets.symmetric(vertical: 8), itemCount: tickets.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (context, idx) {
           final t = tickets[idx];
           final menuItem = menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {'vi': '...'}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false));
-          final double itemTotal = (menuItem.price + (t['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (m['price'] ?? 0))) * (t['quantity'] ?? 1);
-          return ListTile(dense: true, title: Text('${t['quantity']}x ${menuItem.getName(locale)}'), trailing: Text(NumberFormat('#,###', 'vi_VN').format(itemTotal)), leading: Icon(t['status'] == 'DONE' ? Icons.check_circle : Icons.timer, color: t['status'] == 'DONE' ? Colors.green : Colors.grey));
+          final bool isRemaked = t['status'] == 'REMAKED';
+          final double itemTotal = isRemaked ? 0 : (menuItem.price + (t['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (m['price'] ?? 0))) * (t['quantity'] ?? 1);
+          return ListTile(dense: true, title: Text('${t['quantity']}x ${menuItem.getName(locale)}', style: TextStyle(decoration: isRemaked ? TextDecoration.lineThrough : null, color: isRemaked ? Colors.grey : null)), subtitle: isRemaked ? Text(l10n.remakeLabel, style: const TextStyle(color: Colors.deepOrange, fontSize: 11, fontWeight: FontWeight.bold)) : null, trailing: isRemaked ? Text(l10n.remakeLabel, style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 12)) : Text(NumberFormat('#,###', 'vi_VN').format(itemTotal)), leading: Icon(isRemaked ? Icons.replay : (t['status'] == 'DONE' ? Icons.check_circle : Icons.timer), color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? Colors.green : Colors.grey)));
         })),
         Builder(builder: (context) {
           double total = 0;
           for (var t in tickets) {
+            if (t['status'] == 'REMAKED') continue; // Không tính tiền món đã nấu lại
             final m = menuItems.firstWhere((mi) => mi.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false));
             total += (m.price + (t['selected_modifiers'] as List? ?? []).fold(0.0, (sum, mod) => sum + (mod['price'] ?? 0))) * (t['quantity'] ?? 1);
           }

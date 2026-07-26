@@ -45,8 +45,8 @@ final waiterOrdersProvider = Provider<List<WaiterOrderModel>>((ref) {
     // Lọc ra các vé thuộc về đơn hàng này
     final orderTickets = tickets.where((t) => t['order_id'] == order['id']).toList();
 
-    // Kiểm tra xem có phải tất cả các món đều đã nấu xong ('DONE') không
-    final isFullyDone = orderTickets.isNotEmpty && orderTickets.every((t) => t['status'] == 'DONE');
+    // Kiểm tra: tất cả các món đều DONE hoặc REMAKED (đã được tách sang bill khác)
+    final isFullyDone = orderTickets.isNotEmpty && orderTickets.every((t) => t['status'] == 'DONE' || t['status'] == 'REMAKED');
 
     return WaiterOrderModel(
       order: order,

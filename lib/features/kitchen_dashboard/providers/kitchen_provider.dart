@@ -41,6 +41,7 @@ class SmartTicket {
   final DateTime targetStartTime;
   final bool isOrderStarted;
   final bool isInitialAnchor;
+  final bool isRemake;
 
   SmartTicket({
     required this.rawTicket,
@@ -52,6 +53,7 @@ class SmartTicket {
     required this.targetStartTime,
     this.isOrderStarted = false,
     this.isInitialAnchor = false,
+    this.isRemake = false,
   });
 }
 
@@ -81,7 +83,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
   }
 
   for (var ticket in allTickets) {
-    if (ticket['status'] == 'DONE') continue;
+    if (ticket['status'] == 'DONE' || ticket['status'] == 'REMAKED') continue;
     
     final String orderId = ticket['order_id'].toString();
     final bool isStarted = orderHasStarted[orderId] ?? false;
@@ -116,7 +118,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
   List<SmartTicket> mySmartTickets = [];
 
   for (var ticket in allTickets) {
-    if (ticket['station_id'] != myStationId || ticket['status'] == 'DONE') continue;
+    if (ticket['station_id'] != myStationId || ticket['status'] == 'DONE' || ticket['status'] == 'REMAKED') continue;
 
     final orderId = ticket['order_id'];
     if (!orderTargetFinishTimes.containsKey(orderId)) continue;
@@ -148,6 +150,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
       targetStartTime: targetStart,
       isOrderStarted: orderHasStarted[orderId] ?? false,
       isInitialAnchor: targetStart.isAtSameMomentAs(earliestInOrder),
+      isRemake: ticket['is_remake'] == true,
     ));
   }
 

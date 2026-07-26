@@ -305,6 +305,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       case 'PENDING': return l10n.pending;
       case 'COOKING': return l10n.cooking;
       case 'DONE': return l10n.done;
+      case 'REMAKED': return l10n.remakeLabel;
       default: return status;
     }
   }
@@ -315,8 +316,10 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final cart = ref.watch(cartProvider);
     final cartTotal = ref.watch(cartTotalProvider);
     final roomTicketsAsync = ref.watch(activeRoomTicketsProvider(widget.roomNumber));
+    final roomOrdersAsync = ref.watch(roomOrdersStreamProvider(widget.roomNumber));
     final roomServicesAsync = ref.watch(roomServicesByRoomStreamProvider(widget.roomNumber));
     final menuAsync = ref.watch(menuItemsStreamProvider);
+    final activeOrders = (roomOrdersAsync.value ?? []).where((o) => o['status'] != 'DELIVERED').toList();
 
     return Container(
       width: widget.isMobile ? double.infinity : 360,
@@ -348,8 +351,8 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                 : _buildCartList(cart, l10n),
           ),
           if (cart.isNotEmpty) _buildCheckoutSection(cartTotal, l10n),
-          if (roomTicketsAsync.isNotEmpty || (roomServicesAsync.value?.isNotEmpty ?? false))
-            _buildTrackingSection(roomTicketsAsync, roomServicesAsync.value ?? [], menuAsync.value ?? [], l10n),
+          if (activeOrders.isNotEmpty || (roomServicesAsync.value?.isNotEmpty ?? false))
+            _buildTrackingSection(activeOrders, roomTicketsAsync, roomServicesAsync.value ?? [], menuAsync.value ?? [], l10n),
         ],
       ),
     );
@@ -511,37 +514,60 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     );
   }
 
-  Widget _buildTrackingSection(List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> services, List<MenuItemModel> menuItems, AppDictionary l10n) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AdminTheme.woodTint,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Text(
-              l10n.history.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1, color: AdminTheme.primaryDarkWood, fontSize: 12),
+  Widget _buildTrackingSection(List<Map<String, dynamic>> activeOrders, List<Map<String, dynamic>> tickets, List<Map<String, dynamic>> services, List<MenuItemModel> menuItems, AppDictionary l10n) {
+    return Expanded(
+      flex: 4,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        color: AdminTheme.woodTint,
+        child: ListView(
+          children: [
+            Center(
+              child: Text(
+                l10n.history.toUpperCase(),
+                style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1, color: AdminTheme.primaryDarkWood, fontSize: 12),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          if (tickets.isNotEmpty) ...[_buildFoodProgress(tickets, menuItems, l10n), const SizedBox(height: 16)],
-          if (services.isNotEmpty) ...[
-            Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
-            const SizedBox(height: 8),
-            ...services.map((s) => _buildServiceRequestCard(s, l10n)),
+            const SizedBox(height: 12),
+            ...activeOrders.map((order) {
+              final orderTickets = tickets.where((t) => t['order_id'] == order['id']).toList();
+              if (orderTickets.isEmpty) return const SizedBox.shrink();
+              final bool hasRemake = orderTickets.any((t) => t['is_remake'] == true);
+              return _buildOrderTracker(order, orderTickets, menuItems, l10n, isRemakeOrder: hasRemake);
+            }),
+            if (services.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+              const SizedBox(height: 8),
+              ...services.map((s) => _buildServiceRequestCard(s, l10n)),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildFoodProgress(List<Map<String, dynamic>> tickets, List<MenuItemModel> menuItems, AppDictionary l10n) {
-    bool allDone = tickets.every((t) => t['status'] == 'DONE');
-    bool anyCooking = tickets.any((t) => t['status'] == 'COOKING');
-    int currentStep = allDone ? 2 : (anyCooking ? 1 : 0);
+  Widget _buildOrderTracker(Map<String, dynamic> order, List<Map<String, dynamic>> tickets, List<MenuItemModel> menuItems, AppDictionary l10n, {bool isRemakeOrder = false}) {
+    final locale = ref.watch(localeProvider);
+    // Tính trạng thái 4 bước: 0=Pending, 1=Cooking, 2=Done, 3=Delivering
+    final activeTickets = tickets.where((t) => t['status'] != 'REMAKED').toList();
+    final bool allDone = activeTickets.isNotEmpty && activeTickets.every((t) => t['status'] == 'DONE');
+    final bool anyCooking = tickets.any((t) => t['status'] == 'COOKING');
+    final bool isDelivering = order['delivery_waiter_id'] != null;
+    int currentStep;
+    if (isDelivering) {
+      currentStep = 3;
+    } else if (allDone) {
+      currentStep = 2;
+    } else if (anyCooking) {
+      currentStep = 1;
+    } else {
+      currentStep = 0;
+    }
+
+    // Tính thời gian ước lượng
     int maxPrepTime = 0;
-    for (var t in tickets) {
+    for (var t in activeTickets) {
       final item = menuItems.firstWhere(
         (m) => m.id == t['item_id'],
         orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false),
@@ -550,53 +576,104 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     }
     final int estimatedTotal = maxPrepTime + 5;
 
-    return Column(
-      children: [
-        _MinimalistTracker(currentStep: currentStep, l10n: l10n),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(10),
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AdminTheme.lightWoodCream,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AdminTheme.borderWood),
-          ),
-          child: Column(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AdminTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isRemakeOrder ? Colors.deepOrange.withValues(alpha: 0.5) : AdminTheme.borderWood),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Order ID + Remake badge
+          Row(
             children: [
+              Icon(Icons.receipt_long, size: 16, color: isRemakeOrder ? Colors.deepOrange : AdminTheme.primaryWood),
+              const SizedBox(width: 6),
               Text(
-                '${l10n.estimatedFinish} $estimatedTotal ${l10n.minute}',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood, fontSize: 13),
+                '${l10n.orderNo} #${order['id'].toString().substring(0, 5)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isRemakeOrder ? Colors.deepOrange : AdminTheme.primaryDarkWood,
+                ),
               ),
-              const SizedBox(height: 2),
-              Text("(${l10n.includeDelivery})", style: const TextStyle(fontSize: 10, color: AdminTheme.textMutedWood)),
+              if (isRemakeOrder) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(l10n.remakeLabel, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ],
           ),
-        ),
-        const SizedBox(height: 10),
-        ...tickets.map((t) {
-          final locale = ref.watch(localeProvider);
-          final item = menuItems.firstWhere(
-            (m) => m.id == t['item_id'],
-            orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false),
-          );
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              children: [
-                Icon(
-                  t['status'] == 'DONE' ? Icons.check_circle : Icons.radio_button_unchecked,
-                  size: 14,
-                  color: t['status'] == 'DONE' ? const Color(0xFF2E7D32) : AdminTheme.textMutedWood,
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Text('${t['quantity']}x ${item.getName(locale)}', style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood))),
-                Text(_translateTicketStatus(t['status'], l10n), style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood)),
-              ],
+          const SizedBox(height: 10),
+          // 4-step tracker
+          _MinimalistTracker(currentStep: currentStep, l10n: l10n),
+          const SizedBox(height: 10),
+          // Estimated time
+          if (currentStep < 2)
+            Container(
+              padding: const EdgeInsets.all(8),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AdminTheme.lightWoodCream,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AdminTheme.borderWood),
+              ),
+              child: Text(
+                '${l10n.estimatedFinish} $estimatedTotal ${l10n.minute}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood, fontSize: 11),
+              ),
             ),
-          );
-        }),
-      ],
+          const SizedBox(height: 8),
+          // Ticket list
+          ...tickets.map((t) {
+            final item = menuItems.firstWhere(
+              (m) => m.id == t['item_id'],
+              orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false),
+            );
+            final bool isRemaked = t['status'] == 'REMAKED';
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(
+                    isRemaked ? Icons.replay : (t['status'] == 'DONE' ? Icons.check_circle : (t['status'] == 'COOKING' ? Icons.restaurant : Icons.radio_button_unchecked)),
+                    size: 14,
+                    color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedWood)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                    '${t['quantity']}x ${item.getName(locale)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isRemaked ? Colors.grey : AdminTheme.textDarkWood,
+                      decoration: isRemaked ? TextDecoration.lineThrough : null,
+                    ),
+                  )),
+                  Text(
+                    _translateTicketStatus(t['status'], l10n),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedWood)),
+                      fontWeight: (isRemaked || t['status'] == 'DONE') ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -641,7 +718,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 }
 
 class _MinimalistTracker extends StatelessWidget {
-  final int currentStep;
+  final int currentStep; // 0=Pending, 1=Cooking, 2=Done, 3=Delivering
   final AppDictionary l10n;
   const _MinimalistTracker({required this.currentStep, required this.l10n});
 
@@ -653,7 +730,9 @@ class _MinimalistTracker extends StatelessWidget {
         _buildLine(0),
         _buildStep(1, l10n.cooking, Icons.restaurant),
         _buildLine(1),
-        _buildStep(2, l10n.delivery, Icons.delivery_dining),
+        _buildStep(2, l10n.done, Icons.check_circle),
+        _buildLine(2),
+        _buildStep(3, l10n.delivery, Icons.delivery_dining),
       ],
     );
   }
@@ -662,12 +741,12 @@ class _MinimalistTracker extends StatelessWidget {
     bool isActive = currentStep >= step;
     return Column(
       children: [
-        Icon(icon, color: isActive ? AdminTheme.primaryWood : AdminTheme.borderWood, size: 22),
-        const SizedBox(height: 4),
+        Icon(icon, color: isActive ? AdminTheme.primaryWood : AdminTheme.borderWood, size: 20),
+        const SizedBox(height: 3),
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 9,
             color: isActive ? AdminTheme.textDarkWood : AdminTheme.textMutedWood,
             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
           ),
@@ -680,6 +759,7 @@ class _MinimalistTracker extends StatelessWidget {
     return Expanded(
       child: Container(
         height: 2,
+        margin: const EdgeInsets.only(bottom: 14),
         color: currentStep > step ? AdminTheme.primaryWood : AdminTheme.borderWood,
       ),
     );

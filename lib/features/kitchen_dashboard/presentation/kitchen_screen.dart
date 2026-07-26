@@ -52,8 +52,106 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     }
   }
 
-  Future<void> _addDelay(String ticketId, int currentDelay) async {
-    await supabase.from('tickets').update({'delay_minutes': currentDelay + 5}).eq('id', ticketId);
+  Future<void> _remakeTicket(SmartTicket ticket) async {
+    final l10n = ref.read(l10nProvider);
+    final reasons = [
+      l10n.remakeReasonBurnt,
+      l10n.remakeReasonDamaged,
+      l10n.remakeReasonCustomerChanged,
+      l10n.remakeReasonOther,
+    ];
+
+    final selectedReason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          const Icon(Icons.replay, color: Colors.deepOrange),
+          const SizedBox(width: 10),
+          Text(l10n.remakeTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.remakeSelectReason, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 12),
+            ...reasons.map((reason) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    side: const BorderSide(color: Colors.deepOrange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, reason),
+                  child: Text(reason, style: const TextStyle(fontSize: 16, color: Colors.deepOrange)),
+                ),
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+        ],
+      ),
+    );
+
+    if (selectedReason == null) return;
+
+    try {
+      final raw = ticket.rawTicket;
+      // 1. Đánh dấu ticket cũ là REMAKED và lưu lý do
+      await supabase.from('tickets').update({
+        'status': 'REMAKED',
+        'remake_reason': selectedReason,
+        'finished_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', raw['id']);
+
+      // 2. Tạo ĐƠN HÀNG MỚI (bill riêng) cho món nấu lại
+      final orderRes = await supabase.from('orders').insert({
+        'room_number': ticket.roomNumber,
+        'status': 'PENDING',
+      }).select('id').single();
+      final newOrderId = orderRes['id'];
+
+      // 3. Tạo ticket mới trong đơn hàng mới
+      final now = DateTime.now().toUtc().toIso8601String();
+      await supabase.from('tickets').insert({
+        'order_id': newOrderId,
+        'item_id': raw['item_id'],
+        'station_id': raw['station_id'],
+        'quantity': raw['quantity'],
+        'notes': raw['notes'],
+        'selected_modifiers': raw['selected_modifiers'],
+        'status': 'PENDING',
+        'delay_minutes': 0,
+        'is_remake': true,
+        'remake_of': raw['id'],
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(l10n.remakeSuccess),
+            ]),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.updateError}: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   String _formatDateTime(String? isoString) {
@@ -252,7 +350,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             Padding(padding: const EdgeInsets.only(top: 12), child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text('${l10n.totalItem}: ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), Text('${NumberFormat('#,###', 'vi_VN').format((ticket.basePrice + (ticket.rawTicket['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0))) * ticket.rawTicket['quantity'])} VND', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green))])),
             const Divider(height: 24),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Row(children: [const Icon(Icons.timer, color: Colors.grey, size: 20), Text(' ${ticket.prepTime}p'), const SizedBox(width: 16), OutlinedButton.icon(icon: const Icon(Icons.more_time, size: 18), label: Text('${ticket.delayMinutes}p Delay'), onPressed: () => _addDelay(ticket.rawTicket['id'], ticket.delayMinutes))]),
+              Row(children: [const Icon(Icons.timer, color: Colors.grey, size: 20), Text(' ${ticket.prepTime}p'), const SizedBox(width: 16), if (ticket.isRemake) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.deepOrange, borderRadius: BorderRadius.circular(6)), child: Text(l10n.remakeLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)))]),
               if (!isCookingColumn) ElevatedButton.icon(icon: const Icon(Icons.local_fire_department), label: Text(l10n.startCooking), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white), onPressed: () async {
                   final now = DateTime.now();
                   final allTickets = ref.read(activeTicketsStreamProvider).value ?? [];
@@ -264,7 +362,11 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                     if (proceed != true) return;
                   }
                   _updateTicketStatus(ticket.rawTicket['id'], 'COOKING');
-              }) else ElevatedButton.icon(icon: const Icon(Icons.check_circle), label: Text(l10n.cookingDone), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'DONE')),
+              }) else Row(children: [
+                ElevatedButton.icon(icon: const Icon(Icons.replay), label: Text(l10n.remakeBtn), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white), onPressed: () => _remakeTicket(ticket)),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(icon: const Icon(Icons.check_circle), label: Text(l10n.cookingDone), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'DONE')),
+              ]),
             ])
           ],
         ),
