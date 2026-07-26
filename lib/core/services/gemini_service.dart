@@ -8,7 +8,7 @@ class GeminiService {
   final String? apiKey = dotenv.env['GEMINI_API_KEY'];
 
   // Sử dụng model ổn định nhất của Google cho tác vụ dịch thuật
-  final String _modelId = "gemini-3.5-flash-lite";
+  final String _modelId = "gemini-3.1-flash-lite";
 
   Future<String> translate(String text, {String sourceLanguage = "Vietnamese", String targetLanguage = "English"}) async {
     if (apiKey == null || apiKey!.isEmpty) {
@@ -164,6 +164,138 @@ class GeminiService {
     } else {
       throw Exception("Lỗi AI gợi ý: ${response.body}");
     }
+  }
+
+  /// Hàm chatbot tư vấn món ăn từ Context Cơ Sở Dữ Liệu
+  Future<String> chatAboutFood({
+    required String userMessage,
+    required String dbContext,
+    required List<Map<String, String>> chatHistory,
+    required String locale,
+  }) async {
+    if (apiKey == null || apiKey!.isEmpty) {
+      throw Exception("Chưa cấu hình GEMINI_API_KEY trong .env");
+    }
+
+    final targetLang = (locale == 'vi') ? 'Tiếng Việt' : 'English';
+
+    final systemInstruction = '''
+Bạn là Trợ Lý AI Chuyên nghiệp của nhà hàng InRoom Dining.
+Nhiệm vụ duy nhất của bạn là tư vấn cho khách hàng về thực đơn, danh mục món ăn, giá tiền, thời gian chế biến, các topping/tùy chọn (modifiers) và mô tả chi tiết của từng món ăn dựa TRÊN CƠ SỞ DỮ LIỆU THỰC ĐƠN ĐƯỢC CUNG CẤP DƯỚI ĐÂY.
+
+DỮ LIỆU THỰC ĐƠN VÀ TOPPING CHÍNH THỨC TỪ CƠ SỞ DỮ LIỆU NHÀ HÀNG:
+$dbContext
+
+QUY TẮC PHẢN HỒI KHI KHÁCH HÀNG HỎI VỀ MÓN ĂN:
+1. Luôn trả lời bằng ngôn ngữ: $targetLang.
+2. Kiểm tra danh mục món ăn, tên món, giá tiền, mô tả và các nhóm topping/modifiers thuộc về món đó trong dữ liệu trên để trả lời chính xác 100%.
+3. Khi khách hỏi về món ăn (VD: "Món X có những topping gì?", "Mô tả món Y?", "Có những danh mục món nào?"):
+   - Truy xuất đúng danh mục, mô tả gắn liền với món ăn, giá gốc, và danh sách tất cả các topping có sẵn kèm giá phụ thu của từng topping.
+   - Nếu món ghi 'Hết món', hãy lịch sự báo cho khách và gợi ý món khác cùng danh mục.
+4. Trình bày phản hồi rành mạch, thân thiện, sử dụng Markdown (dùng **bold** cho tên món/giá tiền, dùng danh sách có gạch đầu dòng • cho topping và thông tin món).
+5. Nếu câu hỏi không liên quan đến thực đơn/nhà hàng, hãy lịch sự hướng dẫn khách hỏi về các món ăn hoặc dịch vụ phòng.
+6. Khi bạn tư vấn hoặc gợi ý món ăn, ở CUỐI CÙNG phản hồi hãy đính kèm duy nhất một dòng JSON như sau:
+[ITEMS_DATA: {"items": [{"id": "ID_MON", "mod_ids": [], "quantity": 1, "notes": "Yêu cầu riêng"}]}]
+(Lưu ý quan trọng:
+- Dùng dấu ngoặc kép chuẩn JSON. "id" lấy chính xác từ CSDL.
+- "mod_ids": CHỈ ĐƯA VÀO NẾU KHÁCH HÀNG NÓI RÕ TÊN TOPPING ĐÓ (Ví dụ: "cho thêm trân châu"). KHÔNG TỰ ĐỘNG GẮN TOPPING NẾU KHÁCH KHÔNG YÊU CẦU.
+- "quantity": Số lượng món ăn khách yêu cầu (Mặc định 1. Nếu khách nói "cho 2 tô", "lấy 3 ly" thì quantity là 2 hoặc 3).
+- "notes": NẾU KHÁCH HÀNG CÓ YÊU CẦU/TÙY CHỈNH RIÊNG KHÔNG CÓ TRONG CSDL TOPPING (VD: "ít hành", "không nước béo", "nhiều cay", "ít đường", "70% đá", "giao nóng", v.v.), HÃY ĐƯA TOÀN BỘ CÁC YÊU CẦU ĐÓ VÀO CHUỖI "notes". Nếu không có yêu cầu riêng thì để "").
+''';
+
+    // Build chat contents array for Gemini REST API
+    List<Map<String, dynamic>> contents = [];
+
+    for (var msg in chatHistory) {
+      final role = msg['sender'] == 'user' ? 'user' : 'model';
+      final text = msg['text'] ?? '';
+      if (text.isNotEmpty) {
+        contents.add({
+          "role": role,
+          "parts": [{"text": text}]
+        });
+      }
+    }
+
+    // Append current user message
+    contents.add({
+      "role": "user",
+      "parts": [{"text": userMessage}]
+    });
+
+    // Try candidate models in order of validity
+    final List<String> candidateModels = [
+      _modelId,
+      //model dự phòng
+    ];
+
+    String? lastError;
+
+    for (var modelName in candidateModels) {
+      try {
+        final url = Uri.parse(
+            'https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$apiKey');
+
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            "system_instruction": {
+              "parts": [
+                {"text": systemInstruction}
+              ]
+            },
+            "contents": contents,
+            "generationConfig": {
+              "temperature": 0.3,
+              "topP": 0.9,
+              "maxOutputTokens": 1024,
+            }
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final candidates = data['candidates'] as List?;
+          if (candidates != null && candidates.isNotEmpty) {
+            final parts = candidates[0]['content']?['parts'] as List?;
+            if (parts != null && parts.isNotEmpty) {
+              return parts[0]['text'].toString().trim();
+            }
+          }
+        } else {
+          lastError = "Lỗi API Gemini ($modelName - ${response.statusCode}): ${response.body}";
+          if (response.statusCode == 400 && response.body.contains("system_instruction")) {
+            final fallbackResponse = await http.post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                "contents": [
+                  {
+                    "role": "user",
+                    "parts": [{"text": "$systemInstruction\n\nCâu hỏi: $userMessage"}]
+                  }
+                ]
+              }),
+            );
+            if (fallbackResponse.statusCode == 200) {
+              final data = jsonDecode(fallbackResponse.body);
+              final candidates = data['candidates'] as List?;
+              if (candidates != null && candidates.isNotEmpty) {
+                final parts = candidates[0]['content']?['parts'] as List?;
+                if (parts != null && parts.isNotEmpty) {
+                  return parts[0]['text'].toString().trim();
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        lastError = e.toString();
+      }
+    }
+
+    throw Exception(lastError ?? "Không thể kết nối đến mô hình Gemini");
   }
 }
 

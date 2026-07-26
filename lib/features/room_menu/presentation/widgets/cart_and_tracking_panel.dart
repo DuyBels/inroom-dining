@@ -131,6 +131,29 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
   Future<void> _requestService(String type) async {
     final l10n = ref.read(l10nProvider);
+
+    // Kiểm tra xem phòng này đã có yêu cầu dọn phòng/hỗ trợ đang chờ hoặc đang xử lý chưa
+    try {
+      final activeServices = await supabase
+          .from('room_services')
+          .select('id, status_id')
+          .eq('room_number', widget.roomNumber)
+          .eq('service_type', type)
+          .neq('status_id', 3);
+
+      if (activeServices.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(type == 'CLEANING' ? l10n.cleaningInProgress : l10n.staffProcessing),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+        return;
+      }
+    } catch (_) {}
+
     String notes = "";
     if (type == 'CALL_STAFF') {
       final controller = TextEditingController();
@@ -212,7 +235,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       builder: (context) => AlertDialog(
         backgroundColor: AdminTheme.surfaceWhite,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
+        title: Text(l10n.orderHistoryTitle, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
         contentPadding: EdgeInsets.zero,
         content: SizedBox(
           width: 550,
@@ -379,7 +402,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               ),
               TextButton.icon(
                 onPressed: _showOrderHistory,
-                icon: const Icon(Icons.history, size: 18, color: AdminTheme.primaryWood),
+                icon: const Icon(Icons.receipt_long_outlined, size: 18, color: AdminTheme.primaryWood),
                 label: Text(
                   l10n.history,
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.primaryWood),
@@ -524,7 +547,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           children: [
             Center(
               child: Text(
-                l10n.history.toUpperCase(),
+                l10n.orderStatusTitle,
                 style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1, color: AdminTheme.primaryDarkWood, fontSize: 12),
               ),
             ),

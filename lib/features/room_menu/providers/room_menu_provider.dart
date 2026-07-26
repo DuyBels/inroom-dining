@@ -64,7 +64,8 @@ class CartNotifier extends Notifier<List<CartItem>> {
   @override
   List<CartItem> build() => [];
 
-  void addToCart(MenuItemModel item, List<SelectedModifier> modifiers, String notes) {
+  void addToCart(MenuItemModel item, List<SelectedModifier> modifiers, String notes, {int quantity = 1}) {
+    if (quantity <= 0) return;
     final modIds = modifiers.map((m) => m.modifierId).toList()..sort();
     final String uniqueKey = "${item.id}_${modIds.join('_')}_$notes";
 
@@ -79,7 +80,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
               menuItem: state[i].menuItem,
               selectedModifiers: state[i].selectedModifiers,
               notes: state[i].notes,
-              quantity: state[i].quantity + 1,
+              quantity: state[i].quantity + quantity,
             )
           else
             state[i]
@@ -90,6 +91,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
         menuItem: item,
         selectedModifiers: modifiers,
         notes: notes,
+        quantity: quantity,
       )];
     }
   }

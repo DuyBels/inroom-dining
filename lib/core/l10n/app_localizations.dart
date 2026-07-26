@@ -19,6 +19,10 @@ class AppDictionary {
   final String callStaff;
   final String cleaning;
   final String history;
+  final String orderStatus;
+  final String orderStatusTitle;
+  final String orderHistory;
+  final String orderHistoryTitle;
   final String price;
   final String prepTime;
   final String notes;
@@ -297,6 +301,7 @@ class AppDictionary {
   final String supportQuestion;
   final String supportHint;
   final String roomCleaningCalled;
+  final String cleaningInProgress;
   final String staffCalled;
   final String roomServiceLabel;
   final String menuItemFallback;
@@ -320,6 +325,10 @@ class AppDictionary {
     required this.callStaff,
     required this.cleaning,
     required this.history,
+    required this.orderStatus,
+    required this.orderStatusTitle,
+    required this.orderHistory,
+    required this.orderHistoryTitle,
     required this.price,
     required this.prepTime,
     required this.notes,
@@ -571,6 +580,7 @@ class AppDictionary {
     required this.supportQuestion,
     required this.supportHint,
     required this.roomCleaningCalled,
+    required this.cleaningInProgress,
     required this.staffCalled,
     required this.roomServiceLabel,
     required this.menuItemFallback,
@@ -595,7 +605,11 @@ final viDict = AppDictionary(
   delivery: "Đang giao",
   callStaff: "GỌI NV",
   cleaning: "DỌN BÀN",
-  history: "Lịch sử",
+  history: "Lịch sử gọi món",
+  orderStatus: "Trạng thái gọi món",
+  orderStatusTitle: "TRẠNG THÁI GỌI MÓN",
+  orderHistory: "Lịch sử gọi món",
+  orderHistoryTitle: "LỊCH SỬ GỌI MÓN",
   price: "Giá",
   prepTime: "T.Gian",
   notes: "Ghi chú",
@@ -847,6 +861,7 @@ final viDict = AppDictionary(
   supportQuestion: "Bạn cần hỗ trợ gì?",
   supportHint: "Ví dụ: Mượn thêm máy sấy, hỏng điều hòa...",
   roomCleaningCalled: "Đã gọi dọn phòng!",
+  cleaningInProgress: "Yêu cầu dọn bàn cho phòng này đang được xử lý! Vui lòng chờ nhân viên hoàn tất trước khi gọi tiếp.",
   staffCalled: "Đã gọi nhân viên!",
   roomServiceLabel: "Dịch vụ tại phòng:",
   menuItemFallback: "Món ăn",
@@ -870,7 +885,11 @@ final enDict = AppDictionary(
   delivery: "Delivery",
   callStaff: "CALL STAFF",
   cleaning: "CLEANING",
-  history: "History",
+  history: "Order History",
+  orderStatus: "Order Status",
+  orderStatusTitle: "ORDER STATUS",
+  orderHistory: "Order History",
+  orderHistoryTitle: "ORDER HISTORY",
   price: "Price",
   prepTime: "Prep Time",
   notes: "Notes",
@@ -1122,6 +1141,7 @@ final enDict = AppDictionary(
   supportQuestion: "What do you need help with?",
   supportHint: "E.g. Need extra towels, AC not working...",
   roomCleaningCalled: "Room cleaning requested!",
+  cleaningInProgress: "Cleaning request for this room is currently in progress! Please wait until completed.",
   staffCalled: "Staff called!",
   roomServiceLabel: "Room services:",
   menuItemFallback: "Menu Item",

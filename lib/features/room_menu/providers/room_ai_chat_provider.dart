@@ -1,0 +1,488 @@
+import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../core/models/menu_item_model.dart';
+import '../../../core/services/gemini_service.dart';
+import '../../../core/utils/l10n_utils.dart';
+import '../../../main.dart';
+import 'room_menu_provider.dart';
+
+class AiSuggestedDish {
+  final MenuItemModel menuItem;
+  final List<SelectedModifier> selectedModifiers;
+  final int quantity;
+  final bool autoAdded;
+  final String notes;
+
+  AiSuggestedDish({
+    required this.menuItem,
+    this.selectedModifiers = const [],
+    this.quantity = 1,
+    this.autoAdded = false,
+    this.notes = '',
+  });
+}
+
+class ChatMessage {
+  final String id;
+  final String sender; // 'user' | 'ai'
+  final String text;
+  final DateTime timestamp;
+  final bool isError;
+  final List<AiSuggestedDish> suggestedDishes;
+
+  ChatMessage({
+    required this.id,
+    required this.sender,
+    required this.text,
+    required this.timestamp,
+    this.isError = false,
+    this.suggestedDishes = const [],
+  });
+}
+
+class RoomAiChatState {
+  final List<ChatMessage> messages;
+  final bool isLoading;
+
+  RoomAiChatState({
+    this.messages = const [],
+    this.isLoading = false,
+  });
+
+  RoomAiChatState copyWith({
+    List<ChatMessage>? messages,
+    bool? isLoading,
+  }) {
+    return RoomAiChatState(
+      messages: messages ?? this.messages,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
+}
+
+class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
+  @override
+  RoomAiChatState build() => RoomAiChatState(messages: []);
+
+  void clearChat() {
+    state = RoomAiChatState(messages: []);
+  }
+
+  /// Truy xuất toàn bộ cơ sở dữ liệu (Categories, Menu Items, Descriptions, Toppings/Modifiers, Tags) từ Supabase
+  Future<String> fetchFoodDatabaseContext(String locale) async {
+    try {
+      final categoriesData = List<dynamic>.from(await supabase.from('categories').select());
+      final menuItemsData = List<dynamic>.from(await supabase.from('menu_items').select());
+      final modifierGroupsData = List<dynamic>.from(await supabase.from('modifier_groups').select('*, modifiers(*)'));
+      final itemTagsData = List<dynamic>.from(await supabase.from('item_tags').select('item_id, tags(*)'));
+
+      // Map item_id -> danh sách tag names
+      Map<String, List<String>> itemTagsMap = {};
+      for (var row in itemTagsData) {
+        final itemId = row['item_id']?.toString();
+        final tag = row['tags'];
+        if (itemId != null && tag != null) {
+          final tagName = L10nUtils.getL10n(L10nUtils.decodeField(tag['name']), locale);
+          itemTagsMap.putIfAbsent(itemId, () => []).add(tagName);
+        }
+      }
+
+      // Map item_id -> danh sách modifier groups
+      Map<String, List<dynamic>> itemModifiersMap = {};
+      for (var group in modifierGroupsData) {
+        final itemId = group['item_id']?.toString();
+        if (itemId != null) {
+          itemModifiersMap.putIfAbsent(itemId, () => []).add(group);
+        }
+      }
+
+      // Map category_id -> category name
+      Map<String, String> categoryNames = {};
+      for (var cat in categoriesData) {
+        final catId = cat['id']?.toString() ?? '';
+        final catName = L10nUtils.getL10n(L10nUtils.decodeField(cat['name']), locale);
+        categoryNames[catId] = catName;
+      }
+
+      final currencyFormat = NumberFormat.currency(
+        locale: locale == 'vi' ? 'vi_VN' : 'en_US',
+        symbol: locale == 'vi' ? 'đ' : '\$',
+        decimalDigits: 0,
+      );
+
+      StringBuffer buffer = StringBuffer();
+      buffer.writeln("DANH SÁCH THỰC ĐƠN VÀ TOPPING CHÍNH THỨC TỪ CƠ SỞ DỮ LIỆU:\n");
+
+      buffer.writeln("=== 1. DANH MỤC MÓN ĂN ===");
+      for (var cat in categoriesData) {
+        final catName = L10nUtils.getL10n(L10nUtils.decodeField(cat['name']), locale);
+        final catDesc = L10nUtils.getL10n(L10nUtils.decodeField(cat['description']), locale);
+        buffer.writeln("- Danh mục ID [${cat['id']}]: $catName${catDesc.isNotEmpty ? ' | Mô tả: $catDesc' : ''}");
+      }
+
+      buffer.writeln("\n=== 2. MÓN ĂN, MÔ TẢ VÀ TOPPINGS/MODIFIERS GẮN LIỀN ===");
+      for (var item in menuItemsData) {
+        final itemId = item['id']?.toString() ?? '';
+        final itemName = L10nUtils.getL10n(L10nUtils.decodeField(item['name']), locale);
+        final itemDesc = L10nUtils.getL10n(L10nUtils.decodeField(item['description']), locale);
+        final price = num.tryParse(item['price']?.toString() ?? '0')?.toDouble() ?? 0.0;
+        final prepTime = item['prep_time_minutes'] ?? 15;
+        final isAvailable = item['is_available'] ?? true;
+        final catName = categoryNames[item['category_id']?.toString()] ?? 'Khác';
+        final tags = itemTagsMap[itemId] ?? [];
+        final modGroups = itemModifiersMap[itemId] ?? [];
+
+        buffer.writeln("\n• TÊN MÓN: $itemName (ID: $itemId)");
+        buffer.writeln("  - Danh mục: $catName");
+        buffer.writeln("  - Giá bán: ${currencyFormat.format(price)}");
+        buffer.writeln("  - Thời gian chuẩn bị: ~$prepTime phút");
+        buffer.writeln("  - Trạng thái: ${isAvailable ? 'Có sẵn (Đang phục vụ)' : 'Tạm hết món'}");
+        buffer.writeln("  - Mô tả món ăn: ${itemDesc.isNotEmpty ? itemDesc : 'Chưa có mô tả'}");
+        if (tags.isNotEmpty) {
+          buffer.writeln("  - Thẻ/Đặc tính: ${tags.join(', ')}");
+        }
+
+        if (modGroups.isNotEmpty) {
+          buffer.writeln("  - Danh sách Topping / Tùy chọn đi kèm (Modifiers):");
+          for (var group in modGroups) {
+            final groupName = L10nUtils.getL10n(L10nUtils.decodeField(group['name']), locale);
+            final minSel = group['min_select'] ?? 0;
+            final maxSel = group['max_select'] ?? 1;
+            final modifiers = group['modifiers'] as List? ?? [];
+            
+            List<String> modDetails = [];
+            for (var mod in modifiers) {
+              if (mod['is_available'] == true) {
+                final modName = L10nUtils.getL10n(L10nUtils.decodeField(mod['name']), locale);
+                final modPrice = num.tryParse(mod['price']?.toString() ?? '0')?.toDouble() ?? 0.0;
+                modDetails.add("$modName (ID: ${mod['id']}, +${currencyFormat.format(modPrice)})");
+              }
+            }
+            if (modDetails.isNotEmpty) {
+              buffer.writeln("    + Nhóm '$groupName' (ID Nhóm: ${group['id']}, Chọn từ $minSel đến $maxSel): ${modDetails.join(', ')}");
+            }
+          }
+        } else {
+          buffer.writeln("  - Toppings / Tùy chọn đi kèm: Không có");
+        }
+      }
+
+      return buffer.toString();
+    } catch (e) {
+      return "Lỗi khi lấy dữ liệu thực đơn từ database: $e";
+    }
+  }
+
+  Future<void> sendMessage(String text, String locale) async {
+    final userText = text.trim();
+    if (userText.isEmpty || state.isLoading) return;
+
+    final userMessage = ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      sender: 'user',
+      text: userText,
+      timestamp: DateTime.now(),
+    );
+
+    state = state.copyWith(
+      messages: [...state.messages, userMessage],
+      isLoading: true,
+    );
+
+    try {
+      // 1. Truy xuất cơ sở dữ liệu các danh mục, món ăn, toppings, mô tả
+      final dbContext = await fetchFoodDatabaseContext(locale);
+
+      // 2. Chuẩn bị lịch sử trò chuyện
+      final chatHistory = state.messages.map((m) => {
+        'sender': m.sender,
+        'text': m.text,
+      }).toList();
+
+      // 3. Gửi sang Gemini API với Context từ Database
+      String aiRawResponse = await ref.read(geminiServiceProvider).chatAboutFood(
+        userMessage: userText,
+        dbContext: dbContext,
+        chatHistory: chatHistory,
+        locale: locale,
+      );
+
+      // 4. Bóc tách và dọn dẹp dữ liệu JSON đính kèm [ITEMS_DATA: ...] nếu có
+      List<AiSuggestedDish> matchedDishes = [];
+      String cleanedText = aiRawResponse;
+
+      final match = RegExp(r'\[ITEMS_DATA:\s*(\{.*?\})\]', dotAll: true).firstMatch(aiRawResponse);
+      if (match != null) {
+        final jsonStr = match.group(1);
+        if (jsonStr != null) {
+          try {
+            final sanitizedJson = _sanitizeJsonString(jsonStr);
+            final data = json.decode(sanitizedJson);
+            final itemsList = data['items'] as List? ?? [];
+
+            matchedDishes = await _processSuggestedItems(itemsList, locale);
+          } catch (_) {}
+        }
+      }
+
+      // Dọn dẹp tuyệt đối mọi chuỗi JSON hoặc thẻ rác metadata ra khỏi câu trả lời của AI
+      cleanedText = cleanedText.replaceAll(RegExp(r'\[ITEMS_DATA:.*?\]', dotAll: true), '');
+      cleanedText = cleanedText.replaceAll(RegExp(r'\[RECOMMEND_DISHES:.*?\]', dotAll: true), '');
+      cleanedText = cleanedText.replaceAll(RegExp(r'\{"items":.*?\}', dotAll: true), '');
+      cleanedText = cleanedText.trim();
+
+      // DỰ PHÒNG CHẮC CHẮN: Nếu JSON không có hoặc parse lỗi -> luôn fuzzy match từ CSDL
+      if (matchedDishes.isEmpty) {
+        matchedDishes = await _fuzzyMatchDishesFromText(aiRawResponse, userText, locale);
+      }
+
+      final aiMessage = ChatMessage(
+        id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
+        sender: 'ai',
+        text: cleanedText,
+        timestamp: DateTime.now(),
+        suggestedDishes: matchedDishes,
+      );
+
+      state = state.copyWith(
+        messages: [...state.messages, aiMessage],
+        isLoading: false,
+      );
+    } catch (e) {
+      final errorMessage = ChatMessage(
+        id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
+        sender: 'ai',
+        text: locale == 'vi'
+            ? "Xin lỗi, đã xảy ra lỗi khi trao đổi với AI Gemini: $e"
+            : "Sorry, an error occurred while connecting to Gemini AI: $e",
+        timestamp: DateTime.now(),
+        isError: true,
+      );
+
+      state = state.copyWith(
+        messages: [...state.messages, errorMessage],
+        isLoading: false,
+      );
+    }
+  }
+
+  String _sanitizeJsonString(String raw) {
+    String s = raw.trim();
+    // 1. Khử khối mã markdown
+    s = s.replaceAll(RegExp(r'^```(json)?\s*', multiLine: true), '');
+    s = s.replaceAll(RegExp(r'^```\s*', multiLine: true), '');
+
+    // 2. Sửa lỗi thiếu dấu phẩy giữa các phần tử mảng chuỗi ("str1" "str2" -> "str1", "str2")
+    s = s.replaceAll(RegExp(r'"\s+"'), '", "');
+
+    // 3. Sửa lỗi thiếu dấu phẩy giữa các đối tượng JSON (} { -> }, {)
+    s = s.replaceAll(RegExp(r'\}\s*\{'), '}, {');
+
+    // 4. Khử dấu phẩy thừa ở cuối đối tượng hoặc mảng (, } -> } hoặc , ] -> ])
+    s = s.replaceAll(RegExp(r',\s*([\}\]])'), r'$1');
+
+    // 5. Chuyển đổi nháy đơn thành nháy kép chuẩn JSON
+    s = s.replaceAllMapped(RegExp(r"'([^'\\]*(?:\\.[^'\\]*)*)'"), (m) => '"${m.group(1)}"');
+
+    // 6. Sửa lỗi key chưa được bọc ngoặc kép ({ key: -> { "key":)
+    s = s.replaceAllMapped(RegExp(r'([{,]\s*)([a-zA-Z0-9_]+)\s*:'), (m) => '${m.group(1)}"${m.group(2)}":');
+
+    return s;
+  }
+
+  Future<List<AiSuggestedDish>> _processSuggestedItems(List itemsList, String locale) async {
+    List<AiSuggestedDish> result = [];
+    final allMenuItems = ref.read(menuItemsWithTagsProvider).value ?? [];
+
+    for (var itemObj in itemsList) {
+      final itemId = itemObj['id']?.toString();
+      if (itemId == null) continue;
+
+      final matchedItem = allMenuItems.firstWhere(
+        (i) => i.id == itemId,
+        orElse: () => MenuItemModel(
+          id: '',
+          price: 0,
+          nameMap: {},
+          descriptionMap: {},
+          prepTime: 15,
+          categoryId: '',
+          stationId: '',
+          isAvailable: false,
+        ),
+      );
+
+      if (matchedItem.id.isEmpty) continue;
+
+      final modIds = (itemObj['mod_ids'] as List? ?? []).map((e) => e.toString()).toList();
+      List<SelectedModifier> selectedMods = await _fetchModifiersByIds(itemId, modIds, locale);
+      final int qty = num.tryParse(itemObj['quantity']?.toString() ?? '1')?.toInt() ?? 1;
+      final String notes = itemObj['notes']?.toString() ?? '';
+
+      result.add(AiSuggestedDish(
+        menuItem: matchedItem,
+        selectedModifiers: selectedMods,
+        quantity: qty > 0 ? qty : 1,
+        autoAdded: false,
+        notes: notes,
+      ));
+    }
+
+    return result;
+  }
+
+  Future<List<SelectedModifier>> _fetchModifiersByIds(String itemId, List<String> modIds, String locale) async {
+    if (modIds.isEmpty) return [];
+    List<SelectedModifier> mods = [];
+    try {
+      final groups = await supabase
+          .from('modifier_groups')
+          .select('*, modifiers(*)')
+          .eq('item_id', itemId);
+
+      for (var g in groups) {
+        final gName = L10nUtils.getL10n(L10nUtils.decodeField(g['name']), locale);
+        final modifiers = g['modifiers'] as List? ?? [];
+        for (var m in modifiers) {
+          final mId = m['id']?.toString();
+          if (mId != null && modIds.contains(mId)) {
+            final mName = L10nUtils.getL10n(L10nUtils.decodeField(m['name']), locale);
+            final price = num.tryParse(m['price']?.toString() ?? '0')?.toDouble() ?? 0.0;
+            mods.add(SelectedModifier(
+              groupId: g['id']?.toString() ?? '',
+              rawGroup: g['name'],
+              groupName: gName,
+              modifierId: mId,
+              rawModifier: m['name'],
+              modifierName: mName,
+              price: price,
+            ));
+          }
+        }
+      }
+    } catch (_) {}
+    return mods;
+  }
+
+  Future<List<AiSuggestedDish>> _fuzzyMatchDishesFromText(
+    String aiText,
+    String userText,
+    String locale,
+  ) async {
+    List<AiSuggestedDish> matched = [];
+    final allMenuItems = ref.read(menuItemsWithTagsProvider).value ?? [];
+    final combinedText = L10nUtils.removeDiacritics("$userText $aiText".toLowerCase());
+
+    for (var item in allMenuItems) {
+      final itemName = item.getName(locale).toLowerCase();
+      final normalizedItemName = L10nUtils.removeDiacritics(itemName);
+
+      if (normalizedItemName.length >= 3 && combinedText.contains(normalizedItemName)) {
+        // Chỉ ghép topping nếu người dùng thực sự nhắc tên topping trong câu hỏi
+        List<SelectedModifier> matchedMods = await _findModifiersInText(item.id, userText, locale);
+        int qty = _extractQuantityFromText(userText, item.getName(locale));
+        String customNotes = _extractCustomNotesFromText(userText, matchedMods, locale);
+
+        matched.add(AiSuggestedDish(
+          menuItem: item,
+          selectedModifiers: matchedMods,
+          quantity: qty,
+          autoAdded: false,
+          notes: customNotes,
+        ));
+
+        if (matched.length >= 3) break;
+      }
+    }
+    return matched;
+  }
+
+  int _extractQuantityFromText(String userText, String itemName) {
+    if (userText.isEmpty) return 1;
+    final lowerUser = L10nUtils.removeDiacritics(userText.toLowerCase());
+    final lowerItem = L10nUtils.removeDiacritics(itemName.toLowerCase());
+
+    try {
+      final pattern1 = RegExp(r'(\d+)\s*(tô|phần|ly|cốc|đĩa|chén|suất|món|sp|x)?\s*' + RegExp.escape(lowerItem));
+      final match1 = pattern1.firstMatch(lowerUser);
+      if (match1 != null) {
+        final q = int.tryParse(match1.group(1) ?? '1');
+        if (q != null && q > 0) return q;
+      }
+
+      final pattern2 = RegExp(RegExp.escape(lowerItem) + r'\s*(x|\*|\:)?\s*(\d+)');
+      final match2 = pattern2.firstMatch(lowerUser);
+      if (match2 != null) {
+        final q = int.tryParse(match2.group(2) ?? '1');
+        if (q != null && q > 0) return q;
+      }
+
+      final firstNumMatch = RegExp(r'^\s*(\d+)').firstMatch(lowerUser);
+      if (firstNumMatch != null) {
+        final q = int.tryParse(firstNumMatch.group(1) ?? '1');
+        if (q != null && q > 0) return q;
+      }
+    } catch (_) {}
+
+    return 1;
+  }
+
+  String _extractCustomNotesFromText(String userText, List<SelectedModifier> matchedMods, String locale) {
+    if (userText.isEmpty) return '';
+    final lower = userText.toLowerCase();
+    final keywords = ['không ', 'ít ', 'nhiều ', 'bỏ ', 'đừng ', 'giao '];
+    List<String> foundNotes = [];
+
+    final parts = lower.split(RegExp(r'[,;\.\n]+|và\s+|hoặc\s+'));
+    for (var part in parts) {
+      final p = part.trim();
+      for (var kw in keywords) {
+        if (p.contains(kw)) {
+          bool isAlreadyModifier = matchedMods.any((m) => p.contains(m.modifierName.toLowerCase()));
+          if (!isAlreadyModifier && !foundNotes.contains(p)) {
+            foundNotes.add(p);
+          }
+        }
+      }
+    }
+    return foundNotes.join(', ');
+  }
+
+  Future<List<SelectedModifier>> _findModifiersInText(String itemId, String combinedText, String locale) async {
+    List<SelectedModifier> mods = [];
+    try {
+      final groups = await supabase
+          .from('modifier_groups')
+          .select('*, modifiers(*)')
+          .eq('item_id', itemId);
+
+      for (var g in groups) {
+        final gName = L10nUtils.getL10n(L10nUtils.decodeField(g['name']), locale);
+        final modifiers = g['modifiers'] as List? ?? [];
+        for (var m in modifiers) {
+          final mName = L10nUtils.getL10n(L10nUtils.decodeField(m['name']), locale);
+          final normalizedMName = L10nUtils.removeDiacritics(mName.toLowerCase());
+
+          if (normalizedMName.length >= 3 && combinedText.contains(normalizedMName)) {
+            final price = num.tryParse(m['price']?.toString() ?? '0')?.toDouble() ?? 0.0;
+            mods.add(SelectedModifier(
+              groupId: g['id']?.toString() ?? '',
+              rawGroup: g['name'],
+              groupName: gName,
+              modifierId: m['id']?.toString() ?? '',
+              rawModifier: m['name'],
+              modifierName: mName,
+              price: price,
+            ));
+          }
+        }
+      }
+    } catch (_) {}
+    return mods;
+  }
+}
+
+final roomAiChatProvider = NotifierProvider<RoomAiChatNotifier, RoomAiChatState>(
+  RoomAiChatNotifier.new,
+);
