@@ -114,17 +114,14 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     return Theme(
       data: AdminTheme.themeData,
       child: Scaffold(
-        backgroundColor: AdminTheme.bgWarmWhite,
-        floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AdminTheme.bgExpressiveBlue,
+        floatingActionButton: FloatingActionButton(
           onPressed: () => FoodChatbotDialog.show(context),
-          backgroundColor: AdminTheme.primaryWood,
+          backgroundColor: AdminTheme.primaryBlue,
           foregroundColor: Colors.white,
           elevation: 4,
-          icon: const Icon(Icons.auto_awesome, color: Colors.amberAccent),
-          label: Text(
-            locale == 'vi' ? 'Hỏi AI Món Ăn' : 'Ask AI Food',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          ),
+          tooltip: locale == 'vi' ? 'Hỏi AI Món Ăn' : 'Ask AI Food',
+          child: const Icon(Icons.auto_awesome, color: Colors.amberAccent, size: 24),
         ),
         appBar: AppBar(
           automaticallyImplyLeading: false,
@@ -221,14 +218,19 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       }
 
                       final crossCount = isMobile
-                          ? (constraints.maxWidth < 420 ? 1 : 2)
-                          : (constraints.maxWidth < 1100 ? 2 : 3);
+                          ? (constraints.maxWidth < 400 ? 1 : 2)
+                          : (constraints.maxWidth < 900 ? 3 : 4);
+
+                      final cardAspectRatio = isMobile
+                          ? (constraints.maxWidth < 400 ? 1.1 : 0.78)
+                          : (constraints.maxWidth < 900 ? 0.80 : 0.82);
 
                       return GridView.builder(
+                        physics: const BouncingScrollPhysics(),
                         padding: EdgeInsets.all(isMobile ? 12 : 16),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossCount,
-                          childAspectRatio: isMobile ? 0.82 : 0.78,
+                          childAspectRatio: cardAspectRatio,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -248,7 +250,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                 children: [
                   Positioned.fill(
                     child: Padding(
-                      padding: EdgeInsets.only(bottom: cart.isNotEmpty ? 70.0 : 0),
+                      padding: EdgeInsets.only(bottom: cart.isNotEmpty ? 75.0 : 0),
                       child: menuContent,
                     ),
                   ),
@@ -259,11 +261,13 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                       bottom: 12,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AdminTheme.primaryWood,
+                          backgroundColor: AdminTheme.primaryBlue,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          elevation: 4,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          minimumSize: const Size.fromHeight(56),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          elevation: 6,
+                          shadowColor: AdminTheme.primaryBlue.withValues(alpha: 0.35),
                         ),
                         onPressed: () => _openCartBottomSheet(context, currentRoomNumber),
                         child: Row(
@@ -271,7 +275,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.shopping_bag_outlined, color: Colors.white),
+                                const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 22),
                                 const SizedBox(width: 10),
                                 Text(
                                   '${l10n.cart} (${cart.fold(0, (sum, i) => sum + i.quantity)})',
@@ -281,7 +285,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                             ),
                             Text(
                               '${NumberFormat('#,###', 'vi_VN').format(cartTotal)} VND',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AdminTheme.lightWoodCream),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AdminTheme.lightBlueContainer),
                             ),
                           ],
                         ),
@@ -307,13 +311,13 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                   destinations: [
                     NavigationRailDestination(
                       icon: const Icon(Icons.menu_book),
-                      selectedIcon: const Icon(Icons.menu_book, color: AdminTheme.primaryWood),
+                      selectedIcon: const Icon(Icons.menu_book, color: AdminTheme.primaryBlue),
                       label: Text(l10n.all),
                     ),
                     ...categoriesAsync.maybeWhen(
                       data: (cats) => cats.map((c) => NavigationRailDestination(
-                        icon: const Icon(Icons.restaurant_menu),
-                        selectedIcon: const Icon(Icons.restaurant_menu, color: AdminTheme.primaryWood),
+                        icon: Icon(c.iconData),
+                        selectedIcon: Icon(c.iconData, color: AdminTheme.primaryBlue),
                         label: Text(c.getName(locale), textAlign: TextAlign.center),
                       )).toList(),
                       orElse: () => [],
@@ -336,19 +340,19 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.85,
+        height: MediaQuery.of(ctx).size.height * 0.90,
         decoration: const BoxDecoration(
           color: AdminTheme.surfaceWhite,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(color: AdminTheme.borderWood, borderRadius: BorderRadius.circular(2)),
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(color: AdminTheme.borderBlue, borderRadius: BorderRadius.circular(3)),
             ),
             Expanded(child: CartAndTrackingPanel(roomNumber: roomNumber, isMobile: true)),
           ],
@@ -363,18 +367,26 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       color: AdminTheme.surfaceWhite,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         child: Row(
           children: [
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
+                avatar: const Icon(Icons.menu_book, size: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 label: Text(l10n.all),
                 selected: _selectedCategoryId == null,
-                selectedColor: AdminTheme.primaryWood,
+                selectedColor: AdminTheme.primaryBlue,
+                backgroundColor: AdminTheme.blueTint,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                side: BorderSide(
+                  color: _selectedCategoryId == null ? AdminTheme.primaryBlue : AdminTheme.borderBlue,
+                ),
                 labelStyle: TextStyle(
-                  color: _selectedCategoryId == null ? Colors.white : AdminTheme.textDarkWood,
+                  color: _selectedCategoryId == null ? Colors.white : AdminTheme.textDarkBlue,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 13,
                 ),
                 onSelected: (_) => setState(() => _selectedCategoryId = null),
               ),
@@ -385,13 +397,24 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
+                    avatar: Icon(
+                      c.iconData,
+                      size: 18,
+                      color: isSelected ? Colors.white : AdminTheme.primaryBlue,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     label: Text(c.getName(locale)),
                     selected: isSelected,
-                    selectedColor: AdminTheme.primaryWood,
+                    selectedColor: AdminTheme.primaryBlue,
+                    backgroundColor: AdminTheme.blueTint,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    side: BorderSide(
+                      color: isSelected ? AdminTheme.primaryBlue : AdminTheme.borderBlue,
+                    ),
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : AdminTheme.textDarkWood,
+                      color: isSelected ? Colors.white : AdminTheme.textDarkBlue,
                       fontWeight: FontWeight.w600,
-                      fontSize: 12,
+                      fontSize: 13,
                     ),
                     onSelected: (_) => setState(() => _selectedCategoryId = c.id),
                   ),
@@ -421,7 +444,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: const Color(0xFFFFEBEE),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFC62828)),
         ),
         child: Row(
@@ -443,28 +466,28 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isWarning ? const Color(0xFFFFF3E0) : AdminTheme.lightWoodCream,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isWarning ? const Color(0xFFE65100) : AdminTheme.borderWood),
+        color: isWarning ? const Color(0xFFFFF3E0) : AdminTheme.lightBlueContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryBlue.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.qr_code_2, color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryWood, size: 20),
+          Icon(Icons.qr_code_2, color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryBlue, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Phòng ${activeQr.roomNumber} • QR tự động',
               style: TextStyle(
-                color: isWarning ? const Color(0xFFE65100) : AdminTheme.textDarkWood,
+                color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryDarkBlue,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryWood,
+              color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryBlue,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -500,15 +523,15 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AdminTheme.lightWoodCream,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AdminTheme.borderWood),
+              color: AdminTheme.lightBlueContainer,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AdminTheme.borderBlue),
             ),
             child: Row(
               children: [
-                const Icon(Icons.auto_awesome, color: AdminTheme.primaryWood, size: 18),
+                const Icon(Icons.auto_awesome, color: AdminTheme.primaryBlue, size: 18),
                 const SizedBox(width: 10),
-                Expanded(child: Text(l10n.aiIntro, style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood))),
+                Expanded(child: Text(l10n.aiIntro, style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkBlue))),
                 TextButton(onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('COOL'), child: Text(l10n.cool)),
                 TextButton(onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('WARM'), child: Text(l10n.warm)),
               ],
@@ -525,49 +548,50 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AdminTheme.woodTint,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AdminTheme.borderWood),
+                color: AdminTheme.blueTint,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AdminTheme.borderBlue),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${l10n.aiSuggestion}: ${roomCtx.isApiError ? (manualPref == 'COOL' ? l10n.cool : l10n.warm) : "${roomCtx.temp.toInt()}°C"}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminTheme.primaryDarkWood),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminTheme.primaryDarkBlue),
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 75,
+                    height: 78,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
                       itemCount: items.length,
                       itemBuilder: (context, idx) {
                         final item = items[idx];
                         return GestureDetector(
                           onTap: () => _showCustomizationDialog(item.id),
                           child: Container(
-                            width: 180,
+                            width: 185,
                             margin: const EdgeInsets.only(right: 10),
                             decoration: BoxDecoration(
                               color: AdminTheme.surfaceWhite,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AdminTheme.borderWood),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AdminTheme.borderBlue),
                             ),
                             child: Row(
                               children: [
                                 ClipRRect(
-                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
                                   child: item.imageUrl != null
-                                      ? Image.network(item.imageUrl!, width: 55, height: 75, fit: BoxFit.cover)
-                                      : Container(width: 55, color: AdminTheme.lightWoodCream),
+                                      ? Image.network(item.imageUrl!, width: 60, height: 78, fit: BoxFit.cover)
+                                      : Container(width: 60, color: AdminTheme.blueTint),
                                 ),
                                 Expanded(
                                   child: Padding(
-                                    padding: const EdgeInsets.all(6.0),
+                                    padding: const EdgeInsets.all(8.0),
                                     child: Text(
                                       item.getName(locale),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AdminTheme.textDarkWood),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminTheme.textDarkBlue),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -596,52 +620,21 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
   }
 
   Widget _buildSearchBar(AppDictionary l10n) {
-    final locale = ref.watch(localeProvider);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      color: AdminTheme.bgWarmWhite,
+      color: AdminTheme.bgExpressiveBlue,
       child: TextField(
         onChanged: (val) => ref.read(searchQueryProvider.notifier).update(val),
+        style: const TextStyle(fontSize: 14, color: AdminTheme.textDarkBlue),
         decoration: InputDecoration(
           hintText: _animatedHint,
-          prefixIcon: const Icon(Icons.search, color: AdminTheme.primaryWood),
-          suffixIcon: Tooltip(
-            message: locale == 'vi' ? 'Hỏi AI Gemini về thực đơn & topping' : 'Ask Gemini AI about menu & toppings',
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => FoodChatbotDialog.show(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                margin: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AdminTheme.lightWoodCream,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AdminTheme.borderWood),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_awesome, color: Colors.amber, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      'Hỏi AI',
-                      style: TextStyle(
-                        color: AdminTheme.primaryDarkWood,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          prefixIcon: const Icon(Icons.search, color: AdminTheme.primaryBlue, size: 22),
           filled: true,
           fillColor: AdminTheme.surfaceWhite,
-          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AdminTheme.borderWood)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AdminTheme.borderWood)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: AdminTheme.primaryWood, width: 1.5)),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: const BorderSide(color: AdminTheme.borderBlue)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: const BorderSide(color: AdminTheme.borderBlue)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: const BorderSide(color: AdminTheme.primaryBlue, width: 2.0)),
         ),
       ),
     );
@@ -670,35 +663,128 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       allergyNames = allTags.where((t) => activeAllergyTagIds.contains(t.id) && item.tagIds.contains(t.id)).map((t) => t.getName(locale)).join(', ');
     }
 
-    return Card(
-      elevation: 1.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: AdminTheme.borderWood, width: 0.8)),
+    return Container(
+      decoration: BoxDecoration(
+        color: AdminTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AdminTheme.borderBlue.withValues(alpha: 0.8), width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: AdminTheme.primaryBlue.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        splashColor: AdminTheme.primaryBlue.withValues(alpha: 0.15),
+        highlightColor: AdminTheme.primaryBlue.withValues(alpha: 0.08),
         onTap: hasAllergyWarning ? null : () => _showCustomizationDialog(item.id),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ANH FILL MAX KICH THUOC CUA CARD
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   item.imageUrl != null
-                      ? Image.network(item.imageUrl!, fit: BoxFit.cover)
-                      : Container(color: AdminTheme.lightWoodCream, child: const Icon(Icons.restaurant, color: AdminTheme.primaryWood, size: 36)),
+                      ? Image.network(
+                          item.imageUrl!,
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: AdminTheme.blueTint,
+                          child: const Icon(Icons.restaurant, color: AdminTheme.primaryBlue, size: 40),
+                        ),
+
+                  // Black gradient overlay bottom edge for clean image readability
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.10),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.25),
+                          ],
+                          stops: const [0.0, 0.5, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Prep time chip on top left
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.50),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.timer_outlined, color: Colors.white, size: 12),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${item.prepTime}p',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Quick Add Touch Button on top right (Min 44x44 Touch Target)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: hasAllergyWarning ? null : () => _showCustomizationDialog(item.id),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AdminTheme.primaryBlue,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.add, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   if (hasAllergyWarning)
                     Container(
-                      color: Colors.red.withValues(alpha: 0.85),
+                      color: Colors.red.withValues(alpha: 0.88),
                       child: Center(
                         child: Padding(
                           padding: const EdgeInsets.all(6.0),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.warning, color: Colors.white, size: 22),
+                              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
                               const SizedBox(height: 4),
-                              Text(l10n.allergyWarning, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
-                              Text(allergyNames, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                              Text(l10n.allergyWarning, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                              const SizedBox(height: 2),
+                              Text(allergyNames, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 9)),
                             ],
                           ),
                         ),
@@ -707,14 +793,22 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                 ],
               ),
             ),
+
+            // COMPACT BOTTOM INFO CONTAINER (Thẻ nhỏ vừa phải)
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     item.getName(locale),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AdminTheme.textDarkWood),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AdminTheme.textDarkBlue,
+                      height: 1.2,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -724,9 +818,12 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                     children: [
                       Text(
                         '${NumberFormat('#,###', 'vi_VN').format(item.price)} VND',
-                        style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 12),
+                        style: const TextStyle(
+                          color: AdminTheme.primaryBlue,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12.5,
+                        ),
                       ),
-                      Text('⏱️ ${item.prepTime}p', style: const TextStyle(fontSize: 10, color: AdminTheme.textMutedWood)),
                     ],
                   ),
                 ],
@@ -738,3 +835,5 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     );
   }
 }
+
+

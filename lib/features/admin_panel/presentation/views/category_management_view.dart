@@ -90,24 +90,29 @@ class CategoryManagementView extends ConsumerWidget {
                                             Container(
                                               padding: const EdgeInsets.all(8),
                                               decoration: BoxDecoration(
-                                                color: AdminTheme.lightWoodCream,
-                                                borderRadius: BorderRadius.circular(8),
+                                                color: AdminTheme.lightBlueContainer,
+                                                borderRadius: BorderRadius.circular(10),
                                               ),
-                                              child: const Icon(Icons.category, color: AdminTheme.primaryWood, size: 20),
+                                              child: Icon(category.iconData, color: AdminTheme.primaryBlue, size: 20),
                                             ),
                                             const SizedBox(width: 12),
                                             Text(
                                               category.getName(locale),
-                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AdminTheme.textDarkWood),
+                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AdminTheme.textDarkBlue),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      DataCell(Text(desc.isEmpty ? '-' : desc, style: const TextStyle(color: AdminTheme.textDarkWood))),
+                                      DataCell(Text(desc.isEmpty ? '-' : desc, style: const TextStyle(color: AdminTheme.textDarkBlue))),
                                       DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
                                         IconButton(
-                                          icon: const Icon(Icons.edit_square, color: AdminTheme.accentAmber),
-                                          onPressed: () => _showCategoryDialog(context, {'id': category.id, 'name': category.nameMap, 'description': category.descriptionMap}),
+                                          icon: const Icon(Icons.edit_square, color: AdminTheme.primaryBlue),
+                                          onPressed: () => _showCategoryDialog(context, {
+                                            'id': category.id,
+                                            'name': category.nameMap,
+                                            'description': category.descriptionMap,
+                                            'icon_name': category.iconName,
+                                          }),
                                         ),
                                         IconButton(
                                           icon: const Icon(Icons.delete_outline, color: Colors.redAccent),

@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/l10n/app_localizations.dart';
 import 'core/routing/app_router.dart';
+import 'core/theme/admin_theme.dart';
 import 'core/web_helpers/web_isolation.dart';
 
 final supabase = Supabase.instance.client;
@@ -61,11 +62,9 @@ class MyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
-        useMaterial3: true,
-      ),
+      theme: AdminTheme.themeData,
       routerConfig: router,
     );
   }
 }
+

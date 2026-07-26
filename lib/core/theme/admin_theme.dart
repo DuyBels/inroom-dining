@@ -1,188 +1,228 @@
 import 'package:flutter/material.dart';
 
-/// Admin Theme - Material 3 Tone Trắng Nâu Gỗ (White & Warm Wood)
+/// Material 3 Expressive Theme - Tone Xanh Dương (Expressive Blue Palette)
+/// Tối ưu hóa cho trải nghiệm cảm ứng trên Máy tính bảng & Điện thoại
 class AdminTheme {
-  // Bảng màu Tone Trắng Nâu Gỗ
-  static const Color primaryWood = Color(0xFF5D4037); // Nâu gỗ sẫm chủ đạo
-  static const Color primaryDarkWood = Color(0xFF3E2723); // Nâu gỗ đậm
-  static const Color secondaryWood = Color(0xFF8D6E63); // Nâu gỗ ấm vừa
-  static const Color lightWoodCream = Color(0xFFEFEBE9); // Trắng kem gỗ nhạt
-  static const Color woodTint = Color(0xFFF5F0EB); // Nền phụ gỗ nhạt
-  static const Color bgWarmWhite = Color(0xFFFBF8F5); // Nền ứng dụng trắng ấm
-  static const Color surfaceWhite = Color(0xFFFFFFFF); // Thẻ / Card trắng
-  static const Color accentAmber = Color(0xFFC87D55); // Cam hổ phách / Gỗ ấm
-  static const Color textDarkWood = Color(0xFF2C1E1A); // Chữ nâu đen đậm
-  static const Color textMutedWood = Color(0xFF6D4C41); // Chữ nâu phụ
-  static const Color borderWood = Color(0xFFE0D7D0); // Viền gỗ nhạt
+  // Bảng màu Material 3 Expressive Tone Xanh Dương
+  static const Color primaryBlue = Color(0xFF0061A4); // Xanh dương Sapphire chủ đạo
+  static const Color primaryDarkBlue = Color(0xFF001F3E); // Xanh navy đậm cho text & accent
+  static const Color secondaryBlue = Color(0xFF007ACC); // Xanh biển tươi sáng
+  static const Color lightBlueContainer = Color(0xFFD6E3FF); // Container xanh nhạt expressive
+  static const Color blueTint = Color(0xFFF0F5FF); // Nền phụ xanh băng nhạt
+  static const Color bgExpressiveBlue = Color(0xFFF6F9FE); // Nền ứng dụng xanh nhạt dịu mát
+  static const Color surfaceWhite = Color(0xFFFFFFFF); // Thẻ / Card trắng tinh khiết
+  static const Color accentBlueCyan = Color(0xFF0284C7); // Accent xanh cyan tươi
+  static const Color textDarkBlue = Color(0xFF0F172A); // Chữ navy đậm
+  static const Color textMutedBlue = Color(0xFF475569); // Chữ xám xanh phụ
+  static const Color borderBlue = Color(0xFFD8E2F0); // Viền xanh xám nhạt
+
+  // Aliases tương thích ngược để không làm gãy code cũ
+  static const Color primaryWood = primaryBlue;
+  static const Color primaryDarkWood = primaryDarkBlue;
+  static const Color secondaryWood = secondaryBlue;
+  static const Color lightWoodCream = lightBlueContainer;
+  static const Color woodTint = blueTint;
+  static const Color bgWarmWhite = bgExpressiveBlue;
+  static const Color accentAmber = accentBlueCyan;
+  static const Color textDarkWood = textDarkBlue;
+  static const Color textMutedWood = textMutedBlue;
+  static const Color borderWood = borderBlue;
 
   static ThemeData get themeData {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: primaryWood,
-      primary: primaryWood,
+      seedColor: primaryBlue,
+      primary: primaryBlue,
       onPrimary: Colors.white,
-      primaryContainer: lightWoodCream,
-      onPrimaryContainer: primaryDarkWood,
-      secondary: secondaryWood,
+      primaryContainer: lightBlueContainer,
+      onPrimaryContainer: primaryDarkBlue,
+      secondary: secondaryBlue,
       onSecondary: Colors.white,
-      secondaryContainer: woodTint,
-      onSecondaryContainer: primaryDarkWood,
-      tertiary: accentAmber,
+      secondaryContainer: blueTint,
+      onSecondaryContainer: primaryDarkBlue,
+      tertiary: accentBlueCyan,
       surface: surfaceWhite,
-      onSurface: textDarkWood,
-      onSurfaceVariant: textMutedWood,
-      outline: borderWood,
-      outlineVariant: const Color(0xFFEDE5DE),
-      error: const Color(0xFFB00020),
+      onSurface: textDarkBlue,
+      onSurfaceVariant: textMutedBlue,
+      outline: borderBlue,
+      outlineVariant: const Color(0xFFE2E8F0),
+      error: const Color(0xFFBA1A1A),
       brightness: Brightness.light,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: bgWarmWhite,
+      scaffoldBackgroundColor: bgExpressiveBlue,
       
-      // AppBar Styling
+      // Material 3 Touch Target Optimization
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+
+      // AppBar Styling Expressive Blue
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryWood,
+        backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: Colors.white),
-        actionsIconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Colors.white, size: 24),
+        actionsIconTheme: IconThemeData(color: Colors.white, size: 24),
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 18,
+          fontSize: 19,
           fontWeight: FontWeight.bold,
           letterSpacing: 0.3,
         ),
       ),
 
-      // NavigationRail Styling
+      // NavigationRail Styling (Tối ưu cảm ứng máy tính bảng)
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: surfaceWhite,
-        selectedIconTheme: const IconThemeData(color: primaryWood, size: 24),
-        unselectedIconTheme: const IconThemeData(color: textMutedWood, size: 22),
+        selectedIconTheme: const IconThemeData(color: primaryBlue, size: 26),
+        unselectedIconTheme: const IconThemeData(color: textMutedBlue, size: 24),
         selectedLabelTextStyle: const TextStyle(
-          color: primaryWood,
+          color: primaryBlue,
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 13,
         ),
         unselectedLabelTextStyle: const TextStyle(
-          color: textMutedWood,
-          fontSize: 11,
+          color: textMutedBlue,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
-        indicatorColor: lightWoodCream,
+        indicatorColor: lightBlueContainer,
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 1,
+        minWidth: 76,
       ),
 
       // NavigationDrawer Styling
       navigationDrawerTheme: NavigationDrawerThemeData(
         backgroundColor: surfaceWhite,
-        indicatorColor: lightWoodCream,
+        indicatorColor: lightBlueContainer,
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: primaryWood);
+            return const IconThemeData(color: primaryBlue, size: 24);
           }
-          return const IconThemeData(color: textMutedWood);
+          return const IconThemeData(color: textMutedBlue, size: 24);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryWood, fontWeight: FontWeight.bold, fontSize: 13);
+            return const TextStyle(color: primaryBlue, fontWeight: FontWeight.bold, fontSize: 14);
           }
-          return const TextStyle(color: textMutedWood, fontSize: 13);
+          return const TextStyle(color: textMutedBlue, fontSize: 14);
         }),
       ),
 
-      // Card Styling
+      // Material 3 Expressive Card Styling
       cardTheme: CardThemeData(
         color: surfaceWhite,
-        elevation: 1.5,
-        shadowColor: primaryDarkWood.withValues(alpha: 0.08),
+        elevation: 2,
+        shadowColor: primaryBlue.withValues(alpha: 0.10),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: borderWood, width: 0.8),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: borderBlue, width: 0.8),
         ),
         margin: EdgeInsets.zero,
       ),
 
       // TabBar Styling
       tabBarTheme: const TabBarThemeData(
-        labelColor: primaryWood,
-        unselectedLabelColor: textMutedWood,
-        indicatorColor: primaryWood,
+        labelColor: primaryBlue,
+        unselectedLabelColor: textMutedBlue,
+        indicatorColor: primaryBlue,
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
-        labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+        labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
       ),
 
-      // Buttons Styling
+      // Chip Styling (ChoiceChip / FilterChip) - Tối ưu nút bấm cảm ứng
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceWhite,
+        disabledColor: const Color(0xFFF1F5F9),
+        selectedColor: primaryBlue,
+        secondarySelectedColor: lightBlueContainer,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textDarkBlue),
+        secondaryLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        side: const BorderSide(color: borderBlue, width: 0.8),
+        elevation: 0,
+        pressElevation: 2,
+      ),
+
+      // Buttons Styling (Đạt chuẩn tối thiểu 48px touch target)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryWood,
+          backgroundColor: primaryBlue,
           foregroundColor: Colors.white,
-          elevation: 1,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          elevation: 2,
+          shadowColor: primaryBlue.withValues(alpha: 0.25),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryWood,
-          side: const BorderSide(color: primaryWood, width: 1.2),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          foregroundColor: primaryBlue,
+          side: const BorderSide(color: primaryBlue, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primaryWood,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          foregroundColor: primaryBlue,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          minimumSize: const Size(48, 44),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
 
-      // Input / TextFormField Styling
+      // Input / TextFormField Styling Expressive Blue
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceWhite,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: borderWood),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: borderBlue),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: borderWood),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: borderBlue),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primaryWood, width: 2),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: primaryBlue, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFB00020)),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: Color(0xFFBA1A1A)),
         ),
-        labelStyle: const TextStyle(color: textMutedWood, fontSize: 14),
-        hintStyle: const TextStyle(color: Color(0xFFA1887F), fontSize: 13),
+        labelStyle: const TextStyle(color: textMutedBlue, fontSize: 14),
+        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
       ),
 
-      // Dialog Styling
+      // Dialog Styling M3 Expressive
       dialogTheme: DialogThemeData(
         backgroundColor: surfaceWhite,
         surfaceTintColor: Colors.transparent,
-        elevation: 6,
+        elevation: 8,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: borderWood, width: 0.8),
+          borderRadius: BorderRadius.circular(28),
+          side: const BorderSide(color: borderBlue, width: 0.8),
         ),
         titleTextStyle: const TextStyle(
-          color: textDarkWood,
+          color: textDarkBlue,
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
@@ -190,14 +230,14 @@ class AdminTheme {
 
       // DataTable Styling
       dataTableTheme: DataTableThemeData(
-        headingRowColor: WidgetStateProperty.all(lightWoodCream),
+        headingRowColor: WidgetStateProperty.all(lightBlueContainer),
         headingTextStyle: const TextStyle(
-          color: primaryDarkWood,
+          color: primaryDarkBlue,
           fontWeight: FontWeight.bold,
-          fontSize: 13,
+          fontSize: 14,
         ),
         dataTextStyle: const TextStyle(
-          color: textDarkWood,
+          color: textDarkBlue,
           fontSize: 13,
         ),
         dividerThickness: 0.8,
@@ -205,13 +245,15 @@ class AdminTheme {
         columnSpacing: 20,
       ),
 
-      // FloatingActionButton Styling
+      // FloatingActionButton Styling Expressive M3
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: primaryWood,
+        backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
+        highlightElevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
 }
+

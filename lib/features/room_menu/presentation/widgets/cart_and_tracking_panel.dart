@@ -345,14 +345,14 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final activeOrders = (roomOrdersAsync.value ?? []).where((o) => o['status'] != 'DELIVERED').toList();
 
     return Container(
-      width: widget.isMobile ? double.infinity : 360,
+      width: widget.isMobile ? double.infinity : 480,
       decoration: BoxDecoration(
         color: AdminTheme.surfaceWhite,
         border: Border(
-          left: widget.isMobile ? BorderSide.none : const BorderSide(color: AdminTheme.borderWood, width: 1),
+          left: widget.isMobile ? BorderSide.none : const BorderSide(color: AdminTheme.borderBlue, width: 1),
         ),
         boxShadow: [
-          BoxShadow(color: AdminTheme.primaryDarkWood.withValues(alpha: 0.05), blurRadius: 10),
+          BoxShadow(color: AdminTheme.primaryDarkBlue.withValues(alpha: 0.05), blurRadius: 10),
         ],
       ),
       child: Column(
@@ -365,9 +365,9 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.shopping_bag_outlined, size: 40, color: AdminTheme.textMutedWood.withValues(alpha: 0.5)),
+                        Icon(Icons.shopping_bag_outlined, size: 44, color: AdminTheme.textMutedBlue.withValues(alpha: 0.5)),
                         const SizedBox(height: 8),
-                        Text(l10n.emptyCart, style: const TextStyle(color: AdminTheme.textMutedWood)),
+                        Text(l10n.emptyCart, style: const TextStyle(color: AdminTheme.textMutedBlue, fontSize: 14)),
                       ],
                     ),
                   )
@@ -384,7 +384,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
   Widget _buildActionHeader(AppDictionary l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AdminTheme.woodTint,
+      color: AdminTheme.blueTint,
       child: Column(
         children: [
           Row(
@@ -392,20 +392,20 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.shopping_bag_outlined, color: AdminTheme.primaryWood),
+                  const Icon(Icons.shopping_bag_outlined, color: AdminTheme.primaryBlue, size: 22),
                   const SizedBox(width: 8),
                   Text(
                     l10n.cart,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AdminTheme.textDarkWood),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AdminTheme.textDarkBlue),
                   ),
                 ],
               ),
               TextButton.icon(
                 onPressed: _showOrderHistory,
-                icon: const Icon(Icons.receipt_long_outlined, size: 18, color: AdminTheme.primaryWood),
+                icon: const Icon(Icons.receipt_long_outlined, size: 18, color: AdminTheme.primaryBlue),
                 label: Text(
                   l10n.history,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.primaryWood),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.primaryBlue),
                 ),
               ),
             ],
@@ -419,11 +419,11 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                   label: Text(l10n.callStaff),
                   onPressed: () => _requestService('CALL_STAFF'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AdminTheme.lightWoodCream,
-                    foregroundColor: AdminTheme.primaryDarkWood,
+                    backgroundColor: AdminTheme.lightBlueContainer,
+                    foregroundColor: AdminTheme.primaryDarkBlue,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -434,10 +434,10 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                   label: Text(l10n.cleaning),
                   onPressed: () => _requestService('CLEANING'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AdminTheme.primaryWood,
-                    side: const BorderSide(color: AdminTheme.primaryWood),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    foregroundColor: AdminTheme.primaryBlue,
+                    side: const BorderSide(color: AdminTheme.primaryBlue, width: 1.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -458,19 +458,19 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         final String displayName = item.menuItem.getName(locale);
         return Card(
           elevation: 0,
-          color: AdminTheme.bgWarmWhite,
+          color: AdminTheme.bgExpressiveBlue,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AdminTheme.borderWood, width: 0.8),
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: AdminTheme.borderBlue, width: 0.8),
           ),
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+            title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue, fontSize: 13.5)),
             subtitle: item.selectedModifiers.isNotEmpty
                 ? Text(
                     '${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}',
-                    style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood),
+                    style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedBlue),
                   )
                 : null,
             trailing: Row(
@@ -478,16 +478,16 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               children: [
                 Text(
                   '${NumberFormat('#,###', 'vi_VN').format(item.totalPrice)} VND',
-                  style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(color: AdminTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(width: 4),
                 IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, size: 20, color: AdminTheme.textMutedWood),
+                  icon: const Icon(Icons.remove_circle_outline, size: 20, color: AdminTheme.textMutedBlue),
                   onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, -1),
                 ),
-                Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AdminTheme.textDarkBlue)),
                 IconButton(
-                  icon: const Icon(Icons.add_circle_outline, size: 20, color: AdminTheme.primaryWood),
+                  icon: const Icon(Icons.add_circle_outline, size: 20, color: AdminTheme.primaryBlue),
                   onPressed: () => ref.read(cartProvider.notifier).updateQuantity(item.uniqueId, 1),
                 ),
               ],
@@ -503,30 +503,30 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: AdminTheme.surfaceWhite,
-        border: Border(top: BorderSide(color: AdminTheme.borderWood)),
+        border: Border(top: BorderSide(color: AdminTheme.borderBlue)),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${l10n.totalPayment}:', style: const TextStyle(color: AdminTheme.textDarkWood, fontWeight: FontWeight.w600)),
+              Text('${l10n.totalPayment}:', style: const TextStyle(color: AdminTheme.textDarkBlue, fontWeight: FontWeight.w600, fontSize: 14)),
               Text(
                 '${NumberFormat('#,###', 'vi_VN').format(total)} VND',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.accentAmber),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.primaryBlue),
               ),
             ],
           ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            height: 46,
+            height: 48,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AdminTheme.primaryWood,
+                backgroundColor: AdminTheme.primaryBlue,
                 foregroundColor: Colors.white,
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: _submitOrderWithConfirmation,
               child: Text(l10n.orderNow, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -542,13 +542,14 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       flex: 4,
       child: Container(
         padding: const EdgeInsets.all(16),
-        color: AdminTheme.woodTint,
+        color: AdminTheme.blueTint,
         child: ListView(
+          physics: const BouncingScrollPhysics(),
           children: [
             Center(
               child: Text(
                 l10n.orderStatusTitle,
-                style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1, color: AdminTheme.primaryDarkWood, fontSize: 12),
+                style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1, color: AdminTheme.primaryDarkBlue, fontSize: 13),
               ),
             ),
             const SizedBox(height: 12),
@@ -560,7 +561,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             }),
             if (services.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+              Text(l10n.roomServiceLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue)),
               const SizedBox(height: 8),
               ...services.map((s) => _buildServiceRequestCard(s, l10n)),
             ],
@@ -601,12 +602,12 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AdminTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isRemakeOrder ? Colors.deepOrange.withValues(alpha: 0.5) : AdminTheme.borderWood),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 2))],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isRemakeOrder ? Colors.deepOrange.withValues(alpha: 0.5) : AdminTheme.borderBlue),
+        boxShadow: [BoxShadow(color: AdminTheme.primaryBlue.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,50 +615,50 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           // Header: Order ID + Remake badge
           Row(
             children: [
-              Icon(Icons.receipt_long, size: 16, color: isRemakeOrder ? Colors.deepOrange : AdminTheme.primaryWood),
-              const SizedBox(width: 6),
+              Icon(Icons.receipt_long, size: 18, color: isRemakeOrder ? Colors.deepOrange : AdminTheme.primaryBlue),
+              const SizedBox(width: 8),
               Text(
                 '${l10n.orderNo} #${order['id'].toString().substring(0, 5)}',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: isRemakeOrder ? Colors.deepOrange : AdminTheme.primaryDarkWood,
+                  color: isRemakeOrder ? Colors.deepOrange : AdminTheme.primaryDarkBlue,
                 ),
               ),
               if (isRemakeOrder) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.deepOrange,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(l10n.remakeLabel, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  child: Text(l10n.remakeLabel, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           // 4-step tracker
           _MinimalistTracker(currentStep: currentStep, l10n: l10n),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           // Estimated time
           if (currentStep < 2)
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: AdminTheme.lightWoodCream,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AdminTheme.borderWood),
+                color: AdminTheme.lightBlueContainer,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AdminTheme.borderBlue),
               ),
               child: Text(
                 '${l10n.estimatedFinish} $estimatedTotal ${l10n.minute}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood, fontSize: 11),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkBlue, fontSize: 12),
               ),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           // Ticket list
           ...tickets.map((t) {
             final item = menuItems.firstWhere(
@@ -666,28 +667,28 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
             );
             final bool isRemaked = t['status'] == 'REMAKED';
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
+              padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
                   Icon(
                     isRemaked ? Icons.replay : (t['status'] == 'DONE' ? Icons.check_circle : (t['status'] == 'COOKING' ? Icons.restaurant : Icons.radio_button_unchecked)),
-                    size: 14,
-                    color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedWood)),
+                    size: 16,
+                    color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedBlue)),
                   ),
                   const SizedBox(width: 8),
                   Expanded(child: Text(
                     '${t['quantity']}x ${item.getName(locale)}',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: isRemaked ? Colors.grey : AdminTheme.textDarkWood,
+                      fontSize: 12.5,
+                      color: isRemaked ? Colors.grey : AdminTheme.textDarkBlue,
                       decoration: isRemaked ? TextDecoration.lineThrough : null,
                     ),
                   )),
                   Text(
                     _translateTicketStatus(t['status'], l10n),
                     style: TextStyle(
-                      fontSize: 10,
-                      color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedWood)),
+                      fontSize: 11,
+                      color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedBlue)),
                       fontWeight: (isRemaked || t['status'] == 'DONE') ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
@@ -706,34 +707,35 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final bool isPending = statusId == 1;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AdminTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AdminTheme.borderWood),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminTheme.borderBlue),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: AdminTheme.lightWoodCream,
-            radius: 16,
+            backgroundColor: AdminTheme.lightBlueContainer,
+            radius: 18,
             child: Icon(
               isCleaning ? Icons.cleaning_services : Icons.person,
-              size: 16,
-              color: AdminTheme.primaryWood,
+              size: 18,
+              color: AdminTheme.primaryBlue,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isCleaning ? l10n.cleaningRequest : l10n.supportRequest, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
-                Text(isPending ? l10n.waitingStaff : l10n.staffProcessing, style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood)),
+                Text(isCleaning ? l10n.cleaningRequest : l10n.supportRequest, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue)),
+                const SizedBox(height: 2),
+                Text(isPending ? l10n.waitingStaff : l10n.staffProcessing, style: const TextStyle(fontSize: 11.5, color: AdminTheme.textMutedBlue)),
               ],
             ),
           ),
-          if (!isPending) const Icon(Icons.sync, size: 16, color: AdminTheme.primaryWood),
+          if (!isPending) const Icon(Icons.sync, size: 18, color: AdminTheme.primaryBlue),
         ],
       ),
     );
@@ -764,13 +766,13 @@ class _MinimalistTracker extends StatelessWidget {
     bool isActive = currentStep >= step;
     return Column(
       children: [
-        Icon(icon, color: isActive ? AdminTheme.primaryWood : AdminTheme.borderWood, size: 20),
-        const SizedBox(height: 3),
+        Icon(icon, color: isActive ? AdminTheme.primaryBlue : AdminTheme.borderBlue, size: 22),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
-            fontSize: 9,
-            color: isActive ? AdminTheme.textDarkWood : AdminTheme.textMutedWood,
+            fontSize: 10,
+            color: isActive ? AdminTheme.textDarkBlue : AdminTheme.textMutedBlue,
             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -781,9 +783,9 @@ class _MinimalistTracker extends StatelessWidget {
   Widget _buildLine(int step) {
     return Expanded(
       child: Container(
-        height: 2,
-        margin: const EdgeInsets.only(bottom: 14),
-        color: currentStep > step ? AdminTheme.primaryWood : AdminTheme.borderWood,
+        height: 2.5,
+        margin: const EdgeInsets.only(bottom: 16),
+        color: currentStep > step ? AdminTheme.primaryBlue : AdminTheme.borderBlue,
       ),
     );
   }
