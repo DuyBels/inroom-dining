@@ -115,14 +115,16 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
       data: AdminTheme.themeData,
       child: Scaffold(
         backgroundColor: AdminTheme.bgExpressiveBlue,
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => FoodChatbotDialog.show(context),
-          backgroundColor: AdminTheme.primaryBlue,
-          foregroundColor: Colors.white,
-          elevation: 4,
-          tooltip: locale == 'vi' ? 'Hỏi AI Món Ăn' : 'Ask AI Food',
-          child: const Icon(Icons.auto_awesome, color: Colors.amberAccent, size: 24),
-        ),
+        floatingActionButton: MediaQuery.of(context).size.width < 768
+            ? FloatingActionButton(
+                onPressed: () => FoodChatbotDialog.show(context),
+                backgroundColor: AdminTheme.primaryBlue,
+                foregroundColor: Colors.white,
+                elevation: 4,
+                tooltip: locale == 'vi' ? 'Hỏi AI Món Ăn' : 'Ask AI Food',
+                child: const Icon(Icons.auto_awesome, color: Colors.amberAccent, size: 24),
+              )
+            : null,
         appBar: AppBar(
           automaticallyImplyLeading: false,
           backgroundColor: AdminTheme.primaryWood,
@@ -297,32 +299,70 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
             return Row(
               children: [
-                NavigationRail(
-                  backgroundColor: AdminTheme.surfaceWhite,
-                  selectedIndex: _getSelectedIndex(categoriesAsync.value),
-                  onDestinationSelected: (idx) {
-                    if (idx == 0) {
-                      setState(() => _selectedCategoryId = null);
-                    } else {
-                      setState(() => _selectedCategoryId = categoriesAsync.value![idx - 1].id);
-                    }
-                  },
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    NavigationRailDestination(
-                      icon: const Icon(Icons.menu_book),
-                      selectedIcon: const Icon(Icons.menu_book, color: AdminTheme.primaryBlue),
-                      label: Text(l10n.all),
+                SizedBox(
+                  width: 100,
+                  child: Container(
+                    color: AdminTheme.surfaceWhite,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: NavigationRail(
+                            minWidth: 100,
+                            backgroundColor: AdminTheme.surfaceWhite,
+                            selectedIndex: _getSelectedIndex(categoriesAsync.value),
+                            onDestinationSelected: (idx) {
+                              if (idx == 0) {
+                                setState(() => _selectedCategoryId = null);
+                              } else {
+                                setState(() => _selectedCategoryId = categoriesAsync.value![idx - 1].id);
+                              }
+                            },
+                            labelType: NavigationRailLabelType.all,
+                            destinations: [
+                              NavigationRailDestination(
+                                icon: const Icon(Icons.menu_book),
+                                selectedIcon: const Icon(Icons.menu_book, color: AdminTheme.primaryBlue),
+                                label: Text(l10n.all),
+                              ),
+                              ...categoriesAsync.maybeWhen(
+                                data: (cats) => cats.map((c) => NavigationRailDestination(
+                                  icon: Icon(c.iconData),
+                                  selectedIcon: Icon(c.iconData, color: AdminTheme.primaryBlue),
+                                  label: Text(c.getName(locale), textAlign: TextAlign.center),
+                                )).toList(),
+                                orElse: () => [],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0, top: 8.0),
+                          child: InkWell(
+                            onTap: () => FoodChatbotDialog.show(context),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.auto_awesome, color: AdminTheme.primaryBlue, size: 24),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    locale == 'vi' ? 'Hỏi AI' : 'Ask AI',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AdminTheme.primaryDarkBlue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    ...categoriesAsync.maybeWhen(
-                      data: (cats) => cats.map((c) => NavigationRailDestination(
-                        icon: Icon(c.iconData),
-                        selectedIcon: Icon(c.iconData, color: AdminTheme.primaryBlue),
-                        label: Text(c.getName(locale), textAlign: TextAlign.center),
-                      )).toList(),
-                      orElse: () => [],
-                    ),
-                  ],
+                  ),
                 ),
                 Expanded(child: menuContent),
                 CartAndTrackingPanel(roomNumber: currentRoomNumber, isMobile: false),
