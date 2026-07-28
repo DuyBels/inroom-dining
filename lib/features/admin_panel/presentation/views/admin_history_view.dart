@@ -99,7 +99,10 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
     return _buildFutureList(
       future: supabase.from('orders').select('*, profiles:delivery_waiter_id(display_name)').order('created_at', ascending: false).limit(50),
       itemBuilder: (order) {
-        final statusColor = _getOrderStatusColor(order['status']);
+        final status = order['status'] as String? ?? '';
+        final statusColor = _getOrderStatusColor(status);
+        final statusText = _getTranslatedOrderStatus(status, l10n);
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
@@ -107,9 +110,26 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
               backgroundColor: statusColor.withValues(alpha: 0.15),
               child: Icon(Icons.room_service, color: statusColor),
             ),
-            title: Text(
-              '${l10n.room} ${order['room_number']} - ${order['status']}',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+            title: Row(
+              children: [
+                Text(
+                  '${l10n.room} ${order['room_number']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    statusText.toUpperCase(),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                  ),
+                ),
+              ],
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,8 +159,8 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: const CircleAvatar(
-              backgroundColor: Color(0xFF2E7D32),
-              child: Icon(Icons.check, color: Colors.white),
+              backgroundColor: Color(0xFFE8F5E9),
+              child: Icon(Icons.check_circle, color: Color(0xFF2E7D32)),
             ),
             title: Text('${ticket['quantity']}x $itemName', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
             subtitle: Padding(
@@ -149,8 +169,12 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
             ),
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: AdminTheme.lightWoodCream, borderRadius: BorderRadius.circular(6)),
-              child: Text(l10n.done.toUpperCase(), style: const TextStyle(fontSize: 10, color: AdminTheme.primaryDarkWood, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFA5D6A7)),
+              ),
+              child: Text(l10n.done.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
             ),
           ),
         );
@@ -214,10 +238,11 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
                   final t = tickets[i];
                   final locale = ref.watch(localeProvider);
                   final name = L10nUtils.getL10n(t['menu_items']?['name'], locale);
+                  final ticketStatusText = _getTranslatedTicketStatus(t['status'], l10n);
                   return ListTile(
                     leading: Text('${t['quantity']}x', style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryWood)),
                     title: Text(name, style: const TextStyle(color: AdminTheme.textDarkWood)),
-                    subtitle: Text('${l10n.statusLabel}: ${t['status']}'),
+                    subtitle: Text('${l10n.statusLabel}: $ticketStatusText'),
                   );
                 },
               );
@@ -247,6 +272,38 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
     );
   }
 
+  String _getTranslatedOrderStatus(String? status, AppDictionary l10n) {
+    switch (status) {
+      case 'PENDING':
+        return l10n.pending;
+      case 'PROCESSING':
+        return l10n.cooking;
+      case 'READY_FOR_DELIVERY':
+        return l10n.delivery;
+      case 'DELIVERED':
+        return l10n.done;
+      case 'CANCELLED':
+        return l10n.cancel;
+      default:
+        return status ?? '--';
+    }
+  }
+
+  String _getTranslatedTicketStatus(String? status, AppDictionary l10n) {
+    switch (status) {
+      case 'PENDING':
+        return l10n.pending;
+      case 'COOKING':
+        return l10n.cooking;
+      case 'DONE':
+        return l10n.done;
+      case 'REMAKED':
+        return l10n.remakeLabel;
+      default:
+        return status ?? '--';
+    }
+  }
+
   Color _getOrderStatusColor(String status) {
     switch (status) {
       case 'PENDING':
@@ -254,9 +311,11 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
       case 'PROCESSING':
         return const Color(0xFF1565C0);
       case 'READY_FOR_DELIVERY':
-        return const Color(0xFF2E7D32);
+        return const Color(0xFF00897B);
       case 'DELIVERED':
-        return AdminTheme.textMutedWood;
+        return const Color(0xFF2E7D32);
+      case 'CANCELLED':
+        return Colors.red;
       default:
         return Colors.blueGrey;
     }
