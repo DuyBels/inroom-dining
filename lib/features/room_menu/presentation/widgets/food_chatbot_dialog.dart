@@ -683,68 +683,99 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
                 const SizedBox(height: 10),
 
                 // ACTION BUTTONS
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.tune_rounded, size: 14),
-                        label: Text(locale == 'vi' ? 'Tùy chỉnh' : 'Customize'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          visualDensity: VisualDensity.compact,
-                          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => DishCustomizationDialog(
-                              item: item,
-                              initialSelectedModifiers: mods,
-                              initialNotes: dish.notes,
-                            ),
-                          );
-                        },
-                      ),
+                if (dish.autoAdded) ...[
+                  // Đã tự động thêm vào giỏ hàng - hiển thị badge xác nhận
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade400, width: 1),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.add_shopping_cart_rounded, size: 14),
-                        label: Text(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_rounded, size: 16, color: Colors.green.shade700),
+                        const SizedBox(width: 6),
+                        Text(
                           locale == 'vi'
-                              ? (dish.quantity > 1 ? 'Thêm giỏ (x${dish.quantity})' : 'Thêm giỏ')
-                              : (dish.quantity > 1 ? 'Add Cart (x${dish.quantity})' : 'Add Cart'),
+                              ? 'Đã thêm vào giỏ hàng${dish.quantity > 1 ? " (x${dish.quantity})" : ""} ✓'
+                              : 'Added to cart${dish.quantity > 1 ? " (x${dish.quantity})" : ""} ✓',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                          ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AdminTheme.primaryWood,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          visualDensity: VisualDensity.compact,
-                          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          ref.read(cartProvider.notifier).addToCart(
-                                item,
-                                mods,
-                                dish.notes,
-                                quantity: dish.quantity,
-                              );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                locale == 'vi'
-                                    ? 'Đã thêm ${dish.quantity > 1 ? "${dish.quantity}x " : ""}${item.getName(locale)} vào giỏ hàng!${dish.notes.isNotEmpty ? ' (Ghi chú: ${dish.notes})' : ''}'
-                                    : 'Added ${dish.quantity > 1 ? "${dish.quantity}x " : ""}${item.getName(locale)} to cart!',
-                              ),
-                              backgroundColor: Colors.green,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ] else ...[
+                  // Chưa tự động thêm - hiển thị nút Tùy chỉnh & Thêm giỏ
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.tune_rounded, size: 14),
+                          label: Text(locale == 'vi' ? 'Tùy chỉnh' : 'Customize'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => DishCustomizationDialog(
+                                item: item,
+                                initialSelectedModifiers: mods,
+                                initialNotes: dish.notes,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.add_shopping_cart_rounded, size: 14),
+                          label: Text(
+                            locale == 'vi'
+                                ? (dish.quantity > 1 ? 'Thêm giỏ (x${dish.quantity})' : 'Thêm giỏ')
+                                : (dish.quantity > 1 ? 'Add Cart (x${dish.quantity})' : 'Add Cart'),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AdminTheme.primaryWood,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            ref.read(cartProvider.notifier).addToCart(
+                                  item,
+                                  mods,
+                                  dish.notes,
+                                  quantity: dish.quantity,
+                                );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  locale == 'vi'
+                                      ? 'Đã thêm ${dish.quantity > 1 ? "${dish.quantity}x " : ""}${item.getName(locale)} vào giỏ hàng!${dish.notes.isNotEmpty ? ' (Ghi chú: ${dish.notes})' : ''}'
+                                      : 'Added ${dish.quantity > 1 ? "${dish.quantity}x " : ""}${item.getName(locale)} to cart!',
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           );

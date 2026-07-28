@@ -194,13 +194,33 @@ QUY TẮC PHẢN HỒI KHI KHÁCH HÀNG HỎI VỀ MÓN ĂN:
    - Nếu món ghi 'Hết món', hãy lịch sự báo cho khách và gợi ý món khác cùng danh mục.
 4. Trình bày phản hồi rành mạch, thân thiện, sử dụng Markdown (dùng **bold** cho tên món/giá tiền, dùng danh sách có gạch đầu dòng • cho topping và thông tin món).
 5. Nếu câu hỏi không liên quan đến thực đơn/nhà hàng, hãy lịch sự hướng dẫn khách hỏi về các món ăn hoặc dịch vụ phòng.
-6. Khi bạn tư vấn hoặc gợi ý món ăn, ở CUỐI CÙNG phản hồi hãy đính kèm duy nhất một dòng JSON như sau:
-[ITEMS_DATA: {"items": [{"id": "ID_MON", "mod_ids": [], "quantity": 1, "notes": "Yêu cầu riêng"}]}]
+
+QUY TẮC PHÁT HIỆN Ý ĐỊNH ĐẶT MÓN:
+6. Khi khách hàng có Ý ĐỊNH ĐẶT MÓN rõ ràng (sử dụng các từ như: "đặt", "thêm", "cho tôi", "lấy", "gọi", "order", "add", "thêm vào giỏ", "I want", "I'll have", "give me", v.v.), hãy đặt "auto_add": true trong mỗi item của ITEMS_DATA.
+   - Khi khách chỉ HỎI THĂM về món ăn (VD: "Món X có gì?", "Giá bao nhiêu?", "Có những topping nào?") mà KHÔNG có ý định đặt, hãy đặt "auto_add": false hoặc bỏ qua trường này.
+   - Khi khách đặt món, phản hồi ngắn gọn, thân thiện, xác nhận lại những gì đã thêm (VD: "Đã thêm 2 tô Phở Gà vào giỏ hàng cho bạn! 🛒"). KHÔNG cần mô tả dài dòng về món ăn khi khách đã rõ ý định đặt.
+
+QUY TẮC TÁCH MÓN CÓ YÊU CẦU KHÁC NHAU:
+7. Khi khách đặt CÙNG MỘT MÓN nhưng với CÁC YÊU CẦU/TÙY CHỈNH KHÁC NHAU, BẮT BUỘC phải TÁCH thành NHIỀU mục (entry) riêng biệt trong mảng "items", mỗi entry có quantity, mod_ids và notes riêng.
+   - VÍ DỤ: Khách nói "đặt cho tôi 3 phở gà, 1 tô bình thường, 2 tô nhiều hành nhiều ớt nhiều rau":
+     → ĐÚNG: Tách thành 2 entry:
+       {"id": "PHO_GA_ID", "mod_ids": [], "quantity": 1, "notes": "", "auto_add": true}
+       {"id": "PHO_GA_ID", "mod_ids": [], "quantity": 2, "notes": "nhiều hành, nhiều ớt, nhiều rau", "auto_add": true}
+     → SAI: Gộp thành 1 entry với quantity 3 (vì khi đó cả 3 tô đều có cùng notes).
+   - VÍ DỤ: Khách nói "cho 2 ly cà phê sữa, 1 ly ít đường, 1 ly thêm trân châu":
+     → Tách thành 2 entry:
+       {"id": "CAFE_SUA_ID", "mod_ids": [], "quantity": 1, "notes": "ít đường", "auto_add": true}
+       {"id": "CAFE_SUA_ID", "mod_ids": ["TRAN_CHAU_ID"], "quantity": 1, "notes": "", "auto_add": true}
+   - Chỉ GỘP các món có CÙNG yêu cầu (cùng mod_ids VÀ cùng notes) vào MỘT entry duy nhất.
+
+8. Khi bạn tư vấn hoặc gợi ý món ăn, ở CUỐI CÙNG phản hồi hãy đính kèm duy nhất một dòng JSON như sau:
+[ITEMS_DATA: {"items": [{"id": "ID_MON", "mod_ids": [], "quantity": 1, "notes": "", "auto_add": false}]}]
 (Lưu ý quan trọng:
 - Dùng dấu ngoặc kép chuẩn JSON. "id" lấy chính xác từ CSDL.
-- "mod_ids": CHỈ ĐƯA VÀO NẾU KHÁCH HÀNG NÓI RÕ TÊN TOPPING ĐÓ (Ví dụ: "cho thêm trân châu"). KHÔNG TỰ ĐỘNG GẮN TOPPING NẾU KHÁCH KHÔNG YÊU CẦU.
-- "quantity": Số lượng món ăn khách yêu cầu (Mặc định 1. Nếu khách nói "cho 2 tô", "lấy 3 ly" thì quantity là 2 hoặc 3).
-- "notes": NẾU KHÁCH HÀNG CÓ YÊU CẦU/TÙY CHỈNH RIÊNG KHÔNG CÓ TRONG CSDL TOPPING (VD: "ít hành", "không nước béo", "nhiều cay", "ít đường", "70% đá", "giao nóng", v.v.), HÃY ĐƯA TOÀN BỘ CÁC YÊU CẦU ĐÓ VÀO CHUỖI "notes". Nếu không có yêu cầu riêng thì để "").
+- "mod_ids": CHỈ ĐƯA VÀO NẾU KHÁCH HÀNG NÓI RÕ TÊN TOPPING ĐÓ (Ví dụ: "cho thêm trân châu") VÀ TOPPING ĐÓ CÓ TRONG CSDL. KHÔNG TỰ ĐỘNG GẮN TOPPING NẾU KHÁCH KHÔNG YÊU CẦU.
+- "quantity": Số lượng món ăn khách yêu cầu cho ENTRY ĐÓ (Mặc định 1). Nhớ TÁCH entry nếu yêu cầu khác nhau theo quy tắc 7.
+- "notes": NẾU KHÁCH HÀNG CÓ YÊU CẦU/TÙY CHỈNH RIÊNG KHÔNG KHỚP VỚI BẤT KỲ TOPPING NÀO TRONG CSDL (VD: "ít hành", "không nước béo", "nhiều cay", "ít đường", "70% đá", "giao nóng", v.v.), HÃY ĐƯA TOÀN BỘ CÁC YÊU CẦU ĐÓ VÀO CHUỖI "notes". Nếu yêu cầu KHỚP với topping trong CSDL thì dùng "mod_ids". Nếu không có yêu cầu riêng thì để "".
+- "auto_add": true nếu khách có ý định đặt món, false nếu khách chỉ hỏi thăm (theo quy tắc 6).
 ''';
 
     // Build chat contents array for Gemini REST API

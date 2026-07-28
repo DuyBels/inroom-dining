@@ -467,10 +467,33 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue, fontSize: 13.5)),
-            subtitle: item.selectedModifiers.isNotEmpty
-                ? Text(
-                    '${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}',
-                    style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedBlue),
+            subtitle: (item.selectedModifiers.isNotEmpty || item.notes.isNotEmpty)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (item.selectedModifiers.isNotEmpty)
+                        Text(
+                          '${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}',
+                          style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedBlue),
+                        ),
+                      if (item.notes.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(top: item.selectedModifiers.isNotEmpty ? 4 : 0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.edit_note_rounded, size: 13, color: Colors.amber.shade700),
+                              const SizedBox(width: 3),
+                              Expanded(
+                                child: Text(
+                                  item.notes,
+                                  style: TextStyle(fontSize: 11, color: Colors.amber.shade800, fontStyle: FontStyle.italic),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   )
                 : null,
             trailing: Row(

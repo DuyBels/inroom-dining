@@ -212,7 +212,8 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       List<AiSuggestedDish> matchedDishes = [];
       String cleanedText = aiRawResponse;
 
-      final match = RegExp(r'\[ITEMS_DATA:\s*(\{.*?\})\]', dotAll: true).firstMatch(aiRawResponse);
+      // Regex sử dụng greedy match để bắt toàn bộ JSON lồng nhau (bao gồm arrays trong mod_ids)
+      final match = RegExp(r'\[ITEMS_DATA:\s*(\{.*\})\s*\]', dotAll: true).firstMatch(aiRawResponse);
       if (match != null) {
         final jsonStr = match.group(1);
         if (jsonStr != null) {
@@ -227,14 +228,30 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       }
 
       // Dọn dẹp tuyệt đối mọi chuỗi JSON hoặc thẻ rác metadata ra khỏi câu trả lời của AI
-      cleanedText = cleanedText.replaceAll(RegExp(r'\[ITEMS_DATA:.*?\]', dotAll: true), '');
-      cleanedText = cleanedText.replaceAll(RegExp(r'\[RECOMMEND_DISHES:.*?\]', dotAll: true), '');
-      cleanedText = cleanedText.replaceAll(RegExp(r'\{"items":.*?\}', dotAll: true), '');
+      // Sử dụng greedy match (.*) thay vì lazy (.*?) để match qua nested brackets []{}
+      cleanedText = cleanedText.replaceAll(RegExp(r'\[ITEMS_DATA:\s*\{.*\}\s*\]', dotAll: true), '');
+      cleanedText = cleanedText.replaceAll(RegExp(r'\[RECOMMEND_DISHES:\s*\{.*\}\s*\]', dotAll: true), '');
+      cleanedText = cleanedText.replaceAll(RegExp(r'\{"items"\s*:.*\}\s*\]?\s*\}', dotAll: true), '');
       cleanedText = cleanedText.trim();
 
       // DỰ PHÒNG CHẮC CHẮN: Nếu JSON không có hoặc parse lỗi -> luôn fuzzy match từ CSDL
       if (matchedDishes.isEmpty) {
         matchedDishes = await _fuzzyMatchDishesFromText(aiRawResponse, userText, locale);
+      }
+
+      // 5. TỰ ĐỘNG THÊM VÀO GIỎ HÀNG nếu có auto_add = true
+      // Khi khách có ý định đặt món rõ ràng, tự động thêm vào giỏ hàng
+      final autoAddDishes = matchedDishes.where((d) => d.autoAdded).toList();
+      if (autoAddDishes.isNotEmpty) {
+        final cartNotifier = ref.read(cartProvider.notifier);
+        for (final dish in autoAddDishes) {
+          cartNotifier.addToCart(
+            dish.menuItem,
+            dish.selectedModifiers,
+            dish.notes,
+            quantity: dish.quantity,
+          );
+        }
       }
 
       final aiMessage = ChatMessage(
@@ -319,12 +336,13 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       List<SelectedModifier> selectedMods = await _fetchModifiersByIds(itemId, modIds, locale);
       final int qty = num.tryParse(itemObj['quantity']?.toString() ?? '1')?.toInt() ?? 1;
       final String notes = itemObj['notes']?.toString() ?? '';
+      final bool isAutoAdd = itemObj['auto_add'] == true;
 
       result.add(AiSuggestedDish(
         menuItem: matchedItem,
         selectedModifiers: selectedMods,
         quantity: qty > 0 ? qty : 1,
-        autoAdded: false,
+        autoAdded: isAutoAdd,
         notes: notes,
       ));
     }
@@ -374,6 +392,13 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
     final allMenuItems = ref.read(menuItemsWithTagsProvider).value ?? [];
     final combinedText = L10nUtils.removeDiacritics("$userText $aiText".toLowerCase());
 
+    // Phát hiện ý định đặt món từ từ khóa trong câu của khách
+    final lowerUserText = userText.toLowerCase();
+    final hasOrderIntent = RegExp(
+      r'(đặt|thêm|cho tôi|order|add|lấy|gọi|mua|đặt cho|thêm vào|cho xin|cho mình|gọi cho)',
+      caseSensitive: false,
+    ).hasMatch(lowerUserText);
+
     for (var item in allMenuItems) {
       final itemName = item.getName(locale).toLowerCase();
       final normalizedItemName = L10nUtils.removeDiacritics(itemName);
@@ -388,7 +413,7 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
           menuItem: item,
           selectedModifiers: matchedMods,
           quantity: qty,
-          autoAdded: false,
+          autoAdded: hasOrderIntent,
           notes: customNotes,
         ));
 
