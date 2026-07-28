@@ -16,6 +16,7 @@ import '../../../main.dart';
 import '../../admin_panel/providers/category_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
 import '../../admin_panel/providers/tag_provider.dart';
+import '../../admin_panel/providers/admin_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/ai_recommendation_provider.dart';
 import '../providers/room_menu_provider.dart';
@@ -103,6 +104,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final menuWithTagsAsync = ref.watch(menuItemsWithTagsProvider);
     final tagsAsync = ref.watch(tagsStreamProvider);
+    final stationsAsync = ref.watch(stationsStreamProvider);
     final activeFilters = ref.watch(activeFiltersProvider);
     final searchQuery = ref.watch(searchQueryProvider).toLowerCase();
     final String currentRoomNumber = widget.roomNumber!;
@@ -183,15 +185,67 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                   child: menuWithTagsAsync.when(
                     data: (items) {
                       final allTags = tagsAsync.value ?? [];
+                      final allStations = stationsAsync.value ?? [];
 
                       var list = items.where((i) => i.isAvailable).toList();
 
                       if (searchQuery.isNotEmpty) {
-                        final normalizedQuery = L10nUtils.removeDiacritics(searchQuery);
+                        final normalizedQuery = L10nUtils.removeDiacritics(searchQuery).toLowerCase().trim();
+                        final queryWords = normalizedQuery.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+                        
+                        final stopWords = {"mon", "an", "do", "thuc", "cua", "cac", "cho", "mot", "suat", "phan", "loai"};
+                        var meaningfulQueryWords = queryWords.where((w) => !stopWords.contains(w)).toList();
+                        if (meaningfulQueryWords.isEmpty) meaningfulQueryWords = queryWords;
+
                         list = list.where((item) {
                           final name = L10nUtils.removeDiacritics(item.getName(locale).toLowerCase());
                           final desc = L10nUtils.removeDiacritics(item.getDescription(locale).toLowerCase());
-                          return name.contains(normalizedQuery) || desc.contains(normalizedQuery);
+                          final variant = item.variantName != null ? L10nUtils.removeDiacritics(item.variantName!.toLowerCase()) : '';
+                          
+                          String tagNames = '';
+                          for (String tagId in item.tagIds) {
+                            final tag = allTags.firstWhere((t) => t.id == tagId, orElse: () => TagModel(id: '', nameMap: {}, tagType: ''));
+                            if (tag.id.isNotEmpty) {
+                              tagNames += L10nUtils.removeDiacritics(tag.getName(locale).toLowerCase()) + ' ';
+                            }
+                          }
+
+                          String stationName = '';
+                          final stationMatch = allStations.where((s) => s['id'].toString() == item.stationId);
+                          if (stationMatch.isNotEmpty) {
+                            stationName = L10nUtils.removeDiacritics(L10nUtils.getL10n(stationMatch.first['name'], locale).toLowerCase());
+                          }
+
+                          String catName = '';
+                          if (categoriesAsync.value != null) {
+                            final catMatch = categoriesAsync.value!.where((c) => c.id == item.categoryId);
+                            if (catMatch.isNotEmpty) {
+                              catName = L10nUtils.removeDiacritics(catMatch.first.getName(locale).toLowerCase());
+                            }
+                          }
+
+                          final combinedText = "$name $desc $variant $tagNames $stationName $catName";
+                          
+                          if (combinedText.contains(normalizedQuery)) return true;
+
+                          final combinedWords = combinedText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toSet().toList();
+                          
+                          bool matchesAll = true;
+                          for (var qw in meaningfulQueryWords) {
+                            bool wordMatched = false;
+                            for (var cw in combinedWords) {
+                              if (cw.startsWith(qw) || cw.contains(qw)) {
+                                wordMatched = true;
+                                break;
+                              }
+                            }
+                            if (!wordMatched) {
+                              matchesAll = false;
+                              break;
+                            }
+                          }
+
+                          return matchesAll;
                         }).toList();
                       }
 
@@ -227,17 +281,64 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                           ? (constraints.maxWidth < 400 ? 1.1 : 0.78)
                           : (constraints.maxWidth < 900 ? 0.80 : 0.82);
 
-                      return GridView.builder(
+                      final Map<String, List<MenuItemModel>> groupedItems = {};
+                      for (var item in list) {
+                        final v = item.variantName?.trim().isNotEmpty == true ? item.variantName!.trim() : (locale == 'vi' ? 'Khác' : 'Others');
+                        groupedItems.putIfAbsent(v, () => []).add(item);
+                      }
+
+                      if (groupedItems.length == 1 && groupedItems.keys.first == (locale == 'vi' ? 'Khác' : 'Others')) {
+                        return GridView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          padding: EdgeInsets.all(isMobile ? 12 : 16),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossCount,
+                            childAspectRatio: cardAspectRatio,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: list.length,
+                          itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags, l10n),
+                        );
+                      }
+
+                      return ListView.builder(
                         physics: const BouncingScrollPhysics(),
-                        padding: EdgeInsets.all(isMobile ? 12 : 16),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossCount,
-                          childAspectRatio: cardAspectRatio,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemCount: list.length,
-                        itemBuilder: (c, idx) => _buildDishCard(list[idx], activeFilters, allTags, l10n),
+                        itemCount: groupedItems.length,
+                        itemBuilder: (context, index) {
+                          final variantName = groupedItems.keys.elementAt(index);
+                          final variantItems = groupedItems[variantName]!;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(left: isMobile ? 12 : 16, top: 16, bottom: 4),
+                                child: Text(
+                                  variantName,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AdminTheme.primaryDarkBlue,
+                                  ),
+                                ),
+                              ),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossCount,
+                                  childAspectRatio: cardAspectRatio,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                ),
+                                itemCount: variantItems.length,
+                                itemBuilder: (c, idx) => _buildDishCard(variantItems[idx], activeFilters, allTags, l10n),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                     loading: () => const Center(child: CircularProgressIndicator()),

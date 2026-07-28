@@ -30,6 +30,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
   
   final _priceController = TextEditingController();
   final _prepTimeController = TextEditingController(text: '15');
+  final _variantController = TextEditingController();
 
   String? _selectedCategoryId;
   String? _selectedStationId;
@@ -68,12 +69,19 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
 
       _priceController.text = widget.item!['price']?.toString() ?? '0';
       _prepTimeController.text = widget.item!['prep_time_minutes']?.toString() ?? '15';
+      _variantController.text = widget.item!['variant_name']?.toString() ?? '';
       _selectedCategoryId = widget.item!['category_id'];
       _selectedStationId = widget.item!['station_id'];
       _isAvailable = widget.item!['is_available'] ?? true;
       _currentImageUrl = widget.item!['image_url'];
       _fetchExistingTags();
     }
+  }
+
+  @override
+  void dispose() {
+    _variantController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchExistingTags() async {
@@ -173,6 +181,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
         'category_id': _selectedCategoryId,
         'station_id': _selectedStationId,
         'is_available': _isAvailable,
+        'variant_name': _variantController.text.trim().isNotEmpty ? _variantController.text.trim() : null,
       };
 
       String menuItemId;
@@ -247,6 +256,12 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                       ),
                     );
                   }),
+
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _variantController,
+                    decoration: InputDecoration(labelText: locale == 'vi' ? 'Tên biến thể (Tuỳ chọn, vd: Món nước)' : 'Variant Name (Optional)', border: const OutlineInputBorder()),
+                  ),
 
                   const SizedBox(height: 12),
                   Row(children: [

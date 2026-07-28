@@ -238,6 +238,7 @@ class MenuManagementView extends ConsumerWidget {
                 'station_id': item.stationId,
                 'is_available': item.isAvailable,
                 'image_url': item.imageUrl,
+                'variant_name': item.variantName,
               }
             : null,
       ),

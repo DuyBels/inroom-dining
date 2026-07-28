@@ -7,6 +7,9 @@ final menuItemsStreamProvider = StreamProvider<List<MenuItemModel>>((ref) {
   return supabase
       .from('menu_items')
       .stream(primaryKey: ['id'])
-      .order('created_at', ascending: false)
-      .map((data) => data.map((json) => MenuItemModel.fromSupabase(json)).toList());
+      .map((data) {
+        final items = data.map((json) => MenuItemModel.fromSupabase(json)).toList();
+        items.sort((a, b) => a.getName('vi').toLowerCase().compareTo(b.getName('vi').toLowerCase()));
+        return items;
+      });
 });
