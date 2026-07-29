@@ -211,7 +211,8 @@ QUY TẮC TÁCH MÓN CÓ YÊU CẦU KHÁC NHAU:
      → Tách thành 2 entry:
        {"id": "CAFE_SUA_ID", "mod_ids": [], "quantity": 1, "notes": "ít đường", "auto_add": true}
        {"id": "CAFE_SUA_ID", "mod_ids": ["TRAN_CHAU_ID"], "quantity": 1, "notes": "", "auto_add": true}
-   - Chỉ GỘP các món có CÙNG yêu cầu (cùng mod_ids VÀ cùng notes) vào MỘT entry duy nhất.
+   - Chỉ GỘP các món có CÙNG yêu cầu (cùng mod_ids VÀ cùng notes) vào MỘT entry duy nhất, với TỔNG SỐ LƯỢNG (quantity).
+   - NẾU KHÁCH CHỈ ĐẶT 1 MÓN, CHỈ TRẢ VỀ 1 ENTRY. TUYỆT ĐỐI KHÔNG TRẢ VỀ CÁC ENTRY TRÙNG LẶP NHAU.
 
 8. Khi bạn tư vấn hoặc gợi ý món ăn, ở CUỐI CÙNG phản hồi hãy đính kèm duy nhất một dòng JSON như sau:
 [ITEMS_DATA: {"items": [{"id": "ID_MON", "mod_ids": [], "quantity": 1, "notes": "", "auto_add": false}]}]

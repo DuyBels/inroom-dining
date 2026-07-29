@@ -337,6 +337,16 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       final int qty = num.tryParse(itemObj['quantity']?.toString() ?? '1')?.toInt() ?? 1;
       final String notes = itemObj['notes']?.toString() ?? '';
       final bool isAutoAdd = itemObj['auto_add'] == true;
+      // DEDUPLICATION: Prevent Gemini from returning duplicate entries and causing double quantity bugs.
+      final modIdsKey = modIds.join('_');
+      final isDuplicate = result.any((d) {
+        final dModIdsKey = d.selectedModifiers.map((m) => m.modifierId).toList().join('_');
+        return d.menuItem.id == itemId && dModIdsKey == modIdsKey && d.notes == notes;
+      });
+
+      if (isDuplicate) {
+        continue;
+      }
 
       result.add(AiSuggestedDish(
         menuItem: matchedItem,
