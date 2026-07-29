@@ -10,6 +10,7 @@ class PrintService {
     required Map<String, dynamic> order,
     required List<Map<String, dynamic>> tickets,
     required List<dynamic> menuItems,
+    String locale = 'vi',
   }) async {
     final pdf = pw.Document();
 
@@ -28,36 +29,36 @@ class PrintService {
             children: [
               pw.Divider(thickness: 2),
               pw.Center(
-                child: pw.Text('KHÁCH SẠN INROOM DINING', style: pw.TextStyle(font: fontBold, fontSize: 16)),
+                child: pw.Text(locale == 'vi' ? 'KHÁCH SẠN INROOM DINING' : 'INROOM DINING HOTEL', style: pw.TextStyle(font: fontBold, fontSize: 16)),
               ),
               pw.Center(
-                child: pw.Text('123 Ninh Kiều, TP. Cần Thơ', style: pw.TextStyle(font: font, fontSize: 12)),
+                child: pw.Text(locale == 'vi' ? '123 Ninh Kiều, TP. Cần Thơ' : '123 Ninh Kieu, Can Tho City', style: pw.TextStyle(font: font, fontSize: 12)),
               ),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               pw.Center(
-                child: pw.Text('PHIẾU TẠM TÍNH', style: pw.TextStyle(font: fontBold, fontSize: 14)),
+                child: pw.Text(locale == 'vi' ? 'PHIẾU TẠM TÍNH' : 'PROVISIONAL RECEIPT', style: pw.TextStyle(font: fontBold, fontSize: 14)),
               ),
               pw.Center(
                 child: pw.Text('(IN-ROOM DINING)', style: pw.TextStyle(font: font, fontSize: 12)),
               ),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
-              pw.Text('Số HĐ: #${order['id'].toString().substring(0, 8).toUpperCase()}', style: pw.TextStyle(font: font, fontSize: 12)),
-              pw.Text('Ngày : ${DateFormat('HH:mm:ss dd/MM/yyyy').format(DateTime.parse(order['created_at']).toLocal())}', style: pw.TextStyle(font: font, fontSize: 12)),
-              pw.Text('Phòng: ${order['room_number']}', style: pw.TextStyle(font: fontBold, fontSize: 12)),
+              pw.Text('${locale == 'vi' ? 'Số HĐ' : 'Bill No'}: #${order['id'].toString().substring(0, 8).toUpperCase()}', style: pw.TextStyle(font: font, fontSize: 12)),
+              pw.Text('${locale == 'vi' ? 'Ngày' : 'Date'} : ${DateFormat('HH:mm:ss dd/MM/yyyy').format(DateTime.parse(order['created_at']).toLocal())}', style: pw.TextStyle(font: font, fontSize: 12)),
+              pw.Text('${locale == 'vi' ? 'Phòng' : 'Room'}: ${order['room_number']}', style: pw.TextStyle(font: fontBold, fontSize: 12)),
               if (order['notes'] != null && order['notes'].toString().isNotEmpty)
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(top: 2),
-                  child: pw.Text('Ghi chú: ${order['notes']}', style: pw.TextStyle(font: font, fontSize: 12)),
+                  child: pw.Text('${locale == 'vi' ? 'Ghi chú' : 'Notes'}: ${order['notes']}', style: pw.TextStyle(font: font, fontSize: 12)),
                 ),
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
               // Header Row
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Expanded(flex: 4, child: pw.Text('TÊN MÓN', style: pw.TextStyle(font: fontBold, fontSize: 11))),
-                  pw.Expanded(flex: 1, child: pw.Text('SL', textAlign: pw.TextAlign.center, style: pw.TextStyle(font: fontBold, fontSize: 11))),
-                  pw.Expanded(flex: 3, child: pw.Text('Đơn Giá', textAlign: pw.TextAlign.right, style: pw.TextStyle(font: fontBold, fontSize: 11))),
-                  pw.Expanded(flex: 3, child: pw.Text('Thành tiền', textAlign: pw.TextAlign.right, style: pw.TextStyle(font: fontBold, fontSize: 11))),
+                  pw.Expanded(flex: 4, child: pw.Text(locale == 'vi' ? 'TÊN MÓN' : 'ITEM', style: pw.TextStyle(font: fontBold, fontSize: 11))),
+                  pw.Expanded(flex: 1, child: pw.Text(locale == 'vi' ? 'SL' : 'QTY', textAlign: pw.TextAlign.center, style: pw.TextStyle(font: fontBold, fontSize: 11))),
+                  pw.Expanded(flex: 3, child: pw.Text(locale == 'vi' ? 'Đơn Giá' : 'Price', textAlign: pw.TextAlign.right, style: pw.TextStyle(font: fontBold, fontSize: 11))),
+                  pw.Expanded(flex: 3, child: pw.Text(locale == 'vi' ? 'Thành tiền' : 'Total', textAlign: pw.TextAlign.right, style: pw.TextStyle(font: fontBold, fontSize: 11))),
                 ],
               ),
               pw.SizedBox(height: 4),
@@ -70,10 +71,10 @@ class PrintService {
                 double basePrice = 0;
 
                 if (menuItem != null) {
-                  itemName = menuItem.nameMap['vi'] ?? menuItem.nameMap['en'] ?? 'Unknown';
+                  itemName = menuItem.nameMap[locale] ?? menuItem.nameMap['en'] ?? 'Unknown';
                   basePrice = menuItem.price;
                 } else if (t['menu_items'] != null) {
-                  itemName = L10nUtils.getL10n(t['menu_items']['name'], 'vi');
+                  itemName = L10nUtils.getL10n(t['menu_items']['name'], locale);
                   basePrice = double.tryParse(t['menu_items']['price']?.toString() ?? '0') ?? 0.0;
                 }
                 
@@ -104,7 +105,7 @@ class PrintService {
                       if (mods.isNotEmpty)
                         pw.Padding(
                           padding: const pw.EdgeInsets.only(left: 10, top: 2),
-                          child: pw.Text('+ ${mods.map((m) => m['modifier_name'] ?? m['rawModifier']).join(', ')}', style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey700)),
+                          child: pw.Text('+ ${mods.map((m) => L10nUtils.getL10n(m['modifier_name'] ?? m['rawModifier'], locale)).join(', ')}', style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey700)),
                         ),
                       if (t['notes'] != null && t['notes'].toString().isNotEmpty)
                         pw.Padding(
@@ -119,7 +120,7 @@ class PrintService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('TỔNG THANH TOÁN:', style: pw.TextStyle(font: fontBold, fontSize: 14)),
+                  pw.Text(locale == 'vi' ? 'TỔNG THANH TOÁN:' : 'GRAND TOTAL:', style: pw.TextStyle(font: fontBold, fontSize: 14)),
                   pw.Text(NumberFormat('#,###', 'vi_VN').format(totalBill), style: pw.TextStyle(font: fontBold, fontSize: 14)),
                 ],
               ),
@@ -127,14 +128,14 @@ class PrintService {
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('Hình thức TT: ', style: pw.TextStyle(font: font, fontSize: 11)),
+                  pw.Text(locale == 'vi' ? 'Hình thức TT: ' : 'Payment: ', style: pw.TextStyle(font: font, fontSize: 11)),
                   pw.Expanded(
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text('[ ] Tiền mặt   [ ] Thẻ', style: pw.TextStyle(font: font, fontSize: 11)),
+                        pw.Text(locale == 'vi' ? '[ ] Tiền mặt   [ ] Thẻ' : '[ ] Cash   [ ] Card', style: pw.TextStyle(font: font, fontSize: 11)),
                         pw.SizedBox(height: 4),
-                        pw.Text('[ ] Tính vào tiền phòng', style: pw.TextStyle(font: font, fontSize: 11)),
+                        pw.Text(locale == 'vi' ? '[ ] Tính vào tiền phòng' : '[ ] Room Charge', style: pw.TextStyle(font: font, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -142,22 +143,22 @@ class PrintService {
               ),
               pw.SizedBox(height: 12),
               pw.Center(
-                child: pw.Text('XÁC NHẬN CỦA KHÁCH HÀNG', style: pw.TextStyle(font: fontBold, fontSize: 12)),
+                child: pw.Text(locale == 'vi' ? 'XÁC NHẬN CỦA KHÁCH HÀNG' : 'GUEST CONFIRMATION', style: pw.TextStyle(font: fontBold, fontSize: 12)),
               ),
               pw.Center(
-                child: pw.Text('(Vui lòng ký và ghi rõ họ tên nếu chọn\nhình thức tính vào tiền phòng)', textAlign: pw.TextAlign.center, style: pw.TextStyle(font: font, fontSize: 11)),
+                child: pw.Text(locale == 'vi' ? '(Vui lòng ký và ghi rõ họ tên nếu chọn\nhình thức tính vào tiền phòng)' : '(Please sign and write your name if\nyou choose Room Charge)', textAlign: pw.TextAlign.center, style: pw.TextStyle(font: font, fontSize: 11)),
               ),
               pw.SizedBox(height: 12),
-              pw.Text('Tên khách: ...........................................', style: pw.TextStyle(font: font, fontSize: 12)),
+              pw.Text(locale == 'vi' ? 'Tên khách: ...........................................' : 'Guest Name: ..........................................', style: pw.TextStyle(font: font, fontSize: 12)),
               pw.SizedBox(height: 8),
-              pw.Text('Số phòng: ............................................', style: pw.TextStyle(font: font, fontSize: 12)),
+              pw.Text(locale == 'vi' ? 'Số phòng: ............................................' : 'Room Number: .........................................', style: pw.TextStyle(font: font, fontSize: 12)),
               pw.SizedBox(height: 8),
-              pw.Text('Chữ ký:', style: pw.TextStyle(font: font, fontSize: 12)),
+              pw.Text(locale == 'vi' ? 'Chữ ký:' : 'Signature:', style: pw.TextStyle(font: font, fontSize: 12)),
               pw.SizedBox(height: 40),
               pw.Text('......................................................', style: pw.TextStyle(font: font, fontSize: 12)),
               pw.SizedBox(height: 4),
               pw.Center(
-                child: pw.Text('Cảm ơn & Chúc quý khách ngon miệng!', style: pw.TextStyle(font: font, fontSize: 11, fontStyle: pw.FontStyle.italic)),
+                child: pw.Text(locale == 'vi' ? 'Cảm ơn & Chúc quý khách ngon miệng!' : 'Thank you & Enjoy your meal!', style: pw.TextStyle(font: font, fontSize: 11, fontStyle: pw.FontStyle.italic)),
               ),
               pw.Divider(thickness: 2),
             ],

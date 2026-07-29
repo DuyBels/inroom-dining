@@ -65,6 +65,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                order: newOrder,
                tickets: ticketsRes,
                menuItems: menuItems,
+               locale: ref.read(localeProvider),
              );
           } catch (e) {
              print("Lỗi in bill: $e");

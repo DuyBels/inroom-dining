@@ -6,6 +6,8 @@ import '../../../../core/utils/l10n_utils.dart';
 import '../../../../main.dart';
 import '../../providers/category_provider.dart';
 import '../widgets/category_form_dialog.dart';
+import '../widgets/category_variant_management_dialog.dart';
+import '../../../../core/models/category_model.dart';
 
 class CategoryManagementView extends ConsumerWidget {
   const CategoryManagementView({super.key});
@@ -106,6 +108,11 @@ class CategoryManagementView extends ConsumerWidget {
                                       DataCell(Text(desc.isEmpty ? '-' : desc, style: const TextStyle(color: AdminTheme.textDarkBlue))),
                                       DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
                                         IconButton(
+                                          icon: const Icon(Icons.list_alt_rounded, color: AdminTheme.primaryWood),
+                                          tooltip: 'Quản lý nhóm con (Variants)',
+                                          onPressed: () => _showCategoryVariantDialog(context, category),
+                                        ),
+                                        IconButton(
                                           icon: const Icon(Icons.edit_square, color: AdminTheme.primaryBlue),
                                           onPressed: () => _showCategoryDialog(context, {
                                             'id': category.id,
@@ -143,6 +150,14 @@ class CategoryManagementView extends ConsumerWidget {
       context: context,
       barrierDismissible: false,
       builder: (context) => CategoryFormDialog(category: category),
+    );
+  }
+
+  void _showCategoryVariantDialog(BuildContext context, CategoryModel category) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CategoryVariantManagementDialog(category: category),
     );
   }
 

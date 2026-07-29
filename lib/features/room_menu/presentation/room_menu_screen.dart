@@ -102,6 +102,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     }
 
     final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final categoryVariantsAsync = ref.watch(categoryVariantsProvider);
     final menuWithTagsAsync = ref.watch(menuItemsWithTagsProvider);
     final tagsAsync = ref.watch(tagsStreamProvider);
     final stationsAsync = ref.watch(stationsStreamProvider);
@@ -186,6 +187,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                     data: (items) {
                       final allTags = tagsAsync.value ?? [];
                       final allStations = stationsAsync.value ?? [];
+                      final allVariants = categoryVariantsAsync.value ?? [];
 
                       var list = items.where((i) => i.isAvailable).toList();
 
@@ -200,7 +202,17 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                         list = list.where((item) {
                           final name = L10nUtils.removeDiacritics(item.getName(locale).toLowerCase());
                           final desc = L10nUtils.removeDiacritics(item.getDescription(locale).toLowerCase());
-                          final variant = item.variantName != null ? L10nUtils.removeDiacritics(item.variantName!.toLowerCase()) : '';
+                          
+                          String variant = '';
+                          if (item.categoryVariantId != null) {
+                            final v = allVariants.firstWhere((cv) => cv['id'].toString() == item.categoryVariantId, orElse: () => <String, dynamic>{});
+                            if (v.isNotEmpty) {
+                              final nameMap = L10nUtils.decodeField(v['name']);
+                              variant = L10nUtils.removeDiacritics((nameMap[locale] ?? nameMap['vi'] ?? '').toLowerCase());
+                            }
+                          } else if (item.variantName != null) {
+                            variant = L10nUtils.removeDiacritics(item.variantName!.toLowerCase());
+                          }
                           
                           String tagNames = '';
                           for (String tagId in item.tagIds) {
@@ -283,7 +295,16 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
                       final Map<String, List<MenuItemModel>> groupedItems = {};
                       for (var item in list) {
-                        final v = item.variantName?.trim().isNotEmpty == true ? item.variantName!.trim() : (locale == 'vi' ? 'Khác' : 'Others');
+                        String v = locale == 'vi' ? 'Khác' : 'Others';
+                        if (item.categoryVariantId != null) {
+                          final variant = allVariants.firstWhere((cv) => cv['id'].toString() == item.categoryVariantId, orElse: () => <String, dynamic>{});
+                          if (variant.isNotEmpty) {
+                            final nameMap = L10nUtils.decodeField(variant['name']);
+                            v = nameMap[locale] ?? nameMap['vi'] ?? v;
+                          }
+                        } else if (item.variantName?.trim().isNotEmpty == true) {
+                          v = item.variantName!.trim();
+                        }
                         groupedItems.putIfAbsent(v, () => []).add(item);
                       }
 

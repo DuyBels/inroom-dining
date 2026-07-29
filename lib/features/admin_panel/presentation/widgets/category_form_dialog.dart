@@ -18,29 +18,38 @@ class CategoryFormDialog extends ConsumerStatefulWidget {
 
 class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _nameEnController = TextEditingController();
-  final _descController = TextEditingController();
-  final _descEnController = TextEditingController();
+  final Map<String, TextEditingController> _nameControllers = {};
+  final Map<String, TextEditingController> _descControllers = {};
   String? _selectedIconName;
   bool _isLoading = false;
-  bool _isTranslating = false;
+  final Map<String, bool> _isTranslating = {};
+
+  String _getNameInLang(String code, Map<String, dynamic> nameMap) {
+    return nameMap[code]?.toString() ?? (code == 'vi' ? (nameMap['vi']?.toString() ?? '') : '');
+  }
+
+  String _getDescInLang(String code, Map<String, dynamic> descMap) {
+    return descMap[code]?.toString() ?? (code == 'vi' ? (descMap['vi']?.toString() ?? '') : '');
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.category != null) {
-      final nameMap = L10nUtils.decodeField(widget.category!['name']);
-      final descMap = L10nUtils.decodeField(widget.category!['description']);
+    final nameMap = widget.category != null ? L10nUtils.decodeField(widget.category!['name']) : <String, dynamic>{};
+    final descMap = widget.category != null ? L10nUtils.decodeField(widget.category!['description']) : <String, dynamic>{};
 
-      _nameController.text = nameMap['vi']?.toString() ?? '';
-      _nameEnController.text = nameMap['en']?.toString() ?? '';
-      _descController.text = descMap['vi']?.toString() ?? '';
-      _descEnController.text = descMap['en']?.toString() ?? '';
+    for (var lang in L10nUtils.supportedLanguages) {
+      final code = lang['code']!;
+      _nameControllers[code] = TextEditingController(text: _getNameInLang(code, nameMap));
+      _descControllers[code] = TextEditingController(text: _getDescInLang(code, descMap));
+      _isTranslating[code] = false;
+    }
+
+    if (widget.category != null) {
       _selectedIconName = widget.category!['icon_name']?.toString() ?? widget.category!['icon']?.toString();
     }
 
-    _nameController.addListener(_autoUpdateSuggestedIcon);
+    _nameControllers['vi']?.addListener(_autoUpdateSuggestedIcon);
   }
 
   void _autoUpdateSuggestedIcon() {
@@ -51,31 +60,33 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
 
   @override
   void dispose() {
-    _nameController.removeListener(_autoUpdateSuggestedIcon);
-    _nameController.dispose();
-    _nameEnController.dispose();
-    _descController.dispose();
-    _descEnController.dispose();
+    _nameControllers['vi']?.removeListener(_autoUpdateSuggestedIcon);
+    for (var c in _nameControllers.values) { c.dispose(); }
+    for (var c in _descControllers.values) { c.dispose(); }
     super.dispose();
   }
 
-  Future<void> _translateWithAI() async {
-    if (_nameController.text.trim().isEmpty && _nameEnController.text.trim().isEmpty) return;
+  Future<void> _translateWithAI(String targetLang) async {
+    final viName = _nameControllers['vi']?.text.trim() ?? '';
+    final viDesc = _descControllers['vi']?.text.trim() ?? '';
+    if (viName.isEmpty && viDesc.isEmpty) return;
+
     final l10n = ref.read(l10nProvider);
-    setState(() => _isTranslating = true);
+    setState(() => _isTranslating[targetLang] = true);
     try {
       final gemini = ref.read(geminiServiceProvider);
-      await gemini.autoTranslatePair(viController: _nameController, enController: _nameEnController, force: true);
-      await gemini.autoTranslatePair(viController: _descController, enController: _descEnController, force: true);
+      await gemini.autoTranslateMap(_nameControllers, force: true);
+      await gemini.autoTranslateMap(_descControllers, force: true);
+      
       if (_selectedIconName == null) {
         setState(() {
-          _selectedIconName = CategoryIconUtils.autoSuggestIconName(_nameController.text);
+          _selectedIconName = CategoryIconUtils.autoSuggestIconName(viName);
         });
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
     } finally {
-      if (mounted) setState(() => _isTranslating = false);
+      if (mounted) setState(() => _isTranslating[targetLang] = false);
     }
   }
 
@@ -85,25 +96,30 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
 
     try {
       final gemini = ref.read(geminiServiceProvider);
-      await gemini.autoTranslatePair(viController: _nameController, enController: _nameEnController);
-      await gemini.autoTranslatePair(viController: _descController, enController: _descEnController);
+      await gemini.autoTranslateMap(_nameControllers);
+      await gemini.autoTranslateMap(_descControllers);
 
       if (!_formKey.currentState!.validate()) {
         setState(() => _isLoading = false);
         return;
       }
 
-      final activeIconName = _selectedIconName ?? CategoryIconUtils.autoSuggestIconName(_nameController.text);
+      final viName = _nameControllers['vi']?.text.trim() ?? '';
+      final activeIconName = _selectedIconName ?? CategoryIconUtils.autoSuggestIconName(viName);
+
+      final Map<String, String> nameData = {};
+      final Map<String, String> descData = {};
+      
+      _nameControllers.forEach((key, controller) {
+        nameData[key] = controller.text.trim();
+      });
+      _descControllers.forEach((key, controller) {
+        descData[key] = controller.text.trim();
+      });
 
       final data = {
-        'name': {
-          'vi': _nameController.text.trim(),
-          'en': _nameEnController.text.trim(),
-        },
-        'description': {
-          'vi': _descController.text.trim(),
-          'en': _descEnController.text.trim(),
-        },
+        'name': nameData,
+        'description': descData,
         'icon_name': activeIconName,
       };
 
@@ -126,8 +142,9 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = ref.watch(l10nProvider);
-    final activeIconName = _selectedIconName ?? CategoryIconUtils.autoSuggestIconName(_nameController.text);
-    final activeIcon = CategoryIconUtils.getIconData(activeIconName, _nameController.text);
+    final viName = _nameControllers['vi']?.text.trim() ?? '';
+    final activeIconName = _selectedIconName ?? CategoryIconUtils.autoSuggestIconName(viName);
+    final activeIcon = CategoryIconUtils.getIconData(activeIconName, viName);
 
     return AlertDialog(
       title: Text(widget.category == null ? l10n.addCategory : l10n.editCategory, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue)),
@@ -140,53 +157,49 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(labelText: '${l10n.categoryNameLang} (VI)', border: const OutlineInputBorder()),
-                        validator: (val) => val == null || val.trim().isEmpty ? l10n.validName : null,
-                      ),
+                ...L10nUtils.supportedLanguages.map((lang) {
+                  final code = lang['code']!;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _nameControllers[code],
+                                decoration: InputDecoration(labelText: '${l10n.categoryNameLang} (${lang['name']})', border: const OutlineInputBorder()),
+                                validator: code == 'vi' ? (val) => val == null || val.trim().isEmpty ? l10n.validName : null : null,
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _descControllers[code],
+                                decoration: InputDecoration(labelText: '${l10n.descriptionLang} (${lang['name']})', border: const OutlineInputBorder()),
+                                maxLines: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (code != 'vi') ...[
+                          const SizedBox(width: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: IconButton(
+                              onPressed: _isTranslating[code] == true ? null : () => _translateWithAI(code),
+                              icon: _isTranslating[code] == true
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.auto_awesome, color: Colors.purple),
+                              tooltip: l10n.aiTranslateTooltip,
+                            ),
+                          ),
+                        ]
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _isTranslating ? null : _translateWithAI,
-                      icon: _isTranslating 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.auto_awesome, color: Colors.purple),
-                      tooltip: l10n.aiTranslateTooltip,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _nameEnController,
-                        decoration: InputDecoration(labelText: '${l10n.categoryNameLang} (EN)', border: const OutlineInputBorder()),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _descController,
-                        decoration: InputDecoration(labelText: '${l10n.descriptionLang} (VI)', border: const OutlineInputBorder()),
-                        maxLines: 2,
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _descEnController,
-                        decoration: InputDecoration(labelText: '${l10n.descriptionLang} (EN)', border: const OutlineInputBorder()),
-                        maxLines: 2,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
+                  );
+                }),
+                const Divider(),
                 const Text(
                   'Biểu tượng Google Material Icon (Tự động tạo & Có thể chọn):',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AdminTheme.textDarkBlue),

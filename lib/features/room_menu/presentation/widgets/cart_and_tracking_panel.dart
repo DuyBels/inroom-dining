@@ -41,11 +41,16 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         backgroundColor: AdminTheme.surfaceWhite,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(l10n.cancel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
-        content: const Text('Bạn có chắc muốn hủy món này không?', style: TextStyle(color: AdminTheme.textDarkWood)),
+        content: Text(
+          ref.read(localeProvider) == 'vi' 
+            ? 'Bạn có chắc muốn hủy món này không?' 
+            : 'Are you sure you want to cancel this item?', 
+          style: const TextStyle(color: AdminTheme.textDarkWood)
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Không', style: TextStyle(color: AdminTheme.textMutedWood)),
+            child: Text(ref.read(localeProvider) == 'vi' ? 'Không' : 'No', style: const TextStyle(color: AdminTheme.textMutedWood)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

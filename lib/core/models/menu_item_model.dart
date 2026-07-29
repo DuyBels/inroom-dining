@@ -10,7 +10,8 @@ class MenuItemModel {
   final String categoryId;
   final String stationId;
   final bool isAvailable;
-  final String? variantName;
+  final String? variantName; // Legacy
+  final String? categoryVariantId; // Mới
   final List<String> tagIds;
 
   MenuItemModel({
@@ -24,6 +25,7 @@ class MenuItemModel {
     required this.stationId,
     required this.isAvailable,
     this.variantName,
+    this.categoryVariantId,
     this.tagIds = const [],
   });
 
@@ -39,6 +41,7 @@ class MenuItemModel {
       stationId: json['station_id']?.toString() ?? '',
       isAvailable: json['is_available'] ?? true,
       variantName: json['variant_name']?.toString(),
+      categoryVariantId: json['category_variant_id']?.toString(),
       tagIds: tags ?? [],
     );
   }
@@ -55,6 +58,7 @@ class MenuItemModel {
       stationId: stationId,
       isAvailable: isAvailable,
       variantName: variantName,
+      categoryVariantId: categoryVariantId,
       tagIds: tagIds ?? this.tagIds,
     );
   }

@@ -18,6 +18,7 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
   final Future<List<Map<String, dynamic>>> _ordersFuture = supabase
       .from('orders')
       .select('*, tickets(*, menu_items(*))')
+      .eq('status', 'PENDING')
       .order('created_at', ascending: false)
       .limit(50);
 
@@ -37,6 +38,7 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
         order: order,
         tickets: tickets,
         menuItems: menuItems,
+        locale: ref.read(localeProvider),
       );
     } catch (e) {
       if (mounted) {
@@ -64,7 +66,7 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Chọn đơn hàng bên dưới để in lại bill.',
+            'Chỉ hiển thị các đơn hàng mới (PENDING) để in lại bill.',
             style: TextStyle(color: AdminTheme.textMutedWood),
           ),
           const SizedBox(height: 24),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,9 +31,9 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
   
   final _priceController = TextEditingController();
   final _prepTimeController = TextEditingController(text: '15');
-  final _variantController = TextEditingController();
 
   String? _selectedCategoryId;
+  String? _selectedCategoryVariantId;
   String? _selectedStationId;
   bool _isAvailable = true;
   List<String> _selectedTagIds = [];
@@ -59,18 +60,15 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
       final nameMap = L10nUtils.decodeField(widget.item!['name']);
       final descMap = L10nUtils.decodeField(widget.item!['description']);
 
-      _nameControllers.forEach((code, controller) {
-        controller.text = nameMap[code]?.toString() ?? '';
-      });
-
-      _descControllers.forEach((code, controller) {
-        controller.text = descMap[code]?.toString() ?? '';
-      });
+      for (var code in _nameControllers.keys) {
+        _nameControllers[code]!.text = nameMap[code]?.toString() ?? '';
+        _descControllers[code]!.text = descMap[code]?.toString() ?? '';
+      }
 
       _priceController.text = widget.item!['price']?.toString() ?? '0';
       _prepTimeController.text = widget.item!['prep_time_minutes']?.toString() ?? '15';
-      _variantController.text = widget.item!['variant_name']?.toString() ?? '';
       _selectedCategoryId = widget.item!['category_id'];
+      _selectedCategoryVariantId = widget.item!['category_variant_id'];
       _selectedStationId = widget.item!['station_id'];
       _isAvailable = widget.item!['is_available'] ?? true;
       _currentImageUrl = widget.item!['image_url'];
@@ -80,7 +78,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
 
   @override
   void dispose() {
-    _variantController.dispose();
+    for (var c in _nameControllers.values) { c.dispose(); }
+    for (var c in _descControllers.values) { c.dispose(); }
+    _priceController.dispose();
+    _prepTimeController.dispose();
     super.dispose();
   }
 
@@ -92,46 +93,24 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
     } catch (e) { debugPrint('Lỗi thẻ: $e'); } finally { setState(() => _isLoadingTags = false); }
   }
 
-  Future<void> _translateWithAI(String targetCode, String type) async {
+  Future<void> _translateWithAI(String targetLang, String type) async {
+    final viName = _nameControllers['vi']?.text.trim() ?? '';
+    final viDesc = _descControllers['vi']?.text.trim() ?? '';
+    if (viName.isEmpty && viDesc.isEmpty) return;
+
     final l10n = ref.read(l10nProvider);
-    final controllers = type == 'name' ? _nameControllers : _descControllers;
-
-    String? sourceCode;
-    String? sourceText;
-    if (controllers['vi']?.text.trim().isNotEmpty == true) {
-      sourceCode = 'vi';
-      sourceText = controllers['vi']!.text.trim();
-    } else {
-      for (var entry in controllers.entries) {
-        if (entry.value.text.trim().isNotEmpty) {
-          sourceCode = entry.key;
-          sourceText = entry.value.text.trim();
-          break;
-        }
-      }
-    }
-
-    if (sourceText == null || sourceText.isEmpty) return;
-
-    final sourceLangName = L10nUtils.supportedLanguages.firstWhere(
-      (l) => l['code'] == sourceCode,
-      orElse: () => {'name': sourceCode == 'vi' ? 'Vietnamese' : 'English'},
-    )['name'];
-
-    final targetLangName = L10nUtils.supportedLanguages.firstWhere((l) => l['code'] == targetCode)['name'];
-
-    setState(() => _isTranslating[targetCode] = true);
+    setState(() => _isTranslating[targetLang] = true);
     try {
-      final result = await ref.read(geminiServiceProvider).translate(
-        sourceText,
-        sourceLanguage: sourceLangName!,
-        targetLanguage: targetLangName!,
-      );
-      controllers[targetCode]!.text = result;
+      final gemini = ref.read(geminiServiceProvider);
+      if (type == 'name') {
+        await gemini.autoTranslateMap(_nameControllers, force: true);
+      } else if (type == 'description') {
+        await gemini.autoTranslateMap(_descControllers, force: true);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
     } finally {
-      if (mounted) setState(() => _isTranslating[targetCode] = false);
+      if (mounted) setState(() => _isTranslating[targetLang] = false);
     }
   }
 
@@ -165,7 +144,6 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
         finalImageUrl = supabase.storage.from('menu_images').getPublicUrl(fileName);
       }
 
-      // Gom tất cả các ngôn ngữ vào Map
       final Map<String, String> nameMap = {};
       _nameControllers.forEach((code, controller) => nameMap[code] = controller.text.trim());
       
@@ -179,9 +157,9 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
         'image_url': finalImageUrl,
         'prep_time_minutes': int.tryParse(_prepTimeController.text.trim()) ?? 15,
         'category_id': _selectedCategoryId,
+        'category_variant_id': _selectedCategoryVariantId,
         'station_id': _selectedStationId,
         'is_available': _isAvailable,
-        'variant_name': _variantController.text.trim().isNotEmpty ? _variantController.text.trim() : null,
       };
 
       String menuItemId;
@@ -210,6 +188,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
     final l10n = ref.watch(l10nProvider);
     final locale = ref.watch(localeProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final categoryVariantsAsync = ref.watch(categoryVariantsProvider);
     final stationsAsync = ref.watch(stationsStreamProvider);
     final tagsAsync = ref.watch(tagsStreamProvider);
 
@@ -256,12 +235,6 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                       ),
                     );
                   }),
-
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _variantController,
-                    decoration: InputDecoration(labelText: locale == 'vi' ? 'Tên biến thể (Tuỳ chọn, vd: Món nước)' : 'Variant Name (Optional)', border: const OutlineInputBorder()),
-                  ),
 
                   const SizedBox(height: 12),
                   Row(children: [
@@ -313,12 +286,45 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                           value: cats.any((c) => c.id == _selectedCategoryId) ? _selectedCategoryId : null,
                           decoration: InputDecoration(labelText: l10n.categoryLabel, border: const OutlineInputBorder()),
                           items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.getName(locale)))).toList(),
-                          onChanged: (v) => setState(() => _selectedCategoryId = v),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedCategoryId = v;
+                              _selectedCategoryVariantId = null; // reset variant when category changes
+                            });
+                          },
                           validator: (v) => v == null || v.isEmpty ? (locale == 'vi' ? 'Vui lòng chọn danh mục' : 'Please select category') : null,
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
+                    Expanded(
+                      child: categoryVariantsAsync.when(
+                        loading: () => const LinearProgressIndicator(),
+                        error: (e, s) => Text(l10n.errorPrefix),
+                        data: (variants) {
+                          final categoryVariants = variants.where((v) => v['category_id'] == _selectedCategoryId).toList();
+                          return DropdownButtonFormField<String>(
+                            value: categoryVariants.any((v) => v['id'].toString() == _selectedCategoryVariantId) ? _selectedCategoryVariantId : null,
+                            decoration: InputDecoration(labelText: locale == 'vi' ? 'Nhóm con (Tuỳ chọn)' : 'Variant (Optional)', border: const OutlineInputBorder()),
+                            items: [
+                              DropdownMenuItem<String>(value: null, child: Text(locale == 'vi' ? 'Không có' : 'None', style: const TextStyle(fontStyle: FontStyle.italic))),
+                              ...categoryVariants.map((v) {
+                                final nameMap = L10nUtils.decodeField(v['name']);
+                                return DropdownMenuItem(
+                                  value: v['id'].toString(), 
+                                  child: Text(nameMap[locale] ?? nameMap['vi'] ?? '')
+                                );
+                              }),
+                            ],
+                            onChanged: (v) => setState(() => _selectedCategoryVariantId = v),
+                          );
+                        }
+                      ),
+                    ),
+                  ]),
+                  
+                  const SizedBox(height: 16),
+                  Row(children: [
                     Expanded(
                       child: stationsAsync.when(
                         loading: () => const LinearProgressIndicator(),

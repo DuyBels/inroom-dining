@@ -10,3 +10,10 @@ final categoriesStreamProvider = StreamProvider<List<CategoryModel>>((ref) {
       .order('created_at', ascending: true)
       .map((data) => data.map((json) => CategoryModel.fromSupabase(json)).toList());
 });
+
+final categoryVariantsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  return supabase
+      .from('category_variants')
+      .stream(primaryKey: ['id'])
+      .order('created_at', ascending: true);
+});

@@ -53,18 +53,25 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
   void _showGroupDialog({Map<String, dynamic>? group}) {
     final l10n = ref.read(l10nProvider);
     final nameData = group?['name'];
-    final nameViController = TextEditingController();
-    final nameEnController = TextEditingController();
-
-    if (nameData is Map) {
-      nameViController.text = nameData['vi']?.toString() ?? '';
-      nameEnController.text = nameData['en']?.toString() ?? '';
-    } else {
-      nameViController.text = nameData?.toString() ?? '';
+    final Map<String, TextEditingController> nameControllers = {};
+    for (var lang in L10nUtils.supportedLanguages) {
+      final code = lang['code']!;
+      String text = '';
+      if (nameData is Map) {
+        text = nameData[code]?.toString() ?? '';
+      } else if (code == 'vi') {
+        text = nameData?.toString() ?? '';
+      }
+      nameControllers[code] = TextEditingController(text: text);
     }
-
     final minController = TextEditingController(text: group?['min_select']?.toString() ?? '0');
     final maxController = TextEditingController(text: group?['max_select']?.toString() ?? '1');
+
+    // Mảng cờ trạng thái dịch cho từng ngôn ngữ
+    Map<String, bool> isTranslatingMap = {};
+    for (var lang in L10nUtils.supportedLanguages) {
+      isTranslatingMap[lang['code']!] = false;
+    }
 
     showDialog(
       context: context,
@@ -74,32 +81,38 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(child: TextField(controller: nameViController, decoration: InputDecoration(labelText: '${l10n.groupNameLang} (VI)'))),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isTranslating ? null : () async {
-                      if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) return;
-                      setDialogState(() => _isTranslating = true);
-                      try {
-                        await ref.read(geminiServiceProvider).autoTranslatePair(
-                          viController: nameViController,
-                          enController: nameEnController,
-                          force: true,
-                        );
-                      } finally {
-                        setDialogState(() => _isTranslating = false);
-                      }
-                    },
-                    icon: _isTranslating 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_awesome, color: Colors.purple),
+              ...L10nUtils.supportedLanguages.map((lang) {
+                final code = lang['code']!;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: nameControllers[code],
+                          decoration: InputDecoration(labelText: '${l10n.groupNameLang} (${lang['name']})'),
+                        ),
+                      ),
+                      if (code != 'vi') ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: isTranslatingMap[code] == true ? null : () async {
+                            setDialogState(() => isTranslatingMap[code] = true);
+                            try {
+                              await ref.read(geminiServiceProvider).autoTranslateMap(nameControllers, force: true);
+                            } finally {
+                              setDialogState(() => isTranslatingMap[code] = false);
+                            }
+                          },
+                          icon: isTranslatingMap[code] == true 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.auto_awesome, color: Colors.purple),
+                        ),
+                      ]
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: nameEnController, decoration: InputDecoration(labelText: '${l10n.groupNameLang} (EN)'))),
-                ],
-              ),
+                );
+              }),
               TextField(controller: minController, decoration: InputDecoration(labelText: l10n.minSelectLabel), keyboardType: TextInputType.number),
               TextField(controller: maxController, decoration: InputDecoration(labelText: l10n.maxSelectLabel), keyboardType: TextInputType.number),
             ],
@@ -110,19 +123,17 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
               onPressed: () async {
                 setDialogState(() => _isTranslating = true);
                 try {
-                  await ref.read(geminiServiceProvider).autoTranslatePair(
-                    viController: nameViController,
-                    enController: nameEnController,
-                  );
-                  if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) {
+                  await ref.read(geminiServiceProvider).autoTranslateMap(nameControllers);
+                  if (nameControllers.values.every((c) => c.text.trim().isEmpty)) {
                     setDialogState(() => _isTranslating = false);
                     return;
                   }
+                  
+                  final Map<String, String> nameMap = {};
+                  nameControllers.forEach((code, controller) => nameMap[code] = controller.text.trim());
+
                   final data = {
-                    'name': {
-                      'vi': nameViController.text.trim(),
-                      'en': nameEnController.text.trim(),
-                    },
+                    'name': nameMap,
                     'min_select': int.tryParse(minController.text.trim()) ?? 0,
                     'max_select': int.tryParse(maxController.text.trim()) ?? 1,
                     'item_id': widget.menuItem['id'],
@@ -167,17 +178,24 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
   void _showModifierDialog(String groupId, {Map<String, dynamic>? modifier}) {
     final l10n = ref.read(l10nProvider);
     final nameData = modifier?['name'];
-    final nameViController = TextEditingController();
-    final nameEnController = TextEditingController();
-
-    if (nameData is Map) {
-      nameViController.text = nameData['vi']?.toString() ?? '';
-      nameEnController.text = nameData['en']?.toString() ?? '';
-    } else {
-      nameViController.text = nameData?.toString() ?? '';
+    final Map<String, TextEditingController> nameControllers = {};
+    for (var lang in L10nUtils.supportedLanguages) {
+      final code = lang['code']!;
+      String text = '';
+      if (nameData is Map) {
+        text = nameData[code]?.toString() ?? '';
+      } else if (code == 'vi') {
+        text = nameData?.toString() ?? '';
+      }
+      nameControllers[code] = TextEditingController(text: text);
     }
-
     final priceController = TextEditingController(text: modifier?['price']?.toString() ?? '0');
+
+    // Mảng cờ trạng thái dịch cho từng ngôn ngữ
+    Map<String, bool> isTranslatingMap = {};
+    for (var lang in L10nUtils.supportedLanguages) {
+      isTranslatingMap[lang['code']!] = false;
+    }
 
     showDialog(
       context: context,
@@ -187,32 +205,38 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(child: TextField(controller: nameViController, decoration: InputDecoration(labelText: '${l10n.optionNameLang} (VI)'))),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isTranslating ? null : () async {
-                      if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) return;
-                      setDialogState(() => _isTranslating = true);
-                      try {
-                        await ref.read(geminiServiceProvider).autoTranslatePair(
-                          viController: nameViController,
-                          enController: nameEnController,
-                          force: true,
-                        );
-                      } finally {
-                        setDialogState(() => _isTranslating = false);
-                      }
-                    },
-                    icon: _isTranslating 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_awesome, color: Colors.purple),
+              ...L10nUtils.supportedLanguages.map((lang) {
+                final code = lang['code']!;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: nameControllers[code],
+                          decoration: InputDecoration(labelText: '${l10n.optionNameLang} (${lang['name']})'),
+                        ),
+                      ),
+                      if (code != 'vi') ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: isTranslatingMap[code] == true ? null : () async {
+                            setDialogState(() => isTranslatingMap[code] = true);
+                            try {
+                              await ref.read(geminiServiceProvider).autoTranslateMap(nameControllers, force: true);
+                            } finally {
+                              setDialogState(() => isTranslatingMap[code] = false);
+                            }
+                          },
+                          icon: isTranslatingMap[code] == true 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.auto_awesome, color: Colors.purple),
+                        ),
+                      ]
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: nameEnController, decoration: InputDecoration(labelText: '${l10n.optionNameLang} (EN)'))),
-                ],
-              ),
+                );
+              }),
               TextField(controller: priceController, decoration: InputDecoration(labelText: l10n.extraPrice), keyboardType: TextInputType.number),
             ],
           ),
@@ -221,21 +245,19 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
             ElevatedButton(onPressed: () async {
               setDialogState(() => _isTranslating = true);
               try {
-                await ref.read(geminiServiceProvider).autoTranslatePair(
-                  viController: nameViController,
-                  enController: nameEnController,
-                );
-                if (nameViController.text.trim().isEmpty && nameEnController.text.trim().isEmpty) {
+                await ref.read(geminiServiceProvider).autoTranslateMap(nameControllers);
+                if (nameControllers.values.every((c) => c.text.trim().isEmpty)) {
                   setDialogState(() => _isTranslating = false);
                   return;
                 }
+                
+                final Map<String, String> nameMap = {};
+                nameControllers.forEach((code, controller) => nameMap[code] = controller.text.trim());
+                
                 String cleanPrice = priceController.text.trim().replaceAll('.', '').replaceAll(',', '');
                 final data = {
                   'group_id': groupId,
-                  'name': {
-                    'vi': nameViController.text.trim(),
-                    'en': nameEnController.text.trim(),
-                  },
+                  'name': nameMap,
                   'price': double.tryParse(cleanPrice) ?? 0.0,
                 };
                 if (modifier == null) {
@@ -250,7 +272,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
               } finally {
                 setDialogState(() => _isTranslating = false);
               }
-            }, child: Text(l10n.save)),
+            }, child: Text(l10n.save))
           ],
         ),
       ),
