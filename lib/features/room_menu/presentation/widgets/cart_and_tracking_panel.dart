@@ -25,6 +25,13 @@ class CartAndTrackingPanel extends ConsumerStatefulWidget {
 }
 
 class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
+  final TextEditingController _orderNoteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _orderNoteController.dispose();
+    super.dispose();
+  }
 
   Future<void> _cancelTicket(String ticketId, String orderId) async {
     final l10n = ref.read(l10nProvider);
@@ -156,7 +163,11 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     if (confirmed != true) return;
 
     try {
-      final orderRes = await supabase.from('orders').insert({'room_number': widget.roomNumber, 'status': 'PENDING'}).select('id').single();
+      final orderRes = await supabase.from('orders').insert({
+        'room_number': widget.roomNumber, 
+        'status': 'PENDING',
+        'notes': _orderNoteController.text.trim(),
+      }).select('id').single();
       final orderId = orderRes['id'];
 
       final List<Map<String, dynamic>> tickets = cart.map((c) => {
@@ -171,6 +182,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
       await supabase.from('tickets').insert(tickets);
       ref.read(cartProvider.notifier).clearCart();
+      _orderNoteController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.orderSuccess), backgroundColor: const Color(0xFF2E7D32)),
@@ -524,46 +536,63 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (context) => DishCustomizationDialog(
-                  item: item.menuItem,
-                  initialSelectedModifiers: item.selectedModifiers,
-                  initialNotes: item.notes,
-                ),
-              );
-            },
             title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue, fontSize: 13.5)),
-            subtitle: (item.selectedModifiers.isNotEmpty || item.notes.isNotEmpty)
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (item.selectedModifiers.isNotEmpty)
-                        Text(
-                          '${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}',
-                          style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedBlue),
-                        ),
-                      if (item.notes.isNotEmpty)
-                        Padding(
-                          padding: EdgeInsets.only(top: item.selectedModifiers.isNotEmpty ? 4 : 0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.edit_note_rounded, size: 13, color: Colors.amber.shade700),
-                              const SizedBox(width: 3),
-                              Expanded(
-                                child: Text(
-                                  item.notes,
-                                  style: TextStyle(fontSize: 11, color: Colors.amber.shade800, fontStyle: FontStyle.italic),
-                                ),
-                              ),
-                            ],
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.selectedModifiers.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${l10n.extra}: ${item.selectedModifiers.map((m) => L10nUtils.getL10n(m.rawModifier ?? m.modifierName, locale)).join(', ')}',
+                      style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedBlue),
+                    ),
+                  ),
+                if (item.notes.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.edit_note_rounded, size: 13, color: Colors.amber.shade700),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            item.notes,
+                            style: TextStyle(fontSize: 11, color: Colors.amber.shade800, fontStyle: FontStyle.italic),
                           ),
                         ),
-                    ],
-                  )
-                : null,
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 26,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => DishCustomizationDialog(
+                          item: item.menuItem,
+                          initialSelectedModifiers: item.selectedModifiers,
+                          initialNotes: item.notes,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.tune_rounded, size: 12),
+                    label: Text(locale == 'vi' ? 'Tùy chỉnh' : 'Customize', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: AdminTheme.primaryBlue,
+                      side: BorderSide(color: AdminTheme.primaryBlue.withValues(alpha: 0.5), width: 1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -590,6 +619,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
   }
 
   Widget _buildCheckoutSection(double total, AppDictionary l10n) {
+    final locale = ref.watch(localeProvider);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -598,6 +628,32 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       ),
       child: Column(
         children: [
+          TextField(
+            controller: _orderNoteController,
+            decoration: InputDecoration(
+              hintText: locale == 'vi' ? 'Ghi chú cho toàn bộ đơn hàng (tùy chọn)...' : 'Notes for the entire order (optional)...',
+              hintStyle: const TextStyle(fontSize: 13, color: AdminTheme.textMutedBlue),
+              prefixIcon: const Icon(Icons.edit_note_rounded, size: 18, color: AdminTheme.primaryBlue),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AdminTheme.borderBlue, width: 0.8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: AdminTheme.borderBlue.withValues(alpha: 0.5), width: 0.8),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AdminTheme.primaryBlue, width: 1.2),
+              ),
+            ),
+            maxLines: 2,
+            minLines: 1,
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

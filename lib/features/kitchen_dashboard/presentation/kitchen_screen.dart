@@ -346,6 +346,11 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               Text('${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND', style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold)),
             ]),
             if (ticket.rawTicket['selected_modifiers'] != null) Column(crossAxisAlignment: CrossAxisAlignment.start, children: (ticket.rawTicket['selected_modifiers'] as List).map((m) => Text('↳ ${L10nUtils.getL10n(m['group_name'], ref.watch(localeProvider))}: ${L10nUtils.getL10n(m['modifier_name'], ref.watch(localeProvider))}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))).toList()),
+            if (ticket.orderNotes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text('${ref.watch(localeProvider) == "vi" ? "Ghi chú đơn" : "Order Notes"}: ${ticket.orderNotes}', style: const TextStyle(color: Colors.blue, fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)),
+              ),
             if (ticket.rawTicket['notes']?.toString().isNotEmpty ?? false) Text('${l10n.notePrefix}: ${ticket.rawTicket['notes']}', style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
             Padding(padding: const EdgeInsets.only(top: 12), child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text('${l10n.totalItem}: ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), Text('${NumberFormat('#,###', 'vi_VN').format((ticket.basePrice + (ticket.rawTicket['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0))) * ticket.rawTicket['quantity'])} VND', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green))])),
             const Divider(height: 24),

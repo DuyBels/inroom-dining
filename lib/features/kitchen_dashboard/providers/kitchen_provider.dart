@@ -30,11 +30,11 @@ final activeOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((r
   return supabase.from('orders').stream(primaryKey: ['id']).neq('status', 'DELIVERED');
 });
 
-// Model đại diện cho Ticket đã tính toán Dynamic Smart Timing
 class SmartTicket {
   final Map<String, dynamic> rawTicket;
   final String itemName;
   final String roomNumber;
+  final String orderNotes;
   final int prepTime;
   final int delayMinutes;
   final double basePrice;
@@ -47,6 +47,7 @@ class SmartTicket {
     required this.rawTicket,
     required this.itemName,
     required this.roomNumber,
+    required this.orderNotes,
     required this.prepTime,
     required this.delayMinutes,
     required this.basePrice,
@@ -144,6 +145,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
       rawTicket: ticket,
       itemName: menuItem.getName(locale),
       roomNumber: order['room_number']?.toString() ?? '?',
+      orderNotes: order['notes']?.toString() ?? '',
       prepTime: menuItem.prepTime,
       delayMinutes: ticket['delay_minutes'] ?? 0,
       basePrice: menuItem.price,

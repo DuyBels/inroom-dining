@@ -202,6 +202,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
       elevation: isFullyDone ? 8 : 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: isIAmDoing ? Colors.orange : (isFullyDone ? Colors.green : Colors.grey), width: 3)),
       child: Column(children: [
         Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isFullyDone ? Colors.green[100] : Colors.grey[200], borderRadius: const BorderRadius.vertical(top: Radius.circular(16))), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.room.toUpperCase()} ${order['room_number']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text(isFullyDone ? l10n.ready : l10n.cooking.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isFullyDone ? Colors.green[800] : Colors.orange))])),
+        if (order['notes'] != null && order['notes'].toString().isNotEmpty)
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('${locale == "vi" ? "Ghi chú đơn" : "Order Notes"}: ${order['notes']}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.blue, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic))),
         Expanded(child: ListView.separated(padding: const EdgeInsets.symmetric(vertical: 8), itemCount: tickets.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (context, idx) {
           final t = tickets[idx];
           final menuItem = menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {'vi': '...'}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false));
