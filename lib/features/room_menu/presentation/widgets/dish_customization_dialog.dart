@@ -112,28 +112,41 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                 Flexible(
                   child: modifiersAsync.when(
                     data: (groups) {
-                      if (groups.isEmpty) {
-                        return Padding(
-                          padding: const EdgeInsets.all(30),
-                          child: Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood))),
-                        );
-                      }
                       return SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ...groups.map((group) => _buildModifierGroup(group, l10n, locale)),
-                            const SizedBox(height: 12),
-                            Text(l10n.specialNotes, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AdminTheme.textDarkWood)),
+                            if (groups.isNotEmpty) ...[
+                              ...groups.map((group) => _buildModifierGroup(group, l10n, locale)),
+                              const SizedBox(height: 12),
+                            ],
+                            Row(
+                              children: [
+                                const Icon(Icons.edit_note_rounded, size: 18, color: AdminTheme.primaryWood),
+                                const SizedBox(width: 6),
+                                Text(
+                                  l10n.specialNotes,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AdminTheme.textDarkWood),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _noteController,
+                              maxLines: 2,
                               decoration: InputDecoration(
                                 hintText: l10n.specialInstructions,
                                 filled: true,
                                 fillColor: AdminTheme.bgWarmWhite,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminTheme.borderWood)),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AdminTheme.borderWood),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: AdminTheme.primaryWood, width: 1.5),
+                                ),
                               ),
                             ),
                           ],

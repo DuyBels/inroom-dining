@@ -83,7 +83,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
   }
 
   for (var ticket in allTickets) {
-    if (ticket['status'] == 'DONE' || ticket['status'] == 'REMAKED') continue;
+    if (ticket['status'] == 'DONE' || ticket['status'] == 'REMAKED' || ticket['status'] == 'CANCELLED') continue;
     
     final String orderId = ticket['order_id'].toString();
     final bool isStarted = orderHasStarted[orderId] ?? false;
@@ -118,7 +118,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
   List<SmartTicket> mySmartTickets = [];
 
   for (var ticket in allTickets) {
-    if (ticket['station_id'] != myStationId || ticket['status'] == 'DONE' || ticket['status'] == 'REMAKED') continue;
+    if (ticket['station_id'] != myStationId || ticket['status'] == 'DONE' || ticket['status'] == 'REMAKED' || ticket['status'] == 'CANCELLED') continue;
 
     final orderId = ticket['order_id'];
     if (!orderTargetFinishTimes.containsKey(orderId)) continue;

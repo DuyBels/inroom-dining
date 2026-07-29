@@ -70,6 +70,7 @@ class AppDictionary {
   final String close;
   final String confirm;
   final String cancel;
+  final String cancelledStatus;
   final String orderSuccess;
   final String enjoyMeal;
   final String kitchenTitle;
@@ -376,6 +377,7 @@ class AppDictionary {
     required this.close,
     required this.confirm,
     required this.cancel,
+    required this.cancelledStatus,
     required this.orderSuccess,
     required this.enjoyMeal,
     required this.kitchenTitle,
@@ -632,7 +634,7 @@ final viDict = AppDictionary(
   warm: "Ấm nóng",
   estimatedFinish: "Dự kiến hoàn thành sau khoảng",
   includeDelivery: "Bao gồm thời gian nấu & 5 phút giao hàng",
-  specialNotes: "GHI CHÚ ĐẶC BIỆT",
+  specialNotes: "GHI CHÚ",
   requiredLabel: "BẮT BUỘC",
   selectQuantity: "Chọn lựa chọn",
   selectFullLabel: "VUI LÒNG CHỌN ĐỦ",
@@ -657,6 +659,7 @@ final viDict = AppDictionary(
   close: "ĐÓNG",
   confirm: "XÁC NHẬN",
   cancel: "HỦY",
+  cancelledStatus: "Đã hủy",
   orderSuccess: "Đặt món thành công!",
   enjoyMeal: "Chúc ngon miệng! Đơn hàng đã được giao.",
   kitchenTitle: "BẾP",
@@ -912,7 +915,7 @@ final enDict = AppDictionary(
   warm: "Warm",
   estimatedFinish: "Estimated completion in about",
   includeDelivery: "Includes prep time & 5 mins delivery",
-  specialNotes: "SPECIAL NOTES",
+  specialNotes: "NOTES",
   requiredLabel: "REQUIRED",
   selectQuantity: "Select options",
   selectFullLabel: "PLEASE SELECT ALL",
@@ -937,6 +940,7 @@ final enDict = AppDictionary(
   close: "CLOSE",
   confirm: "CONFIRM",
   cancel: "CANCEL",
+  cancelledStatus: "Cancelled",
   orderSuccess: "Order placed successfully!",
   enjoyMeal: "Enjoy your meal! Order has been delivered.",
   kitchenTitle: "KITCHEN",

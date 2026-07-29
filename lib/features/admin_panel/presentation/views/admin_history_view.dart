@@ -283,7 +283,7 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
       case 'DELIVERED':
         return l10n.done;
       case 'CANCELLED':
-        return l10n.cancel;
+        return l10n.cancelledStatus;
       default:
         return status ?? '--';
     }
@@ -299,6 +299,8 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
         return l10n.done;
       case 'REMAKED':
         return l10n.remakeLabel;
+      case 'CANCELLED':
+        return l10n.cancelledStatus;
       default:
         return status ?? '--';
     }

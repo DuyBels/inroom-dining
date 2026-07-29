@@ -9,6 +9,7 @@ import '../../../../main.dart';
 import '../../../admin_panel/providers/menu_provider.dart';
 import '../../providers/room_menu_provider.dart';
 import '../../../waiter_app/providers/room_service_provider.dart';
+import 'dish_customization_dialog.dart';
 
 class CartAndTrackingPanel extends ConsumerStatefulWidget {
   final String roomNumber;
@@ -24,6 +25,61 @@ class CartAndTrackingPanel extends ConsumerStatefulWidget {
 }
 
 class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
+
+  Future<void> _cancelTicket(String ticketId, String orderId) async {
+    final l10n = ref.read(l10nProvider);
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminTheme.surfaceWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.cancel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
+        content: const Text('Bạn có chắc muốn hủy món này không?', style: TextStyle(color: AdminTheme.textDarkWood)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Không', style: TextStyle(color: AdminTheme.textMutedWood)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.cancel),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await supabase.from('tickets').update({'status': 'CANCELLED'}).eq('id', ticketId);
+      
+      // Kiểm tra xem tất cả các món trong đơn đã bị hủy chưa
+      final res = await supabase.from('tickets').select('status').eq('order_id', orderId);
+      final List tickets = res;
+      final bool allCancelled = tickets.isNotEmpty && tickets.every((t) => t['status'] == 'CANCELLED');
+      
+      if (allCancelled) {
+        await supabase.from('orders').update({'status': 'CANCELLED'}).eq('id', orderId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hủy món thành công'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   Future<void> _submitOrderWithConfirmation() async {
     final l10n = ref.read(l10nProvider);
@@ -319,6 +375,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       case 'PROCESSING': return l10n.orderPreparing;
       case 'READY_FOR_DELIVERY': return l10n.orderDelivering;
       case 'DELIVERED': return l10n.done;
+      case 'CANCELLED': return l10n.cancelledStatus;
       default: return status;
     }
   }
@@ -329,6 +386,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
       case 'COOKING': return l10n.cooking;
       case 'DONE': return l10n.done;
       case 'REMAKED': return l10n.remakeLabel;
+      case 'CANCELLED': return l10n.cancelledStatus;
       default: return status;
     }
   }
@@ -342,7 +400,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     final roomOrdersAsync = ref.watch(roomOrdersStreamProvider(widget.roomNumber));
     final roomServicesAsync = ref.watch(roomServicesByRoomStreamProvider(widget.roomNumber));
     final menuAsync = ref.watch(menuItemsStreamProvider);
-    final activeOrders = (roomOrdersAsync.value ?? []).where((o) => o['status'] != 'DELIVERED').toList();
+    final activeOrders = (roomOrdersAsync.value ?? []).where((o) => o['status'] != 'DELIVERED' && o['status'] != 'CANCELLED').toList();
 
     return Container(
       width: widget.isMobile ? double.infinity : 480,
@@ -466,6 +524,16 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => DishCustomizationDialog(
+                  item: item.menuItem,
+                  initialSelectedModifiers: item.selectedModifiers,
+                  initialNotes: item.notes,
+                ),
+              );
+            },
             title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue, fontSize: 13.5)),
             subtitle: (item.selectedModifiers.isNotEmpty || item.notes.isNotEmpty)
                 ? Column(
@@ -597,7 +665,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
   Widget _buildOrderTracker(Map<String, dynamic> order, List<Map<String, dynamic>> tickets, List<MenuItemModel> menuItems, AppDictionary l10n, {bool isRemakeOrder = false}) {
     final locale = ref.watch(localeProvider);
     // Tính trạng thái 4 bước: 0=Pending, 1=Cooking, 2=Done, 3=Delivering
-    final activeTickets = tickets.where((t) => t['status'] != 'REMAKED').toList();
+    final activeTickets = tickets.where((t) => t['status'] != 'REMAKED' && t['status'] != 'CANCELLED').toList();
     final bool allDone = activeTickets.isNotEmpty && activeTickets.every((t) => t['status'] == 'DONE');
     final bool anyCooking = tickets.any((t) => t['status'] == 'COOKING');
     final bool isDelivering = order['delivery_waiter_id'] != null;
@@ -689,30 +757,49 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false),
             );
             final bool isRemaked = t['status'] == 'REMAKED';
+            final bool isCancelled = t['status'] == 'CANCELLED';
+            final bool isPending = t['status'] == 'PENDING';
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
               child: Row(
                 children: [
                   Icon(
-                    isRemaked ? Icons.replay : (t['status'] == 'DONE' ? Icons.check_circle : (t['status'] == 'COOKING' ? Icons.restaurant : Icons.radio_button_unchecked)),
+                    isCancelled ? Icons.cancel : (isRemaked ? Icons.replay : (t['status'] == 'DONE' ? Icons.check_circle : (t['status'] == 'COOKING' ? Icons.restaurant : Icons.radio_button_unchecked))),
                     size: 16,
-                    color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedBlue)),
+                    color: isCancelled ? Colors.red : (isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedBlue))),
                   ),
                   const SizedBox(width: 8),
                   Expanded(child: Text(
                     '${t['quantity']}x ${item.getName(locale)}',
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: isRemaked ? Colors.grey : AdminTheme.textDarkBlue,
-                      decoration: isRemaked ? TextDecoration.lineThrough : null,
+                      color: (isRemaked || isCancelled) ? Colors.grey : AdminTheme.textDarkBlue,
+                      decoration: (isRemaked || isCancelled) ? TextDecoration.lineThrough : null,
                     ),
                   )),
+                  if (isPending)
+                    InkWell(
+                      onTap: () => _cancelTicket(t['id'].toString(), t['order_id'].toString()),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Text(
+                          l10n.cancel,
+                          style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
                   Text(
                     _translateTicketStatus(t['status'], l10n),
                     style: TextStyle(
                       fontSize: 11,
-                      color: isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedBlue)),
-                      fontWeight: (isRemaked || t['status'] == 'DONE') ? FontWeight.bold : FontWeight.normal,
+                      color: isCancelled ? Colors.red : (isRemaked ? Colors.deepOrange : (t['status'] == 'DONE' ? const Color(0xFF2E7D32) : (t['status'] == 'COOKING' ? Colors.orange : AdminTheme.textMutedBlue))),
+                      fontWeight: (isRemaked || isCancelled || t['status'] == 'DONE') ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ],

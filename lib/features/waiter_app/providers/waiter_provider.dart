@@ -37,21 +37,26 @@ final waiterOrdersProvider = Provider<List<WaiterOrderModel>>((ref) {
 
   if (ordersAsync.value == null || ticketsAsync.value == null) return [];
 
-  // Đơn hàng chỉ hiển thị khi chưa hoàn tất giao (DELIVERED)
-  final orders = ordersAsync.value!.where((o) => o['status'] != 'DELIVERED').toList();
+  // Đơn hàng chỉ hiển thị khi chưa hoàn tất giao (DELIVERED) và không bị hủy
+  final orders = ordersAsync.value!.where((o) => o['status'] != 'DELIVERED' && o['status'] != 'CANCELLED').toList();
   final tickets = ticketsAsync.value!;
 
-  return orders.map((order) {
-    // Lọc ra các vé thuộc về đơn hàng này
-    final orderTickets = tickets.where((t) => t['order_id'] == order['id']).toList();
+  final List<WaiterOrderModel> result = [];
+  for (var order in orders) {
+    // Lọc ra các vé thuộc về đơn hàng này và BỎ QUA các vé đã hủy
+    final orderTickets = tickets.where((t) => t['order_id'] == order['id'] && t['status'] != 'CANCELLED').toList();
+
+    // Bỏ qua nếu đơn hàng không có món nào (đã bị khách hủy hết)
+    if (orderTickets.isEmpty) continue;
 
     // Kiểm tra: tất cả các món đều DONE hoặc REMAKED (đã được tách sang bill khác)
-    final isFullyDone = orderTickets.isNotEmpty && orderTickets.every((t) => t['status'] == 'DONE' || t['status'] == 'REMAKED');
+    final isFullyDone = orderTickets.every((t) => t['status'] == 'DONE' || t['status'] == 'REMAKED');
 
-    return WaiterOrderModel(
+    result.add(WaiterOrderModel(
       order: order,
       tickets: orderTickets,
       isFullyDone: isFullyDone,
-    );
-  }).toList();
+    ));
+  }
+  return result;
 });
