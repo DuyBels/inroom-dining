@@ -135,7 +135,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             l10n.menuTab,
             l10n.tagsTab,
             l10n.adminHistoryTab,
-            ref.watch(localeProvider) == 'vi' ? 'In Bill' : 'Print Bill',
+            ref.watch(localeProvider) == 'vi' ? 'In hóa đơn' : 'Print Bill',
           ];
 
           final tabIcons = const [
