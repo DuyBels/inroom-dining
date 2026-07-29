@@ -8,6 +8,9 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/widgets/language_selector.dart';
 import '../../../main.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/services/print_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/menu_provider.dart';
 
 // Import các giao diện tính năng con
 import 'views/account_management_view.dart';
@@ -16,7 +19,7 @@ import 'views/category_management_view.dart';
 import 'views/menu_management_view.dart';
 import 'views/tag_management_view.dart';
 import 'views/admin_history_view.dart';
-import 'views/qr_generator_view.dart';
+import 'views/print_bill_view.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   final String? adminId;
@@ -30,6 +33,54 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   // Trạng thái lưu tab đang được chọn (Mặc định là 0 - Quản lý tài khoản)
   int _selectedIndex = 0;
+  RealtimeChannel? _printChannel;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAutoPrintListener();
+  }
+
+  void _setupAutoPrintListener() {
+    print("DEBUG: Setting up Auto Print Listener for Admin...");
+    _printChannel = supabase.channel('public:orders').onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'orders',
+      callback: (payload) async {
+        print("DEBUG: Received new order event! Payload: ${payload.newRecord}");
+        final newOrder = payload.newRecord;
+        if (newOrder['status'] == 'PENDING') {
+          print("DEBUG: Order is PENDING. Waiting 1.5s for tickets...");
+          // Đợi một chút để tickets kịp insert vào database
+          await Future.delayed(const Duration(milliseconds: 1500));
+          final ticketsRes = await supabase.from('tickets').select('*, menu_items(*)').eq('order_id', newOrder['id']);
+          print("DEBUG: Fetched ${ticketsRes.length} tickets for printing.");
+          
+          final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
+          
+          try {
+             print("DEBUG: Triggering PrintService...");
+             await PrintService.printOrderBill(
+               order: newOrder,
+               tickets: ticketsRes,
+               menuItems: menuItems,
+             );
+          } catch (e) {
+             print("Lỗi in bill: $e");
+          }
+        }
+      },
+    ).subscribe((status, [error]) {
+       print("DEBUG: Realtime print channel status: $status");
+    });
+  }
+
+  @override
+  void dispose() {
+    _printChannel?.unsubscribe();
+    super.dispose();
+  }
 
   // Danh sách các màn hình tính năng tương ứng với các mục ở thanh Menu
   final List<Widget> _views = const [
@@ -39,7 +90,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     MenuManagementView(),
     TagManagementView(),
     AdminHistoryView(),
-    QrGeneratorView(),
+    PrintBillView(),
   ];
 
   @override
@@ -83,7 +134,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             l10n.menuTab,
             l10n.tagsTab,
             l10n.adminHistoryTab,
-            l10n.qrCodeTab,
+            ref.watch(localeProvider) == 'vi' ? 'In Bill' : 'Print Bill',
           ];
 
           final tabIcons = const [
@@ -93,7 +144,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             Icons.restaurant_menu_outlined,
             Icons.local_offer_outlined,
             Icons.history_outlined,
-            Icons.qr_code_2_outlined,
+            Icons.print_outlined,
           ];
 
           final selectedTabIcons = const [
@@ -103,7 +154,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             Icons.restaurant_menu,
             Icons.local_offer,
             Icons.history,
-            Icons.qr_code_2,
+            Icons.print,
           ];
 
           return Scaffold(

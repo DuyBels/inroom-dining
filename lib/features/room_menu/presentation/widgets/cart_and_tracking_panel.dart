@@ -293,7 +293,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
 
     final ordersFuture = supabase
         .from('orders')
-        .select('*, tickets(quantity, menu_items(name))')
+        .select('*, tickets(quantity, notes, selected_modifiers, status, menu_items(name, price))')
         .eq('room_number', widget.roomNumber)
         .order('created_at', ascending: false)
         .limit(20);
@@ -328,6 +328,17 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                   final date = DateTime.parse(o['created_at']).toLocal();
                   final List tickets = o['tickets'] ?? [];
 
+                  double orderTotal = 0;
+                  for (var t in tickets) {
+                    final double basePrice = double.tryParse(t['menu_items']?['price']?.toString() ?? '0') ?? 0.0;
+                    final List mods = t['selected_modifiers'] as List? ?? [];
+                    double modPrice = 0;
+                    for (var m in mods) {
+                      modPrice += double.tryParse(m['price']?.toString() ?? '0') ?? 0.0;
+                    }
+                    orderTotal += (basePrice + modPrice) * (t['quantity'] as int? ?? 1);
+                  }
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -339,14 +350,62 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
                         ],
                       ),
                       const SizedBox(height: 2),
-                      Text('${l10n.atTime}: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)}', style: const TextStyle(fontSize: 12, color: AdminTheme.textMutedWood)),
-                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('${l10n.atTime}: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)}', style: const TextStyle(fontSize: 12, color: AdminTheme.textMutedWood)),
+                          Text('${NumberFormat('#,###', 'vi_VN').format(orderTotal)} VND', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AdminTheme.accentAmber)),
+                        ],
+                      ),
+                      if (o['notes'] != null && o['notes'].toString().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('${locale == "vi" ? "Ghi chú đơn" : "Order Notes"}: ${o['notes']}', style: const TextStyle(fontSize: 13, color: AdminTheme.primaryBlue, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+                        ),
+                      const SizedBox(height: 8),
                       ...tickets.map((t) {
                         final dynamic rawName = t['menu_items'] != null ? t['menu_items']['name'] : l10n.menuItemFallback;
                         final String itemName = L10nUtils.getL10n(rawName, locale);
+                        
+                        final double basePrice = double.tryParse(t['menu_items']?['price']?.toString() ?? '0') ?? 0.0;
+                        final List mods = t['selected_modifiers'] as List? ?? [];
+                        double modPrice = 0;
+                        for (var m in mods) {
+                           modPrice += double.tryParse(m['price']?.toString() ?? '0') ?? 0.0;
+                        }
+                        final double totalItemPrice = (basePrice + modPrice) * (t['quantity'] as int? ?? 1);
+                        final String statusStr = _translateTicketStatus(t['status']?.toString() ?? 'PENDING', l10n);
+
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 3),
-                          child: Text('• ${t['quantity']}x $itemName', style: const TextStyle(fontSize: 13, color: AdminTheme.textDarkWood)),
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text('• ${t['quantity']}x $itemName', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood)),
+                                  ),
+                                  Text('${NumberFormat('#,###', 'vi_VN').format(totalItemPrice)} VND', style: const TextStyle(fontSize: 13, color: AdminTheme.textDarkWood)),
+                                ],
+                              ),
+                              if (mods.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12, top: 2),
+                                  child: Text('${l10n.extra}: ${mods.map((m) => L10nUtils.getL10n(m['modifier_name'] ?? m['rawModifier'], locale)).join(", ")}', style: const TextStyle(fontSize: 12, color: AdminTheme.textMutedWood)),
+                                ),
+                              if (t['notes'] != null && t['notes'].toString().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12, top: 2),
+                                  child: Text('${l10n.notePrefix}: ${t['notes']}', style: TextStyle(fontSize: 12, color: Colors.amber.shade700, fontStyle: FontStyle.italic)),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 12, top: 2),
+                                child: Text('${l10n.statusLabel}: $statusStr', style: const TextStyle(fontSize: 11, color: AdminTheme.textMutedWood)),
+                              ),
+                            ],
+                          ),
                         );
                       }),
                     ],
