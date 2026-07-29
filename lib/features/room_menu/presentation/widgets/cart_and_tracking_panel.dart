@@ -33,6 +33,60 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     super.dispose();
   }
 
+  Future<void> _cancelService(String serviceId) async {
+    final l10n = ref.read(l10nProvider);
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminTheme.surfaceWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.cancel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood)),
+        content: Text(
+          ref.read(localeProvider) == 'vi' 
+            ? 'Bạn có chắc muốn hủy yêu cầu này không?' 
+            : 'Are you sure you want to cancel this request?', 
+          style: const TextStyle(color: AdminTheme.textDarkWood)
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ref.read(localeProvider) == 'vi' ? 'Không' : 'No', style: const TextStyle(color: AdminTheme.textMutedWood)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.cancel),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await supabase.from('room_services').delete().eq('id', serviceId);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ref.read(localeProvider) == 'vi' ? 'Đã hủy yêu cầu' : 'Request cancelled'), 
+            backgroundColor: Colors.green
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _cancelTicket(String ticketId, String orderId) async {
     final l10n = ref.read(l10nProvider);
     bool? confirmed = await showDialog<bool>(
@@ -180,6 +234,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         'item_id': c.menuItem.id,
         'station_id': c.menuItem.stationId,
         'quantity': c.quantity,
+        'unit_price': c.singlePrice,
         'notes': c.notes,
         'selected_modifiers': c.selectedModifiers.map((m) => m.toJson()).toList(),
         'status': 'PENDING',
@@ -965,7 +1020,31 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               ],
             ),
           ),
-          if (!isPending) const Icon(Icons.sync, size: 18, color: AdminTheme.primaryBlue),
+          if (isPending)
+            GestureDetector(
+              onTap: () => _cancelService(s['id'].toString()),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.close, size: 14, color: Colors.red),
+                    const SizedBox(width: 4),
+                    Text(
+                      l10n.cancel,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else 
+            const Icon(Icons.sync, size: 18, color: AdminTheme.primaryBlue),
         ],
       ),
     );

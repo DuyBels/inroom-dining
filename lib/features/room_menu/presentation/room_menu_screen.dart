@@ -159,15 +159,6 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
           ),
           actions: [
             const LanguageSelector(),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              tooltip: 'Đăng xuất',
-              onPressed: () async {
-                await supabase.auth.signOut();
-                if (context.mounted) context.go('/login');
-              },
-            ),
             const SizedBox(width: 12),
           ],
         ),

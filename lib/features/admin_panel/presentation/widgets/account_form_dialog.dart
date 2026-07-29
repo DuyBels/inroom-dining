@@ -76,14 +76,6 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
           throw Exception(response.data['error'] ?? l10n.serverError);
         }
 
-        // SAU KHI TẠO AUTH THÀNH CÔNG, CẬP NHẬT THÊM EMAIL/PASS VÀO PROFILE ĐỂ ADMIN XEM
-        final newUserId = response.data['user_id'];
-        if (newUserId != null) {
-          await supabase.from('profiles').update({
-            'login_email': _emailController.text.trim(),
-            'login_password': _passwordController.text.trim(),
-          }).eq('id', newUserId);
-        }
 
       } else {
         // LUỒNG 2: CẬP NHẬT

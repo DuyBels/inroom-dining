@@ -123,6 +123,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
         'item_id': raw['item_id'],
         'station_id': raw['station_id'],
         'quantity': raw['quantity'],
+        'unit_price': 0, // Món làm lại không tính thêm tiền
         'notes': raw['notes'],
         'selected_modifiers': raw['selected_modifiers'],
         'status': 'PENDING',

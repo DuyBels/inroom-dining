@@ -198,13 +198,20 @@ final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, St
 
 final itemModifiersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, menuItemId) async {
   try {
-    final groupsData = await supabase
-        .from('modifier_groups')
-        .select('*, modifiers(*)')
-        .eq('item_id', menuItemId)
-        .order('created_at', ascending: true);
+    final res = await supabase
+        .from('item_modifier_groups')
+        .select('modifier_groups(*, modifiers(*))')
+        .eq('item_id', menuItemId);
         
-    return List<Map<String, dynamic>>.from(groupsData);
+    final List<Map<String, dynamic>> groups = [];
+    for (var row in res) {
+      if (row['modifier_groups'] != null) {
+        groups.add(Map<String, dynamic>.from(row['modifier_groups']));
+      }
+    }
+    
+    groups.sort((a, b) => (a['created_at']?.toString() ?? '').compareTo(b['created_at']?.toString() ?? ''));
+    return groups;
   } catch (e) {
     return [];
   }

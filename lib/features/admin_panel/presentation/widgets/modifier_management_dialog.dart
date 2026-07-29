@@ -29,12 +29,20 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
     setState(() => _isLoading = true);
     try {
       final res = await supabase
-          .from('modifier_groups')
-          .select('*, modifiers(*)')
-          .eq('item_id', widget.menuItem['id'])
-          .order('created_at', ascending: true);
+          .from('item_modifier_groups')
+          .select('modifier_groups(*, modifiers(*))')
+          .eq('item_id', widget.menuItem['id']);
       
-      setState(() => _groups = List<Map<String, dynamic>>.from(res));
+      final List<Map<String, dynamic>> groups = [];
+      for (var row in res) {
+        if (row['modifier_groups'] != null) {
+          groups.add(Map<String, dynamic>.from(row['modifier_groups']));
+        }
+      }
+      
+      groups.sort((a, b) => (a['created_at']?.toString() ?? '').compareTo(b['created_at']?.toString() ?? ''));
+      
+      setState(() => _groups = groups);
     } catch (e) {
       debugPrint('Lỗi tải dữ liệu: $e');
     } finally {
@@ -50,6 +58,75 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
   }
 
   // --- QUẢN LÝ NHÓM (GROUP) ---
+  Future<void> _showSelectExistingGroupDialog() async {
+    final l10n = ref.read(l10nProvider);
+    final locale = ref.read(localeProvider);
+    
+    setState(() => _isLoading = true);
+    List<Map<String, dynamic>> allGroups = [];
+    try {
+      final res = await supabase.from('modifier_groups').select('*, modifiers(*)').order('created_at');
+      allGroups = List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      _showError('Lỗi tải danh sách: $e');
+      setState(() => _isLoading = false);
+      return;
+    }
+    setState(() => _isLoading = false);
+
+    final attachedGroupIds = _groups.map((g) => g['id']).toSet();
+    final availableGroups = allGroups.where((g) => !attachedGroupIds.contains(g['id'])).toList();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Chọn nhóm tùy chỉnh có sẵn'),
+        content: SizedBox(
+          width: 500,
+          height: 400,
+          child: availableGroups.isEmpty
+              ? const Center(child: Text('Không có nhóm nào khác để thêm.'))
+              : ListView.builder(
+                  itemCount: availableGroups.length,
+                  itemBuilder: (ctx, i) {
+                    final group = availableGroups[i];
+                    final groupName = L10nUtils.getL10n(group['name'], locale);
+                    final modCount = (group['modifiers'] as List?)?.length ?? 0;
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Bắt buộc: ${group['min_select'] > 0 ? "Có" : "Không"} - Tối đa: ${group['max_select']} | $modCount tùy chọn'),
+                        trailing: ElevatedButton(
+                          child: const Text('Thêm'),
+                          onPressed: () async {
+                            try {
+                              await supabase.from('item_modifier_groups').insert({
+                                'item_id': widget.menuItem['id'],
+                                'modifier_group_id': group['id'],
+                              });
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              _fetchData();
+                            } catch (e) {
+                              _showError('Lỗi khi thêm: $e');
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel))
+        ],
+      ),
+    );
+  }
+
   void _showGroupDialog({Map<String, dynamic>? group}) {
     final l10n = ref.read(l10nProvider);
     final nameData = group?['name'];
@@ -136,11 +213,14 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
                     'name': nameMap,
                     'min_select': int.tryParse(minController.text.trim()) ?? 0,
                     'max_select': int.tryParse(maxController.text.trim()) ?? 1,
-                    'item_id': widget.menuItem['id'],
                   };
 
                   if (group == null) {
-                    await supabase.from('modifier_groups').insert(data);
+                    final insertedGroup = await supabase.from('modifier_groups').insert(data).select().single();
+                    await supabase.from('item_modifier_groups').insert({
+                      'item_id': widget.menuItem['id'],
+                      'modifier_group_id': insertedGroup['id'],
+                    });
                   } else {
                     await supabase.from('modifier_groups').update(data).eq('id', group['id']);
                   }
@@ -163,10 +243,13 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
 
   Future<void> _deleteGroup(String groupId) async {
     final l10n = ref.read(l10nProvider);
-    final confirmed = await _showConfirm(l10n.deleteGroupTitle, l10n.deleteGroupConfirm);
+    final confirmed = await _showConfirm('Gỡ nhóm khỏi món này', 'Bạn có chắc muốn gỡ nhóm tùy chỉnh này khỏi món ăn hiện tại? (Nhóm này vẫn sẽ nằm trong hệ thống và có thể dùng cho các món khác)');
     if (confirmed == true) {
       try {
-        await supabase.from('modifier_groups').delete().eq('id', groupId);
+        await supabase.from('item_modifier_groups').delete().match({
+          'item_id': widget.menuItem['id'],
+          'modifier_group_id': groupId,
+        });
         _fetchData();
       } catch (e) {
         _showError('${l10n.errorDeleteGroup}: $e');
@@ -308,9 +391,14 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
 
     return AlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(child: Text('${l10n.customization}: $itemName', overflow: TextOverflow.ellipsis)),
+          OutlinedButton.icon(
+            onPressed: () => _showSelectExistingGroupDialog(), 
+            icon: const Icon(Icons.list), 
+            label: const Text('Chọn nhóm có sẵn')
+          ),
+          const SizedBox(width: 12),
           ElevatedButton.icon(
             onPressed: () => _showGroupDialog(), 
             icon: const Icon(Icons.add), 

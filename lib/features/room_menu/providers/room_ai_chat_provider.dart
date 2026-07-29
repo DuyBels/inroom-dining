@@ -74,7 +74,7 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
     try {
       final categoriesData = List<dynamic>.from(await supabase.from('categories').select());
       final menuItemsData = List<dynamic>.from(await supabase.from('menu_items').select());
-      final modifierGroupsData = List<dynamic>.from(await supabase.from('modifier_groups').select('*, modifiers(*)'));
+      final modifierGroupsData = List<dynamic>.from(await supabase.from('item_modifier_groups').select('item_id, modifier_groups(*, modifiers(*))'));
       final itemTagsData = List<dynamic>.from(await supabase.from('item_tags').select('item_id, tags(*)'));
 
       // Map item_id -> danh sách tag names
@@ -90,9 +90,10 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
 
       // Map item_id -> danh sách modifier groups
       Map<String, List<dynamic>> itemModifiersMap = {};
-      for (var group in modifierGroupsData) {
-        final itemId = group['item_id']?.toString();
-        if (itemId != null) {
+      for (var row in modifierGroupsData) {
+        final itemId = row['item_id']?.toString();
+        final group = row['modifier_groups'];
+        if (itemId != null && group != null) {
           itemModifiersMap.putIfAbsent(itemId, () => []).add(group);
         }
       }
@@ -364,10 +365,11 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
     if (modIds.isEmpty) return [];
     List<SelectedModifier> mods = [];
     try {
-      final groups = await supabase
-          .from('modifier_groups')
-          .select('*, modifiers(*)')
+      final res = await supabase
+          .from('item_modifier_groups')
+          .select('modifier_groups(*, modifiers(*))')
           .eq('item_id', itemId);
+      final groups = res.map((e) => e['modifier_groups']).toList();
 
       for (var g in groups) {
         final gName = L10nUtils.getL10n(L10nUtils.decodeField(g['name']), locale);
@@ -487,10 +489,11 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
   Future<List<SelectedModifier>> _findModifiersInText(String itemId, String combinedText, String locale) async {
     List<SelectedModifier> mods = [];
     try {
-      final groups = await supabase
-          .from('modifier_groups')
-          .select('*, modifiers(*)')
+      final res = await supabase
+          .from('item_modifier_groups')
+          .select('modifier_groups(*, modifiers(*))')
           .eq('item_id', itemId);
+      final groups = res.map((e) => e['modifier_groups']).toList();
 
       for (var g in groups) {
         final gName = L10nUtils.getL10n(L10nUtils.decodeField(g['name']), locale);
