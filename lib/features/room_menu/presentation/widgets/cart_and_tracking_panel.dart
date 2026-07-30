@@ -909,7 +909,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
           _MinimalistTracker(currentStep: currentStep, l10n: l10n),
           const SizedBox(height: 12),
           // Estimated time
-          if (currentStep < 2)
+          if (currentStep == 1)
             Container(
               padding: const EdgeInsets.all(10),
               width: double.infinity,
