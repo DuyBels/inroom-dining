@@ -59,8 +59,8 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       } catch (e) {
         // Lỗi lấy profile -> Bắt đăng nhập lại
-        await supabase.auth.signOut();
         if (mounted) context.go('/login');
+        supabase.auth.signOut();
       }
     }
   }

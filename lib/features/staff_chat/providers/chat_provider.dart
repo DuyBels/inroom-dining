@@ -10,7 +10,7 @@ final staffMessagesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((
       .limit(50);
 });
 
-final hasUnreadMessagesProvider = Provider<bool>((ref) {
+final hasUnreadMessagesProvider = Provider.autoDispose<bool>((ref) {
   final messagesAsync = ref.watch(staffMessagesStreamProvider);
   final myId = ref.watch(currentUserProvider)?.id;
   
@@ -22,7 +22,7 @@ final hasUnreadMessagesProvider = Provider<bool>((ref) {
   });
 });
 
-final chatActionsProvider = Provider((ref) {
+final chatActionsProvider = Provider.autoDispose((ref) {
   return ChatActions(ref);
 });
 

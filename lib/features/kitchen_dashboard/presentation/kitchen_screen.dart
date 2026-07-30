@@ -2,6 +2,7 @@ import 'dart:async';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/utils/l10n_utils.dart';
 import '../../../core/models/menu_item_model.dart';
+import '../../../core/theme/kitchen_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,7 @@ class KitchenScreen extends ConsumerStatefulWidget {
 class _KitchenScreenState extends ConsumerState<KitchenScreen> {
   Timer? _timer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  int _selectedColumnIndex = 0; // 0: Pending, 1: Cooking (cho mobile NavigationRail)
 
   @override
   void initState() {
@@ -65,28 +67,35 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Row(children: [
-          const Icon(Icons.replay, color: Colors.deepOrange),
-          const SizedBox(width: 10),
-          Text(l10n.remakeTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: KitchenTheme.cookingOrange.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.replay, color: KitchenTheme.cookingOrange),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(l10n.remakeTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20))),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.remakeSelectReason, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 12),
+            Text(l10n.remakeSelectReason, style: const TextStyle(fontSize: 16, color: KitchenTheme.textMutedOrange)),
+            const SizedBox(height: 16),
             ...reasons.map((reason) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 10),
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    side: const BorderSide(color: Colors.deepOrange),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                    side: const BorderSide(color: KitchenTheme.cookingOrange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   onPressed: () => Navigator.pop(ctx, reason),
-                  child: Text(reason, style: const TextStyle(fontSize: 16, color: Colors.deepOrange)),
+                  child: Text(reason, style: const TextStyle(fontSize: 15, color: KitchenTheme.cookingOrange, fontWeight: FontWeight.w600)),
                 ),
               ),
             )),
@@ -142,7 +151,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
               const SizedBox(width: 8),
               Text(l10n.remakeSuccess),
             ]),
-            backgroundColor: Colors.green,
+            backgroundColor: KitchenTheme.doneGreen,
           ),
         );
       }
@@ -177,7 +186,18 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(children: [const Icon(Icons.history, color: Colors.green), const SizedBox(width: 10), Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.bold))]),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: KitchenTheme.doneGreen.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.history, color: KitchenTheme.doneGreen),
+          ),
+          const SizedBox(width: 12),
+          Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ]),
         content: SizedBox(
           width: 600, height: 500,
           child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -185,17 +205,24 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               final data = snapshot.data ?? [];
-              if (data.isEmpty) return Center(child: Text(l10n.noOptions));
+              if (data.isEmpty) return Center(child: Text(l10n.noOptions, style: const TextStyle(color: KitchenTheme.textMutedOrange)));
               return ListView.separated(
-                itemCount: data.length, separatorBuilder: (_, __) => const Divider(),
+                itemCount: data.length, separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, idx) {
                   final t = data[idx];
                   final String itemName = L10nUtils.getL10n(t['menu_items']?['name'], locale);
                   return ListTile(
-                    leading: const CircleAvatar(backgroundColor: Colors.green, child: Icon(Icons.check, color: Colors.white)),
+                    leading: Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                        color: KitchenTheme.doneGreen.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.check, color: KitchenTheme.doneGreen, size: 20),
+                    ),
                     title: Text('${t['quantity']}x $itemName', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('${l10n.room}: ${t['orders']?['room_number'] ?? "?"}'),
-                    trailing: Text(_formatDateTime(t['finished_at']), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    subtitle: Text('${l10n.room}: ${t['orders']?['room_number'] ?? "?"}', style: const TextStyle(color: KitchenTheme.textMutedOrange)),
+                    trailing: Text(_formatDateTime(t['finished_at']), style: const TextStyle(color: KitchenTheme.textMutedOrange, fontSize: 12)),
                   );
                 },
               );
@@ -217,7 +244,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
         loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (e, s) => Scaffold(body: Center(child: Text('${l10n.errorPrefix}: $e'))),
         data: (id) {
-          if (id != null) { Future.microtask(() => context.go('/kitchen/$id')); return const Scaffold(body: Center(child: CircularProgressIndicator())); }
+          if (id != null) { Future.microtask(() { if (mounted) context.go('/kitchen/$id'); }); return const Scaffold(body: Center(child: CircularProgressIndicator())); }
           return Scaffold(body: Center(child: Text(l10n.stationNotAssigned)));
         },
       );
@@ -232,7 +259,7 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
       error: (e, s) => Scaffold(body: Center(child: Text('${l10n.errorPrefix}: $e'))),
       data: (profile) {
         if (profile == null || (profile['role'] != 'STATION' && profile['role'] != 'ADMIN')) {
-          Future.microtask(() => context.go('/'));
+          Future.microtask(() { if (mounted) context.go('/'); });
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
@@ -248,54 +275,298 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
             final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
 
-            return Scaffold(
-              key: _scaffoldKey,
-              endDrawer: const StaffChatDrawer(),
-              backgroundColor: Colors.grey[200],
-              appBar: AppBar(
-                automaticallyImplyLeading: false,
-                title: Text(myStationName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                backgroundColor: Colors.orange[800],
-                actions: [
-                  Builder(
-                    builder: (ctx) {
-                      final hasUnread = ref.watch(hasUnreadMessagesProvider);
-                      return Stack(
-                        alignment: Alignment.center,
+            return Theme(
+              data: KitchenTheme.themeData,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobile = constraints.maxWidth < 600;
+                  final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
+
+                  final tabTitles = [
+                    '${l10n.pendingColumn} (${pendingTickets.length})',
+                    '${l10n.cookingColumn} (${cookingTickets.length})',
+                  ];
+
+                  final tabIcons = const [
+                    Icons.pending_actions_outlined,
+                    Icons.local_fire_department_outlined,
+                  ];
+
+                  final selectedTabIcons = const [
+                    Icons.pending_actions,
+                    Icons.local_fire_department,
+                  ];
+
+                  return Scaffold(
+                    key: _scaffoldKey,
+                    endDrawer: const StaffChatDrawer(),
+                    // Drawer cho màn hình điện thoại (Mobile)
+                    drawer: isMobile
+                        ? NavigationDrawer(
+                            selectedIndex: _selectedColumnIndex,
+                            onDestinationSelected: (int index) {
+                              setState(() {
+                                _selectedColumnIndex = index;
+                              });
+                              Navigator.pop(context);
+                            },
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(28, 20, 16, 10),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: KitchenTheme.primaryOrange,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.soup_kitchen, color: Colors.white, size: 24),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            myStationName,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: KitchenTheme.textDarkOrange,
+                                            ),
+                                          ),
+                                          Text(
+                                            l10n.kitchenTitle,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: KitchenTheme.textMutedOrange,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(indent: 16, endIndent: 16, height: 16),
+                              ...List.generate(tabTitles.length, (index) {
+                                return NavigationDrawerDestination(
+                                  icon: Icon(tabIcons[index]),
+                                  selectedIcon: Icon(selectedTabIcons[index], color: KitchenTheme.primaryOrange),
+                                  label: Text(tabTitles[index]),
+                                );
+                              }),
+                              const Divider(indent: 16, endIndent: 16, height: 24),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: ListTile(
+                                  leading: const Icon(Icons.history, color: KitchenTheme.doneGreen),
+                                  title: Text(l10n.historyTitle, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _showHistoryDialog(stationId);
+                                  },
+                                ),
+                              ),
+                            ],
+                          )
+                        : null,
+                    appBar: AppBar(
+                      automaticallyImplyLeading: false,
+                      leading: isMobile
+                          ? IconButton(
+                              icon: const Icon(Icons.menu, color: Colors.white),
+                              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                              tooltip: 'Menu',
+                            )
+                          : null,
+                      title: Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-                            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                          const Icon(Icons.soup_kitchen, color: Colors.white),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isMobile ? tabTitles[_selectedColumnIndex] : myStationName,
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
+                                if (!isMobile)
+                                  Text(
+                                    l10n.kitchenTitle,
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  ),
+                              ],
+                            ),
                           ),
-                          if (hasUnread)
-                            Positioned(
-                              right: 12, top: 12,
-                              child: Container(
-                                width: 10, height: 10,
-                                decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.orange[800]!, width: 1.5)),
+                        ],
+                      ),
+                      backgroundColor: KitchenTheme.primaryOrange,
+                      elevation: 2,
+                      actions: [
+                        Builder(
+                          builder: (ctx) {
+                            final hasUnread = ref.watch(hasUnreadMessagesProvider);
+                            return Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                                  tooltip: l10n.chatGroup,
+                                  onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                                ),
+                                if (hasUnread)
+                                  Positioned(
+                                    right: 12,
+                                    top: 12,
+                                    child: Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber[400],
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: KitchenTheme.primaryOrange, width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                        const LanguageSelector(),
+                        const SizedBox(width: 4),
+                        if (!isMobile)
+                          IconButton(
+                            icon: const Icon(Icons.history, color: Colors.white),
+                            tooltip: l10n.historyTitle,
+                            onPressed: () => _showHistoryDialog(stationId),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.logout, color: Colors.white),
+                          tooltip: l10n.logout,
+                          onPressed: () {
+                            context.go('/login');
+                            supabase.auth.signOut();
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    body: Row(
+                      children: [
+                        // ==========================================
+                        // SIDEBAR: NavigationRail cho Tablet
+                        // ==========================================
+                        if (isTablet)
+                          NavigationRail(
+                            selectedIndex: _selectedColumnIndex,
+                            onDestinationSelected: (int index) {
+                              setState(() {
+                                _selectedColumnIndex = index;
+                              });
+                            },
+                            labelType: NavigationRailLabelType.selected,
+                            backgroundColor: KitchenTheme.surfaceWhite,
+                            indicatorColor: KitchenTheme.lightOrangeContainer,
+                            selectedIconTheme: const IconThemeData(color: KitchenTheme.primaryOrange, size: 26),
+                            unselectedIconTheme: const IconThemeData(color: KitchenTheme.textMutedOrange, size: 22),
+                            selectedLabelTextStyle: const TextStyle(
+                              color: KitchenTheme.primaryOrange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                            unselectedLabelTextStyle: const TextStyle(
+                              color: KitchenTheme.textMutedOrange,
+                              fontSize: 11,
+                            ),
+                            destinations: List.generate(tabTitles.length, (index) {
+                              return NavigationRailDestination(
+                                icon: Icon(tabIcons[index]),
+                                selectedIcon: Icon(selectedTabIcons[index]),
+                                label: Text(tabTitles[index]),
+                              );
+                            }),
+                            trailing: Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.history, color: KitchenTheme.textMutedOrange),
+                                    tooltip: l10n.historyTitle,
+                                    onPressed: () => _showHistoryDialog(stationId),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
                               ),
                             ),
-                        ],
-                      );
-                    },
-                  ),
-                  const LanguageSelector(),
-                  const SizedBox(width: 8),
-                  IconButton(icon: const Icon(Icons.history, color: Colors.white), onPressed: () => _showHistoryDialog(stationId)),
-                  IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () async {
-                    ref.invalidate(userProfileProvider);
-                    await supabase.auth.signOut();
-                    if (context.mounted) context.go('/login');
-                  }),
-                  const SizedBox(width: 16),
-                ],
-              ),
-              body: Row(
-                children: [
-                  Expanded(child: _buildTicketColumn(title: '${l10n.pendingColumn} (${pendingTickets.length})', headerColor: Colors.blue[700]!, tickets: pendingTickets, isCookingColumn: false)),
-                  const VerticalDivider(width: 2, thickness: 2, color: Colors.black12),
-                  Expanded(child: _buildTicketColumn(title: '${l10n.cookingColumn} (${cookingTickets.length})', headerColor: Colors.orange[700]!, tickets: cookingTickets, isCookingColumn: true)),
-                ],
+                          ),
+
+                        // Đường kẻ dọc
+                        if (isTablet)
+                          const VerticalDivider(thickness: 1, width: 1, color: KitchenTheme.borderOrange),
+
+                        // ==========================================
+                        // KHU VỰC HIỂN THỊ NỘI DUNG CHÍNH
+                        // ==========================================
+                        Expanded(
+                          child: Container(
+                            color: KitchenTheme.bgExpressiveOrange,
+                            child: isMobile || isTablet
+                                // Mobile & Tablet: Hiển thị 1 cột tại một thời điểm
+                                ? AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    child: KeyedSubtree(
+                                      key: ValueKey<int>(_selectedColumnIndex),
+                                      child: _selectedColumnIndex == 0
+                                          ? _buildTicketList(
+                                              title: tabTitles[0],
+                                              headerColor: KitchenTheme.pendingBlue,
+                                              tickets: pendingTickets,
+                                              isCookingColumn: false,
+                                              showHeader: !isMobile,
+                                            )
+                                          : _buildTicketList(
+                                              title: tabTitles[1],
+                                              headerColor: KitchenTheme.cookingOrange,
+                                              tickets: cookingTickets,
+                                              isCookingColumn: true,
+                                              showHeader: !isMobile,
+                                            ),
+                                    ),
+                                  )
+                                // Desktop: Hiển thị 2 cột song song
+                                : Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildTicketList(
+                                          title: tabTitles[0],
+                                          headerColor: KitchenTheme.pendingBlue,
+                                          tickets: pendingTickets,
+                                          isCookingColumn: false,
+                                          showHeader: true,
+                                        ),
+                                      ),
+                                      const VerticalDivider(width: 1, thickness: 1, color: KitchenTheme.borderOrange),
+                                      Expanded(
+                                        child: _buildTicketList(
+                                          title: tabTitles[1],
+                                          headerColor: KitchenTheme.cookingOrange,
+                                          tickets: cookingTickets,
+                                          isCookingColumn: true,
+                                          showHeader: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             );
           },
@@ -304,76 +575,365 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     );
   }
 
-  Widget _buildTicketColumn({required String title, required Color headerColor, required List<SmartTicket> tickets, required bool isCookingColumn}) {
-    return Column(children: [
-      Container(width: double.infinity, padding: const EdgeInsets.all(16), color: headerColor, child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-      Expanded(child: tickets.isEmpty ? Center(child: Text(ref.watch(l10nProvider).empty, style: TextStyle(color: Colors.grey[500], fontSize: 20))) : ListView.builder(padding: const EdgeInsets.all(12), itemCount: tickets.length, itemBuilder: (context, index) => _buildTicketCard(tickets[index], isCookingColumn))),
-    ]);
+  Widget _buildTicketList({
+    required String title,
+    required Color headerColor,
+    required List<SmartTicket> tickets,
+    required bool isCookingColumn,
+    required bool showHeader,
+  }) {
+    final l10n = ref.watch(l10nProvider);
+    return Column(
+      children: [
+        // Header Bar M3 Expressive
+        if (showHeader)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: headerColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isCookingColumn ? Icons.local_fire_department : Icons.pending_actions,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Ticket List
+        Expanded(
+          child: tickets.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isCookingColumn ? Icons.local_fire_department_outlined : Icons.pending_actions_outlined,
+                        size: 64,
+                        color: KitchenTheme.borderOrange,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.empty,
+                        style: const TextStyle(
+                          color: KitchenTheme.textMutedOrange,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: tickets.length,
+                  itemBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildTicketCard(tickets[index], isCookingColumn),
+                  ),
+                ),
+        ),
+      ],
+    );
   }
 
   Widget _buildTicketCard(SmartTicket ticket, bool isCookingColumn) {
     final now = DateTime.now();
     final l10n = ref.watch(l10nProvider);
-    String timingMessage; Color timingColor;
+    String timingMessage; Color timingColor; IconData timingIcon;
 
     if (isCookingColumn) {
       final updatedAt = DateTime.parse(ticket.rawTicket['updated_at']).toLocal();
       final remaining = updatedAt.add(Duration(minutes: ticket.prepTime)).difference(now);
-      if (remaining.isNegative) { timingMessage = '${l10n.overtime}: ${remaining.inMinutes.abs()}p'; timingColor = Colors.red; }
-      else { timingMessage = '${l10n.finishIn}: ${remaining.inMinutes}:${(remaining.inSeconds % 60).toString().padLeft(2, '0')}'; timingColor = Colors.orange; }
+      if (remaining.isNegative) {
+        timingMessage = '${l10n.overtime}: ${remaining.inMinutes.abs()}p';
+        timingColor = KitchenTheme.overtimeRed;
+        timingIcon = Icons.warning_amber;
+      } else {
+        timingMessage = '${l10n.finishIn}: ${remaining.inMinutes}:${(remaining.inSeconds % 60).toString().padLeft(2, '0')}';
+        timingColor = KitchenTheme.cookingOrange;
+        timingIcon = Icons.timer;
+      }
     } else {
       if (ticket.isOrderStarted || ticket.isInitialAnchor) {
         final diff = ticket.targetStartTime.difference(now);
-        if (diff.isNegative) { timingMessage = l10n.cookNow; timingColor = Colors.red; }
-        else { timingMessage = '${l10n.startIn}: ${diff.inMinutes}:${(diff.inSeconds % 60).toString().padLeft(2, '0')}'; timingColor = Colors.green; }
-      } else { timingMessage = l10n.waitPrimary; timingColor = Colors.blueGrey; }
+        if (diff.isNegative) {
+          timingMessage = l10n.cookNow;
+          timingColor = KitchenTheme.overtimeRed;
+          timingIcon = Icons.priority_high;
+        } else {
+          timingMessage = '${l10n.startIn}: ${diff.inMinutes}:${(diff.inSeconds % 60).toString().padLeft(2, '0')}';
+          timingColor = KitchenTheme.doneGreen;
+          timingIcon = Icons.schedule;
+        }
+      } else {
+        timingMessage = l10n.waitPrimary;
+        timingColor = KitchenTheme.textMutedOrange;
+        timingIcon = Icons.hourglass_top;
+      }
     }
 
+    final bool isUrgent = !isCookingColumn && ticket.targetStartTime.isBefore(now);
+
     return Card(
-      elevation: 4, margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: (!isCookingColumn && ticket.targetStartTime.isBefore(now)) ? Colors.red : Colors.transparent, width: 2)),
+      elevation: isUrgent ? 4 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isUrgent ? KitchenTheme.overtimeRed : KitchenTheme.borderOrange,
+          width: isUrgent ? 2 : 0.8,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.orange[900], borderRadius: BorderRadius.circular(8)), child: Text('${l10n.room.toUpperCase()} ${ticket.roomNumber}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))),
-              Text(timingMessage, style: TextStyle(color: timingColor, fontWeight: FontWeight.bold, fontSize: 16)),
-            ]),
-            const SizedBox(height: 12),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Expanded(child: Text('${ticket.rawTicket['quantity']}x ${ticket.itemName}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold))),
-              Text('${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND', style: const TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.bold)),
-            ]),
-            if (ticket.rawTicket['selected_modifiers'] != null) Column(crossAxisAlignment: CrossAxisAlignment.start, children: (ticket.rawTicket['selected_modifiers'] as List).map((m) => Text('↳ ${L10nUtils.getL10n(m['group_name'], ref.watch(localeProvider))}: ${L10nUtils.getL10n(m['modifier_name'], ref.watch(localeProvider))}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))).toList()),
+            // Header: Room Badge + Timing
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: KitchenTheme.primaryOrange,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '${l10n.room.toUpperCase()} ${ticket.roomNumber}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: timingColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: timingColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(timingIcon, color: timingColor, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        timingMessage,
+                        style: TextStyle(
+                          color: timingColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Item Name + Price
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    '${ticket.rawTicket['quantity']}x ${ticket.itemName}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: KitchenTheme.textDarkOrange,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${NumberFormat('#,###', 'vi_VN').format(ticket.basePrice)} VND',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: KitchenTheme.textMutedOrange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+
+            // Modifiers
+            if (ticket.rawTicket['selected_modifiers'] != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: (ticket.rawTicket['selected_modifiers'] as List).map((m) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        '↳ ${L10nUtils.getL10n(m['group_name'], ref.watch(localeProvider))}: ${L10nUtils.getL10n(m['modifier_name'], ref.watch(localeProvider))}',
+                        style: const TextStyle(color: KitchenTheme.pendingBlue, fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+            // Order Notes
             if (ticket.orderNotes.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text('${ref.watch(localeProvider) == "vi" ? "Ghi chú đơn" : "Order Notes"}: ${ticket.orderNotes}', style: const TextStyle(color: Colors.blue, fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)),
+                padding: const EdgeInsets.only(top: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: KitchenTheme.pendingBlue.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: KitchenTheme.pendingBlue.withValues(alpha: 0.15)),
+                  ),
+                  child: Text(
+                    '${ref.watch(localeProvider) == "vi" ? "Ghi chú đơn" : "Order Notes"}: ${ticket.orderNotes}',
+                    style: const TextStyle(color: KitchenTheme.pendingBlue, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
-            if (ticket.rawTicket['notes']?.toString().isNotEmpty ?? false) Text('${l10n.notePrefix}: ${ticket.rawTicket['notes']}', style: const TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
-            Padding(padding: const EdgeInsets.only(top: 12), child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [Text('${l10n.totalItem}: ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)), Text('${NumberFormat('#,###', 'vi_VN').format((ticket.basePrice + (ticket.rawTicket['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0))) * ticket.rawTicket['quantity'])} VND', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green))])),
-            const Divider(height: 24),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Row(children: [const Icon(Icons.timer, color: Colors.grey, size: 20), Text(' ${ticket.prepTime}p'), const SizedBox(width: 16), if (ticket.isRemake) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.deepOrange, borderRadius: BorderRadius.circular(6)), child: Text(l10n.remakeLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)))]),
-              if (!isCookingColumn) ElevatedButton.icon(icon: const Icon(Icons.local_fire_department), label: Text(l10n.startCooking), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white), onPressed: () async {
-                  final now = DateTime.now();
-                  final allTickets = ref.read(activeTicketsStreamProvider).value ?? [];
-                  final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
-                  final bool isEarly = now.isBefore(ticket.targetStartTime);
-                  bool hasUnfinishedPrimary = allTickets.any((t) => t['order_id'] == ticket.rawTicket['order_id'] && t['id'] != ticket.rawTicket['id'] && t['status'] != 'DONE' && (menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false)).prepTime > ticket.prepTime));
-                  if (isEarly || hasUnfinishedPrimary) {
-                    bool? proceed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(l10n.warningTitle), content: Text('${isEarly ? l10n.notCookingTime : l10n.primaryNotDone}\n${l10n.continueQuestion}'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.stillCook))]));
-                    if (proceed != true) return;
-                  }
-                  _updateTicketStatus(ticket.rawTicket['id'], 'COOKING');
-              }) else Row(children: [
-                ElevatedButton.icon(icon: const Icon(Icons.replay), label: Text(l10n.remakeBtn), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white), onPressed: () => _remakeTicket(ticket)),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(icon: const Icon(Icons.check_circle), label: Text(l10n.cookingDone), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'DONE')),
-              ]),
-            ])
+
+            // Item Notes
+            if (ticket.rawTicket['notes']?.toString().isNotEmpty ?? false)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: KitchenTheme.overtimeRed.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: KitchenTheme.overtimeRed.withValues(alpha: 0.15)),
+                  ),
+                  child: Text(
+                    '${l10n.notePrefix}: ${ticket.rawTicket['notes']}',
+                    style: const TextStyle(color: KitchenTheme.overtimeRed, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              ),
+
+            // Total
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text('${l10n.totalItem}: ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: KitchenTheme.textMutedOrange)),
+                  Text(
+                    '${NumberFormat('#,###', 'vi_VN').format((ticket.basePrice + (ticket.rawTicket['selected_modifiers'] as List? ?? []).fold(0.0, (sum, m) => sum + (num.tryParse(m['price'].toString())?.toDouble() ?? 0.0))) * ticket.rawTicket['quantity'])} VND',
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: KitchenTheme.doneGreen),
+                  ),
+                ],
+              ),
+            ),
+
+            // Divider
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, color: KitchenTheme.borderOrange),
+            ),
+
+            // Footer: Prep Time + Remake Badge + Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.timer_outlined, color: KitchenTheme.textMutedOrange, size: 20),
+                    const SizedBox(width: 4),
+                    Text(' ${ticket.prepTime}p', style: const TextStyle(color: KitchenTheme.textMutedOrange, fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 12),
+                    if (ticket.isRemake)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: KitchenTheme.cookingOrange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: KitchenTheme.cookingOrange.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          l10n.remakeLabel,
+                          style: const TextStyle(
+                            color: KitchenTheme.cookingOrange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (!isCookingColumn)
+                  FilledButton.icon(
+                    icon: const Icon(Icons.local_fire_department, size: 20),
+                    label: Text(l10n.startCooking),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: KitchenTheme.cookingOrange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final allTickets = ref.read(activeTicketsStreamProvider).value ?? [];
+                      final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
+                      final bool isEarly = now.isBefore(ticket.targetStartTime);
+                      bool hasUnfinishedPrimary = allTickets.any((t) => t['order_id'] == ticket.rawTicket['order_id'] && t['id'] != ticket.rawTicket['id'] && t['status'] != 'DONE' && (menuItems.firstWhere((m) => m.id == t['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 0, categoryId: '', stationId: '', isAvailable: false)).prepTime > ticket.prepTime));
+                      if (isEarly || hasUnfinishedPrimary) {
+                        bool? proceed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(l10n.warningTitle), content: Text('${isEarly ? l10n.notCookingTime : l10n.primaryNotDone}\n${l10n.continueQuestion}'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)), ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.stillCook))]));
+                        if (proceed != true) return;
+                      }
+                      _updateTicketStatus(ticket.rawTicket['id'], 'COOKING');
+                    },
+                  )
+                else
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.replay, size: 20),
+                        label: Text(l10n.remakeBtn),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: KitchenTheme.cookingOrange,
+                          side: const BorderSide(color: KitchenTheme.cookingOrange, width: 1.5),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () => _remakeTicket(ticket),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        icon: const Icon(Icons.check_circle, size: 20),
+                        label: Text(l10n.cookingDone),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: KitchenTheme.doneGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () => _updateTicketStatus(ticket.rawTicket['id'], 'DONE'),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ],
         ),
       ),

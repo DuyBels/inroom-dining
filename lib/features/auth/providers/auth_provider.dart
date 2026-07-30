@@ -3,12 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../main.dart';
 
 // Provider lắng nghe trạng thái Session của Supabase
-final sessionStreamProvider = StreamProvider((ref) {
+final sessionStreamProvider = StreamProvider.autoDispose((ref) {
   return supabase.auth.onAuthStateChange;
 });
 
 // Provider lấy User hiện tại
-final currentUserProvider = Provider((ref) {
+final currentUserProvider = Provider.autoDispose((ref) {
   return supabase.auth.currentUser;
 });
 

@@ -266,12 +266,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 IconButton(
                   icon: const Icon(Icons.logout, color: Colors.white),
                   tooltip: l10n.logout,
-                  onPressed: () async {
-                    ref.invalidate(userProfileProvider);
-                    await supabase.auth.signOut();
-                    if (context.mounted) {
-                      context.go('/login');
-                    }
+                  onPressed: () {
+                    context.go('/login');
+                    supabase.auth.signOut();
                   },
                 ),
                 const SizedBox(width: 8),
