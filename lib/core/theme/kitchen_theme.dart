@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 /// Material 3 Expressive Theme - Tone Cam Ấm (Warm Orange Palette)
 /// Tối ưu hóa cho trải nghiệm cảm ứng trên Máy tính bảng & Điện thoại
 class KitchenTheme {
-  // Bảng màu Material 3 Expressive Tone Cam Ấm
-  static const Color primaryOrange = Color(0xFFBF360C); // Cam cháy chủ đạo (Deep Orange 900)
-  static const Color primaryDarkOrange = Color(0xFF3E2723); // Nâu đậm cho text & accent
-  static const Color secondaryOrange = Color(0xFFE65100); // Cam tươi sáng
-  static const Color lightOrangeContainer = Color(0xFFFFE0B2); // Container cam nhạt expressive
-  static const Color orangeTint = Color(0xFFFFF8E1); // Nền phụ cam nhạt ấm
-  static const Color bgExpressiveOrange = Color(0xFFFFFBF5); // Nền ứng dụng cam nhạt dịu
+  // Bảng màu Material 3 Expressive (Đã đồng bộ sang Tone Xanh Dương của Admin)
+  static const Color primaryOrange = Color(0xFF0061A4); // Xanh dương Sapphire chủ đạo
+  static const Color primaryDarkOrange = Color(0xFF001F3E); // Xanh navy đậm cho text & accent
+  static const Color secondaryOrange = Color(0xFF007ACC); // Xanh biển tươi sáng
+  static const Color lightOrangeContainer = Color(0xFFD6E3FF); // Container xanh nhạt expressive
+  static const Color orangeTint = Color(0xFFF0F5FF); // Nền phụ xanh băng nhạt
+  static const Color bgExpressiveOrange = Color(0xFFF6F9FE); // Nền ứng dụng xanh nhạt dịu mát
   static const Color surfaceWhite = Color(0xFFFFFFFF); // Thẻ / Card trắng
-  static const Color accentAmber = Color(0xFFF57C00); // Accent cam amber tươi
-  static const Color textDarkOrange = Color(0xFF1B1210); // Chữ nâu đậm
-  static const Color textMutedOrange = Color(0xFF5D4037); // Chữ nâu xám phụ
-  static const Color borderOrange = Color(0xFFE0D5CC); // Viền cam nâu nhạt
+  static const Color accentAmber = Color(0xFF0284C7); // Accent xanh cyan tươi
+  static const Color textDarkOrange = Color(0xFF0F172A); // Chữ navy đậm
+  static const Color textMutedOrange = Color(0xFF475569); // Chữ xám xanh phụ
+  static const Color borderOrange = Color(0xFFD8E2F0); // Viền xanh xám nhạt
 
   // Status colors cho Kitchen
   static const Color pendingBlue = Color(0xFF1565C0);

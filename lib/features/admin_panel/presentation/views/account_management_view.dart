@@ -277,34 +277,35 @@ class AccountManagementView extends ConsumerWidget {
 
     switch (role) {
       case 'ADMIN':
-        bg = const Color(0xFF3E2723); // Nâu gỗ đậm nhất
+        bg = const Color(0xFF001F3E); // Xanh navy đậm nhất
         fg = Colors.white;
-        border = const Color(0xFF2C1E1A);
+        border = const Color(0xFF00152B);
         label = l10n.adminRole;
         break;
       case 'STATION':
-        bg = const Color(0xFF5D4037); // Nâu sẫm
+        bg = const Color(0xFF00447A); // Xanh navy sẫm
         fg = Colors.white;
-        border = const Color(0xFF4E342E);
+        border = const Color(0xFF002B5E);
         label = l10n.stationRole;
         break;
       case 'WAITER':
-        bg = const Color(0xFF8D6E63); // Nâu gỗ vừa
+        bg = const Color(0xFF0061A4); // Xanh dương sapphire
         fg = Colors.white;
-        border = const Color(0xFF6D4C41);
+        border = const Color(0xFF004B80);
         label = l10n.waiterRole;
         break;
       case 'ROOM':
-        bg = const Color(0xFFEFEBE9); // Trắng kem gỗ nhạt
-        fg = const Color(0xFF3E2723);
-        border = const Color(0xFFC7B8B1);
+        bg = const Color(0xFFD6E3FF); // Xanh dương nhạt
+        fg = const Color(0xFF001F3E); // Chữ navy đậm
+        border = const Color(0xFFAEC4EC);
         label = l10n.roomRole;
         break;
       default:
-        bg = const Color(0xFFF5F0EB);
-        fg = const Color(0xFF6D4C41);
-        border = const Color(0xFFE0D7D0);
+        bg = const Color(0xFFF0F5FF); // Xanh băng nhạt
+        fg = const Color(0xFF0F172A);
+        border = const Color(0xFFD8E2F0);
         label = role;
+        break;
     }
 
     return Container(

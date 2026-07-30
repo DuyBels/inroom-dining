@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 /// Material 3 Expressive Theme - Tone Xanh Lá (Emerald Green Palette)
 /// Tối ưu hóa cho trải nghiệm cảm ứng trên Máy tính bảng & Điện thoại
 class WaiterTheme {
-  // Bảng màu Material 3 Expressive Tone Xanh Lá
-  static const Color primaryGreen = Color(0xFF2E7D32); // Xanh lá Emerald chủ đạo
-  static const Color primaryDarkGreen = Color(0xFF1B3A1D); // Xanh đậm cho text & accent
-  static const Color secondaryGreen = Color(0xFF43A047); // Xanh lá tươi sáng
-  static const Color lightGreenContainer = Color(0xFFC8E6C9); // Container xanh nhạt expressive
-  static const Color greenTint = Color(0xFFE8F5E9); // Nền phụ xanh nhạt
-  static const Color bgExpressiveGreen = Color(0xFFF5FBF5); // Nền ứng dụng xanh nhạt dịu
+  // Bảng màu Material 3 Expressive (Đã đồng bộ sang Tone Xanh Dương của Admin)
+  static const Color primaryGreen = Color(0xFF0061A4); // Xanh dương Sapphire chủ đạo
+  static const Color primaryDarkGreen = Color(0xFF001F3E); // Xanh navy đậm cho text & accent
+  static const Color secondaryGreen = Color(0xFF007ACC); // Xanh biển tươi sáng
+  static const Color lightGreenContainer = Color(0xFFD6E3FF); // Container xanh nhạt expressive
+  static const Color greenTint = Color(0xFFF0F5FF); // Nền phụ xanh nhạt
+  static const Color bgExpressiveGreen = Color(0xFFF6F9FE); // Nền ứng dụng xanh nhạt dịu
   static const Color surfaceWhite = Color(0xFFFFFFFF); // Thẻ / Card trắng
-  static const Color accentTeal = Color(0xFF00897B); // Accent teal tươi
-  static const Color textDarkGreen = Color(0xFF0F1A10); // Chữ xanh đậm
-  static const Color textMutedGreen = Color(0xFF4E6E50); // Chữ xám xanh phụ
-  static const Color borderGreen = Color(0xFFD0E0D2); // Viền xanh xám nhạt
+  static const Color accentTeal = Color(0xFF0284C7); // Accent teal tươi
+  static const Color textDarkGreen = Color(0xFF0F172A); // Chữ xanh đậm
+  static const Color textMutedGreen = Color(0xFF475569); // Chữ xám xanh phụ
+  static const Color borderGreen = Color(0xFFD8E2F0); // Viền xanh xám nhạt
 
   // Status colors cho Waiter
   static const Color readyGreen = Color(0xFF2E7D32);

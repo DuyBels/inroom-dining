@@ -135,34 +135,35 @@ class TagManagementView extends ConsumerWidget {
 
     switch (tagType) {
       case 'ALLERGY':
-        bg = const Color(0xFF7A2E26); // Nâu đỏ sẫm (Cảnh báo dị ứng)
+        bg = const Color(0xFF001F3E); // Xanh navy đậm nhất
         fg = Colors.white;
-        border = const Color(0xFF5A1E18);
+        border = const Color(0xFF00152B);
         label = l10n.allergyWarning;
         break;
       case 'WEATHER':
-        bg = const Color(0xFFC87D55); // Cam sienna / Hổ phách
+        bg = const Color(0xFF00447A); // Xanh navy sẫm
         fg = Colors.white;
-        border = const Color(0xFFA05D3B);
+        border = const Color(0xFF002B5E);
         label = l10n.weatherType;
         break;
       case 'TIME':
-        bg = const Color(0xFF5D4037); // Nâu gỗ ấm đậm
+        bg = const Color(0xFF0061A4); // Xanh dương sapphire
         fg = Colors.white;
-        border = const Color(0xFF3E2723);
+        border = const Color(0xFF004B80);
         label = l10n.timeType;
         break;
       case 'TASTE':
-        bg = const Color(0xFFEFEBE9); // Kem gỗ sáng
-        fg = const Color(0xFF3E2723);
-        border = const Color(0xFFC7B8B1);
+        bg = const Color(0xFFD6E3FF); // Xanh dương nhạt
+        fg = const Color(0xFF001F3E); // Chữ navy đậm
+        border = const Color(0xFFAEC4EC);
         label = l10n.tasteType;
         break;
       default:
-        bg = const Color(0xFFF5F0EB);
-        fg = const Color(0xFF6D4C41);
-        border = const Color(0xFFE0D7D0);
-        label = 'OTHER';
+        bg = const Color(0xFFF0F5FF); // Xanh băng nhạt
+        fg = const Color(0xFF0F172A);
+        border = const Color(0xFFD8E2F0);
+        label = tagType;
+        break;
     }
 
     return Container(
