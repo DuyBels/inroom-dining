@@ -17,43 +17,52 @@ class TagFormDialog extends ConsumerStatefulWidget {
 
 class _TagFormDialogState extends ConsumerState<TagFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameViController = TextEditingController();
-  final _nameEnController = TextEditingController();
+  final Map<String, TextEditingController> _nameControllers = {};
 
   // Mặc định chọn ALLERGY
   String _selectedType = 'ALLERGY';
   bool _isLoading = false;
-  bool _isTranslating = false;
+  final Map<String, bool> _isTranslating = {};
+
+  String _getNameInLang(String code, Map<String, dynamic> nameMap) {
+    return nameMap[code]?.toString() ?? (code == 'vi' ? (nameMap['vi']?.toString() ?? '') : '');
+  }
 
   @override
   void initState() {
     super.initState();
+    final nameMap = widget.tag != null ? L10nUtils.decodeField(widget.tag!['name']) : <String, dynamic>{};
+    
+    for (var lang in L10nUtils.supportedLanguages) {
+      final code = lang['code']!;
+      _nameControllers[code] = TextEditingController(text: _getNameInLang(code, nameMap));
+      _isTranslating[code] = false;
+    }
+
     if (widget.tag != null) {
-      final nameMap = L10nUtils.decodeField(widget.tag!['name']);
-      _nameViController.text = nameMap['vi']?.toString() ?? '';
-      _nameEnController.text = nameMap['en']?.toString() ?? '';
       _selectedType = widget.tag!['tag_type'] ?? 'ALLERGY';
     }
   }
 
   @override
   void dispose() {
-    _nameViController.dispose();
-    _nameEnController.dispose();
+    for (var c in _nameControllers.values) { c.dispose(); }
     super.dispose();
   }
 
-  Future<void> _translateWithAI() async {
-    if (_nameViController.text.trim().isEmpty && _nameEnController.text.trim().isEmpty) return;
-    setState(() => _isTranslating = true);
+  Future<void> _translateWithAI(String targetLang) async {
+    final viName = _nameControllers['vi']?.text.trim() ?? '';
+    if (viName.isEmpty) return;
+    
+    setState(() => _isTranslating[targetLang] = true);
     final l10n = ref.read(l10nProvider);
     try {
       final gemini = ref.read(geminiServiceProvider);
-      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController, force: true);
+      await gemini.autoTranslateMap(_nameControllers, force: true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
     } finally {
-      if (mounted) setState(() => _isTranslating = false);
+      if (mounted) setState(() => _isTranslating[targetLang] = false);
     }
   }
 
@@ -63,18 +72,20 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
 
     try {
       final gemini = ref.read(geminiServiceProvider);
-      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController);
+      await gemini.autoTranslateMap(_nameControllers);
 
       if (!_formKey.currentState!.validate()) {
         setState(() => _isLoading = false);
         return;
       }
 
+      final Map<String, String> nameData = {};
+      _nameControllers.forEach((key, controller) {
+        nameData[key] = controller.text.trim();
+      });
+
       final data = {
-        'name': {
-          'vi': _nameViController.text.trim(),
-          'en': _nameEnController.text.trim(),
-        },
+        'name': nameData,
         'tag_type': _selectedType,
       };
 
@@ -111,33 +122,34 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nameViController,
-                      decoration: InputDecoration(labelText: '${l10n.tagNameLang} (VI)', border: const OutlineInputBorder()),
-                      validator: (val) => val == null || val.trim().isEmpty ? l10n.validName : null,
-                    ),
+              ...L10nUtils.supportedLanguages.map((lang) {
+                final code = lang['code']!;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _nameControllers[code],
+                          decoration: InputDecoration(labelText: '${l10n.tagNameLang} (${lang['name']})', border: const OutlineInputBorder()),
+                          validator: code == 'vi' ? (val) => val == null || val.trim().isEmpty ? l10n.validName : null : null,
+                        ),
+                      ),
+                      if (code != 'vi') ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _isTranslating[code] == true ? null : () => _translateWithAI(code),
+                          icon: _isTranslating[code] == true 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.auto_awesome, color: Colors.purple),
+                          tooltip: l10n.aiTranslateTooltip,
+                        ),
+                      ]
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isTranslating ? null : _translateWithAI,
-                    icon: _isTranslating 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_awesome, color: Colors.purple),
-                    tooltip: l10n.aiTranslateTooltip,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nameEnController,
-                      decoration: InputDecoration(labelText: '${l10n.tagNameLang} (EN)', border: const OutlineInputBorder()),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                );
+              }),
+              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _selectedType,
                 decoration: InputDecoration(labelText: l10n.tagTypeLabel, border: const OutlineInputBorder()),
@@ -168,4 +180,4 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
       ],
     );
   }
-}
+}

@@ -17,39 +17,45 @@ class StationFormDialog extends ConsumerStatefulWidget {
 
 class _StationFormDialogState extends ConsumerState<StationFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameViController = TextEditingController();
-  final _nameEnController = TextEditingController();
+  final Map<String, TextEditingController> _nameControllers = {};
   bool _isLoading = false;
-  bool _isTranslating = false;
+  final Map<String, bool> _isTranslating = {};
+
+  String _getNameInLang(String code, Map<String, dynamic> nameMap) {
+    return nameMap[code]?.toString() ?? (code == 'vi' ? (nameMap['vi']?.toString() ?? '') : '');
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.station != null) {
-      final nameMap = L10nUtils.decodeField(widget.station!['name']);
-      _nameViController.text = nameMap['vi']?.toString() ?? '';
-      _nameEnController.text = nameMap['en']?.toString() ?? '';
+    final nameMap = widget.station != null ? L10nUtils.decodeField(widget.station!['name']) : <String, dynamic>{};
+    
+    for (var lang in L10nUtils.supportedLanguages) {
+      final code = lang['code']!;
+      _nameControllers[code] = TextEditingController(text: _getNameInLang(code, nameMap));
+      _isTranslating[code] = false;
     }
   }
 
   @override
   void dispose() {
-    _nameViController.dispose();
-    _nameEnController.dispose();
+    for (var c in _nameControllers.values) { c.dispose(); }
     super.dispose();
   }
 
-  Future<void> _translateWithAI() async {
-    if (_nameViController.text.trim().isEmpty && _nameEnController.text.trim().isEmpty) return;
+  Future<void> _translateWithAI(String targetLang) async {
+    final viName = _nameControllers['vi']?.text.trim() ?? '';
+    if (viName.isEmpty) return;
+    
     final l10n = ref.read(l10nProvider);
-    setState(() => _isTranslating = true);
+    setState(() => _isTranslating[targetLang] = true);
     try {
       final gemini = ref.read(geminiServiceProvider);
-      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController, force: true);
+      await gemini.autoTranslateMap(_nameControllers, force: true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.errorTranslate}: $e')));
     } finally {
-      if (mounted) setState(() => _isTranslating = false);
+      if (mounted) setState(() => _isTranslating[targetLang] = false);
     }
   }
 
@@ -59,18 +65,20 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
 
     try {
       final gemini = ref.read(geminiServiceProvider);
-      await gemini.autoTranslatePair(viController: _nameViController, enController: _nameEnController);
+      await gemini.autoTranslateMap(_nameControllers);
 
       if (!_formKey.currentState!.validate()) {
         setState(() => _isLoading = false);
         return;
       }
 
+      final Map<String, String> nameData = {};
+      _nameControllers.forEach((key, controller) {
+        nameData[key] = controller.text.trim();
+      });
+
       final data = {
-        'name': {
-          'vi': _nameViController.text.trim(),
-          'en': _nameEnController.text.trim(),
-        },
+        'name': nameData,
       };
 
       if (widget.station == null) {
@@ -107,32 +115,33 @@ class _StationFormDialogState extends ConsumerState<StationFormDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nameViController,
-                      decoration: InputDecoration(labelText: '${l10n.stationNameLang} (VI)', border: const OutlineInputBorder()),
-                      validator: (val) => val == null || val.trim().isEmpty ? l10n.validStationName : null,
-                    ),
+              ...L10nUtils.supportedLanguages.map((lang) {
+                final code = lang['code']!;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _nameControllers[code],
+                          decoration: InputDecoration(labelText: '${l10n.stationNameLang} (${lang['name']})', border: const OutlineInputBorder()),
+                          validator: code == 'vi' ? (val) => val == null || val.trim().isEmpty ? l10n.validStationName : null : null,
+                        ),
+                      ),
+                      if (code != 'vi') ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _isTranslating[code] == true ? null : () => _translateWithAI(code),
+                          icon: _isTranslating[code] == true 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.auto_awesome, color: Colors.purple),
+                          tooltip: l10n.aiTranslateTooltip,
+                        ),
+                      ]
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isTranslating ? null : _translateWithAI,
-                    icon: _isTranslating 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_awesome, color: Colors.purple),
-                    tooltip: l10n.aiTranslateTooltip,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nameEnController,
-                      decoration: InputDecoration(labelText: '${l10n.stationNameLang} (EN)', border: const OutlineInputBorder()),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              }),
             ],
           ),
         ),
