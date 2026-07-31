@@ -235,6 +235,7 @@ class MenuManagementView extends ConsumerWidget {
                 'price': item.price,
                 'prep_time_minutes': item.prepTime,
                 'category_id': item.categoryId,
+                'category_variant_id': item.categoryVariantId,
                 'station_id': item.stationId,
                 'is_available': item.isAvailable,
                 'image_url': item.imageUrl,

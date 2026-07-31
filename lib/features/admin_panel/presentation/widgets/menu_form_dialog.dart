@@ -67,9 +67,9 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
 
       _priceController.text = widget.item!['price']?.toString() ?? '0';
       _prepTimeController.text = widget.item!['prep_time_minutes']?.toString() ?? '15';
-      _selectedCategoryId = widget.item!['category_id'];
-      _selectedCategoryVariantId = widget.item!['category_variant_id'];
-      _selectedStationId = widget.item!['station_id'];
+      _selectedCategoryId = widget.item!['category_id']?.toString();
+      _selectedCategoryVariantId = widget.item!['category_variant_id']?.toString();
+      _selectedStationId = widget.item!['station_id']?.toString();
       _isAvailable = widget.item!['is_available'] ?? true;
       _currentImageUrl = widget.item!['image_url'];
       _fetchExistingTags();
@@ -302,7 +302,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                         loading: () => const LinearProgressIndicator(),
                         error: (e, s) => Text(l10n.errorPrefix),
                         data: (variants) {
-                          final categoryVariants = variants.where((v) => v['category_id'] == _selectedCategoryId).toList();
+                          final categoryVariants = variants.where((v) => v['category_id'].toString() == _selectedCategoryId).toList();
                           return DropdownButtonFormField<String>(
                             value: categoryVariants.any((v) => v['id'].toString() == _selectedCategoryVariantId) ? _selectedCategoryVariantId : null,
                             decoration: InputDecoration(labelText: locale == 'vi' ? 'Nhóm con (Tuỳ chọn)' : 'Variant (Optional)', border: const OutlineInputBorder()),
