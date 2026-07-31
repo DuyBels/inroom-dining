@@ -283,9 +283,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                         loading: () => const LinearProgressIndicator(),
                         error: (e, s) => Text(l10n.errorPrefix),
                         data: (cats) => DropdownButtonFormField<String>(
+                          isExpanded: true,
                           value: cats.any((c) => c.id == _selectedCategoryId) ? _selectedCategoryId : null,
                           decoration: InputDecoration(labelText: l10n.categoryLabel, border: const OutlineInputBorder()),
-                          items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.getName(locale)))).toList(),
+                          items: cats.map((c) => DropdownMenuItem(value: c.id, child: Text(c.getName(locale), overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) {
                             setState(() {
                               _selectedCategoryId = v;
@@ -304,6 +305,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                         data: (variants) {
                           final categoryVariants = variants.where((v) => v['category_id'].toString() == _selectedCategoryId).toList();
                           return DropdownButtonFormField<String>(
+                            isExpanded: true,
                             value: categoryVariants.any((v) => v['id'].toString() == _selectedCategoryVariantId) ? _selectedCategoryVariantId : null,
                             decoration: InputDecoration(labelText: locale == 'vi' ? 'Nhóm con (Tuỳ chọn)' : 'Variant (Optional)', border: const OutlineInputBorder()),
                             items: [
@@ -312,7 +314,7 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                                 final nameMap = L10nUtils.decodeField(v['name']);
                                 return DropdownMenuItem(
                                   value: v['id'].toString(), 
-                                  child: Text(nameMap[locale] ?? nameMap['vi'] ?? '')
+                                  child: Text(nameMap[locale] ?? nameMap['vi'] ?? '', overflow: TextOverflow.ellipsis)
                                 );
                               }),
                             ],
@@ -330,9 +332,10 @@ class _MenuFormDialogState extends ConsumerState<MenuFormDialog> {
                         loading: () => const LinearProgressIndicator(),
                         error: (e, s) => Text(l10n.errorPrefix),
                         data: (stats) => DropdownButtonFormField<String>(
+                          isExpanded: true,
                           value: stats.any((s) => s['id'].toString() == _selectedStationId) ? _selectedStationId : null,
                           decoration: InputDecoration(labelText: l10n.stationLabel, border: const OutlineInputBorder()),
-                          items: stats.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text(L10nUtils.getL10n(s['name'], locale)))).toList(),
+                          items: stats.map((s) => DropdownMenuItem(value: s['id'].toString(), child: Text(L10nUtils.getL10n(s['name'], locale), overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) => setState(() => _selectedStationId = v),
                           validator: (v) => v == null || v.isEmpty ? l10n.validStation : null,
                         ),

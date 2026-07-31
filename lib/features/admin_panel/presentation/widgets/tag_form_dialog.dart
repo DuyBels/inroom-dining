@@ -151,6 +151,7 @@ class _TagFormDialogState extends ConsumerState<TagFormDialog> {
               }),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 value: _selectedType,
                 decoration: InputDecoration(labelText: l10n.tagTypeLabel, border: const OutlineInputBorder()),
                 items: [

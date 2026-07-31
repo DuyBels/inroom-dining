@@ -128,6 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _buildDebugButton('PHÒNG 103 (KHÁCH)', 'phong_103@app.com', '123123', Colors.blue),
                   _buildDebugButton('BẾP VIỆT', 'bep_viet@app.com', '123123', Colors.orange),
                   _buildDebugButton('QUẦY BAR', 'quay_bar@app.com', '123123', Colors.orange),
+                  _buildDebugButton('Bếp Bánh', 'bep_banh@app.com', '123123', Colors.orange),
                   _buildDebugButton('BẾP NHẬT', 'bep_nhat@app.com', '123123', Colors.orange[900]!),
                   _buildDebugButton('NHÂN VIÊN 1 (WAITER)', 'nhanvien_1@app.com', '123123', Colors.green),
                   _buildDebugButton('NHÂN VIÊN 2 (WAITER)', 'nhanvien_2@app.com', '123123', Colors.green),

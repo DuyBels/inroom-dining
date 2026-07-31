@@ -165,6 +165,7 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                 ],
 
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _selectedRole,
                   decoration: InputDecoration(labelText: l10n.roleLabel, border: const OutlineInputBorder()),
                   items: [
@@ -195,11 +196,12 @@ class _AccountFormDialogState extends ConsumerState<AccountFormDialog> {
                     loading: () => const CircularProgressIndicator(),
                     error: (e, st) => Text('${l10n.loadStationError}: $e'),
                     data: (stations) => DropdownButtonFormField<String>(
+                      isExpanded: true,
                       value: stations.any((s) => s['id'].toString() == _selectedStationId) ? _selectedStationId : null,
                       decoration: InputDecoration(labelText: l10n.selectStationLabel, border: const OutlineInputBorder()),
                       items: stations.map((s) => DropdownMenuItem(
                           value: s['id'].toString(),
-                          child: Text(L10nUtils.getL10n(s['name'], ref.watch(localeProvider)))
+                          child: Text(L10nUtils.getL10n(s['name'], ref.watch(localeProvider)), overflow: TextOverflow.ellipsis)
                       )).toList(),
                       onChanged: (val) => setState(() => _selectedStationId = val),
                       validator: (val) => val == null ? l10n.validStation : null,
