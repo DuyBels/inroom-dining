@@ -339,13 +339,22 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       final String notes = itemObj['notes']?.toString() ?? '';
       final bool isAutoAdd = itemObj['auto_add'] == true;
       // DEDUPLICATION: Prevent Gemini from returning duplicate entries and causing double quantity bugs.
+      // Instead of skipping duplicates, we merge their quantities.
       final modIdsKey = modIds.join('_');
-      final isDuplicate = result.any((d) {
+      final existingIndex = result.indexWhere((d) {
         final dModIdsKey = d.selectedModifiers.map((m) => m.modifierId).toList().join('_');
         return d.menuItem.id == itemId && dModIdsKey == modIdsKey && d.notes == notes;
       });
 
-      if (isDuplicate) {
+      if (existingIndex >= 0) {
+        final existingItem = result[existingIndex];
+        result[existingIndex] = AiSuggestedDish(
+          menuItem: existingItem.menuItem,
+          selectedModifiers: existingItem.selectedModifiers,
+          quantity: existingItem.quantity + (qty > 0 ? qty : 1),
+          autoAdded: existingItem.autoAdded || isAutoAdd,
+          notes: existingItem.notes,
+        );
         continue;
       }
 
@@ -421,11 +430,15 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         int qty = _extractQuantityFromText(userText, item.getName(locale));
         String customNotes = _extractCustomNotesFromText(userText, matchedMods, locale);
 
+        // KHÁCH PHẢI THỰC SỰ GỌI TÊN MÓN THÌ MỚI AUTO_ADD (kiểm tra trong userText thay vì combinedText)
+        final userMentionedItem = lowerUserText.contains(normalizedItemName) || 
+                                  L10nUtils.removeDiacritics(lowerUserText).contains(normalizedItemName);
+
         matched.add(AiSuggestedDish(
           menuItem: item,
           selectedModifiers: matchedMods,
           quantity: qty,
-          autoAdded: hasOrderIntent,
+          autoAdded: hasOrderIntent && userMentionedItem,
           notes: customNotes,
         ));
 
@@ -455,7 +468,21 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         if (q != null && q > 0) return q;
       }
 
-      final firstNumMatch = RegExp(r'^\s*(\d+)').firstMatch(lowerUser);
+      final unitPattern = RegExp(r'(\d+)\s*(tô|phần|ly|cốc|đĩa|chén|bát|suất|món|sp)\b');
+      final unitMatch = unitPattern.firstMatch(lowerUser);
+      if (unitMatch != null) {
+        final q = int.tryParse(unitMatch.group(1) ?? '1');
+        if (q != null && q > 0) return q;
+      }
+
+      final actionPattern = RegExp(r'(cho|thêm|đặt|lấy|gọi)\s+(\d+)\b');
+      final actionMatch = actionPattern.firstMatch(lowerUser);
+      if (actionMatch != null) {
+        final q = int.tryParse(actionMatch.group(2) ?? '1');
+        if (q != null && q > 0) return q;
+      }
+
+      final firstNumMatch = RegExp(r'(?<!bàn\s+)(?<!phòng\s+)\b(\d+)\b').firstMatch(lowerUser);
       if (firstNumMatch != null) {
         final q = int.tryParse(firstNumMatch.group(1) ?? '1');
         if (q != null && q > 0) return q;
