@@ -36,6 +36,9 @@ final userManualPreferenceProvider =
         UserManualPreferenceNotifier.new);
 
 final roomContextProvider = FutureProvider<RoomContext>((ref) async {
+  // Giữ cache để không re-fetch mỗi lần mở/đóng chatbot dialog
+  ref.keepAlive();
+
   const String apiKey = '39448cb0cb3380f9cc1efe5de1ad1982';
   const String city = 'Can Tho';
   final now = DateTime.now();

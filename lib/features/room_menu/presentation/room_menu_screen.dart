@@ -779,7 +779,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                           const Icon(Icons.timer_outlined, color: Colors.white, size: 12),
                           const SizedBox(width: 3),
                           Text(
-                            '${item.prepTime}p',
+                            '${item.prepTime}${locale == 'vi' ? 'p' : 'm'}',
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
                           ),
                         ],

@@ -208,7 +208,20 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
             onChanged: (val) {
               setState(() {
                 if (val!) {
-                  if (_selectedModifiers.where((sm) => sm.groupId == group['id']).length < max) {
+                  final currentInGroup = _selectedModifiers.where((sm) => sm.groupId == group['id']).toList();
+                  if (max == 1 && currentInGroup.isNotEmpty) {
+                    // Nếu max = 1, tự động bỏ chọn cái cũ và chọn cái mới
+                    _selectedModifiers.removeWhere((sm) => sm.groupId == group['id']);
+                    _selectedModifiers.add(SelectedModifier(
+                      groupId: group['id'],
+                      rawGroup: group['name'],
+                      groupName: groupName,
+                      modifierId: m['id'],
+                      rawModifier: m['name'],
+                      modifierName: modName,
+                      price: price,
+                    ));
+                  } else if (currentInGroup.length < max) {
                     _selectedModifiers.add(SelectedModifier(
                       groupId: group['id'],
                       rawGroup: group['name'],

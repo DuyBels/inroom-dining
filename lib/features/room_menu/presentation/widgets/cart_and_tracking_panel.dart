@@ -716,7 +716,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${NumberFormat('#,###', 'vi_VN').format(item.totalPrice)} VND',
+                  '${NumberFormat('#,###', 'vi_VN').format(item.singlePrice)} VND',
                   style: const TextStyle(color: AdminTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(width: 4),
