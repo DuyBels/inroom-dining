@@ -15,12 +15,53 @@ class PrintBillView extends ConsumerStatefulWidget {
 }
 
 class _PrintBillViewState extends ConsumerState<PrintBillView> {
-  final Future<List<Map<String, dynamic>>> _ordersFuture = supabase
-      .from('orders')
-      .select('*, tickets(*, menu_items(*))')
-      .eq('status', 'PENDING')
-      .order('created_at', ascending: false)
-      .limit(50);
+  late Future<List<Map<String, dynamic>>> _ordersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _ordersFuture = _fetchOrders();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchOrders() async {
+    final response = await supabase
+        .from('orders')
+        .select('*, tickets(*, menu_items(*))')
+        .order('created_at', ascending: false)
+        .limit(50);
+        
+    final List<Map<String, dynamic>> processed = [];
+    for (var o in response) {
+      final isPrinted = await PrintService.isOrderPrinted(o['id'].toString());
+      final orderMap = Map<String, dynamic>.from(o);
+      orderMap['is_printed'] = isPrinted;
+      processed.add(orderMap);
+    }
+    return processed;
+  }
+
+  void _refreshOrders() {
+    setState(() {
+      _ordersFuture = _fetchOrders();
+    });
+  }
+
+  String _getTranslatedOrderStatus(String? status, AppDictionary l10n) {
+    switch (status) {
+      case 'PENDING':
+        return l10n.pending;
+      case 'PROCESSING':
+        return l10n.cooking;
+      case 'READY_FOR_DELIVERY':
+        return l10n.delivery;
+      case 'DELIVERED':
+        return l10n.done;
+      case 'CANCELLED':
+        return l10n.cancelledStatus;
+      default:
+        return status ?? '--';
+    }
+  }
 
   Future<void> _printOrder(Map<String, dynamic> order) async {
     final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
@@ -57,22 +98,34 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.watch(l10nProvider);
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            ref.watch(localeProvider) == 'vi' ? 'In hóa đơn' : 'Print Bill',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AdminTheme.primaryDarkWood,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                ref.watch(localeProvider) == 'vi' ? 'In hóa đơn & Lịch sử' : 'Print Bill & History',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AdminTheme.primaryDarkWood,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshOrders,
+                tooltip: ref.watch(localeProvider) == 'vi' ? 'Làm mới' : 'Refresh',
+              )
+            ],
           ),
           const SizedBox(height: 8),
           Text(
-            ref.watch(localeProvider) == 'vi' ? 'Chỉ hiển thị các đơn hàng mới (Đang gửi) để in lại hóa đơn.' : 'Only showing PENDING orders to reprint bill.',
+            ref.watch(localeProvider) == 'vi' ? 'Hiển thị danh sách các đơn hàng gần đây và trạng thái in.' : 'Showing recent orders and their print status.',
             style: const TextStyle(color: AdminTheme.textMutedWood),
           ),
           const SizedBox(height: 24),
@@ -110,17 +163,46 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
                       ),
                       subtitle: Text(
                         ref.watch(localeProvider) == 'vi'
-                            ? 'Thời gian: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)} | Trạng thái: ${order['status'] == 'PENDING' ? 'Đang gửi' : order['status']}'
-                            : 'Time: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)} | Status: ${order['status']}',
+                            ? 'Thời gian: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)} | Trạng thái: ${_getTranslatedOrderStatus(order['status'], l10n)}'
+                            : 'Time: ${DateFormat('HH:mm - dd/MM/yyyy').format(date)} | Status: ${_getTranslatedOrderStatus(order['status'], l10n)}',
                       ),
-                      trailing: ElevatedButton.icon(
-                        icon: const Icon(Icons.print, size: 18),
-                        label: Text(ref.watch(localeProvider) == 'vi' ? 'In hóa đơn' : 'Print Bill'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AdminTheme.primaryBlue,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => _printOrder(order),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: order['is_printed'] == true ? Colors.green[100] : Colors.orange[100], 
+                              borderRadius: BorderRadius.circular(8)
+                            ),
+                            child: Text(
+                              order['is_printed'] == true 
+                                ? (ref.watch(localeProvider) == 'vi' ? 'Đã in' : 'Printed')
+                                : (ref.watch(localeProvider) == 'vi' ? 'Chưa in' : 'Not printed'), 
+                              style: TextStyle(
+                                color: order['is_printed'] == true ? Colors.green[800] : Colors.orange[800], 
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              )
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.print, size: 18),
+                            label: Text(ref.watch(localeProvider) == 'vi' ? 'In bill' : 'Print'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AdminTheme.primaryBlue,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              _printOrder(order);
+                              // Mark as printed optimistically in UI
+                              setState(() {
+                                order['is_printed'] = true;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                     );
                   },

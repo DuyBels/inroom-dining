@@ -13,17 +13,42 @@ import '../../providers/admin_provider.dart';
 import '../widgets/menu_form_dialog.dart';
 import '../widgets/modifier_management_dialog.dart';
 
-class MenuManagementView extends ConsumerWidget {
+class MenuManagementView extends ConsumerStatefulWidget {
   const MenuManagementView({super.key});
+
+  @override
+  ConsumerState<MenuManagementView> createState() => _MenuManagementViewState();
+}
+
+class _MenuManagementViewState extends ConsumerState<MenuManagementView> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   String _formatPrice(dynamic price) => NumberFormat('#,###', 'vi_VN').format(num.tryParse(price.toString()) ?? 0);
 
+  List<MenuItemModel> _filterBySearch(List<MenuItemModel> items, String locale) {
+    if (_searchQuery.isEmpty) return items;
+    final query = _searchQuery.toLowerCase();
+    return items.where((item) {
+      final nameVi = (item.nameMap['vi'] ?? '').toLowerCase();
+      final nameEn = (item.nameMap['en'] ?? '').toLowerCase();
+      return nameVi.contains(query) || nameEn.contains(query);
+    }).toList();
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final menuAsync = ref.watch(menuItemsStreamProvider);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final stationsAsync = ref.watch(stationsStreamProvider);
     final l10n = ref.watch(l10nProvider);
+    final locale = ref.watch(localeProvider);
 
     return categoriesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -72,6 +97,47 @@ class MenuManagementView extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    // === THANH TÌM KIẾM MÓN ĂN ===
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: locale == 'vi' ? 'Tìm kiếm món ăn...' : 'Search menu items...',
+                        hintStyle: const TextStyle(color: AdminTheme.textMutedWood),
+                        prefixIcon: const Icon(Icons.search, color: AdminTheme.primaryWood),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: AdminTheme.textMutedWood),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: AdminTheme.surfaceWhite,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AdminTheme.borderWood),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AdminTheme.borderWood),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AdminTheme.primaryWood, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
@@ -85,7 +151,7 @@ class MenuManagementView extends ConsumerWidget {
                         unselectedLabelColor: AdminTheme.textMutedWood,
                         indicatorColor: AdminTheme.primaryWood,
                         indicatorWeight: 3,
-                        tabs: fullCategories.map((c) => Tab(text: L10nUtils.getL10n(c['name'], ref.watch(localeProvider)))).toList(),
+                        tabs: fullCategories.map((c) => Tab(text: L10nUtils.getL10n(c['name'], locale))).toList(),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -97,7 +163,8 @@ class MenuManagementView extends ConsumerWidget {
                           if (menuItems.isEmpty) return Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
                           return TabBarView(
                             children: fullCategories.map((cat) {
-                              final filteredItems = cat['id'] == 'all' ? menuItems : menuItems.where((item) => item.categoryId == cat['id']).toList();
+                              final categoryFiltered = cat['id'] == 'all' ? menuItems : menuItems.where((item) => item.categoryId == cat['id']).toList();
+                              final filteredItems = _filterBySearch(categoryFiltered, locale);
                               return _buildMenuTable(context, ref, filteredItems, categories, stationsAsync.value ?? [], isMobile: isMobile);
                             }).toList(),
                           );
@@ -123,7 +190,7 @@ class MenuManagementView extends ConsumerWidget {
     required bool isMobile,
   }) {
     final l10n = ref.watch(l10nProvider);
-    if (menuItems.isEmpty) return Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
+    if (menuItems.isEmpty) return Center(child: Text(_searchQuery.isNotEmpty ? (ref.watch(localeProvider) == 'vi' ? 'Không tìm thấy món ăn nào.' : 'No menu items found.') : l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
 
     return Card(
       child: LayoutBuilder(
@@ -276,4 +343,5 @@ class MenuManagementView extends ConsumerWidget {
     );
   }
 }
+
 

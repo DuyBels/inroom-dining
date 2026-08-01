@@ -38,43 +38,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   void initState() {
     super.initState();
-    _setupAutoPrintListener();
-  }
-
-  void _setupAutoPrintListener() {
-    print("DEBUG: Setting up Auto Print Listener for Admin...");
-    _printChannel = supabase.channel('public:orders').onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'orders',
-      callback: (payload) async {
-        print("DEBUG: Received new order event! Payload: ${payload.newRecord}");
-        final newOrder = payload.newRecord;
-        if (newOrder['status'] == 'PENDING') {
-          print("DEBUG: Order is PENDING. Waiting 1.5s for tickets...");
-          // Đợi một chút để tickets kịp insert vào database
-          await Future.delayed(const Duration(milliseconds: 1500));
-          final ticketsRes = await supabase.from('tickets').select('*, menu_items(*)').eq('order_id', newOrder['id']);
-          print("DEBUG: Fetched ${ticketsRes.length} tickets for printing.");
-          
-          final menuItems = ref.read(menuItemsStreamProvider).value ?? [];
-          
-          try {
-             print("DEBUG: Triggering PrintService...");
-             await PrintService.printOrderBill(
-               order: newOrder,
-               tickets: ticketsRes,
-               menuItems: menuItems,
-               locale: ref.read(localeProvider),
-             );
-          } catch (e) {
-             print("Lỗi in bill: $e");
-          }
-        }
-      },
-    ).subscribe((status, [error]) {
-       print("DEBUG: Realtime print channel status: $status");
-    });
   }
 
   @override
