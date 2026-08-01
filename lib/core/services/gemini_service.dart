@@ -172,6 +172,7 @@ class GeminiService {
     required String dbContext,
     required List<Map<String, String>> chatHistory,
     required String locale,
+    String weatherContext = '',
   }) async {
     if (apiKey == null || apiKey!.isEmpty) {
       throw Exception("Chưa cấu hình GEMINI_API_KEY trong .env");
@@ -182,6 +183,10 @@ class GeminiService {
     final systemInstruction = '''
 Bạn là Trợ Lý AI Chuyên nghiệp của nhà hàng InRoom Dining.
 Nhiệm vụ duy nhất của bạn là tư vấn cho khách hàng về thực đơn, danh mục món ăn, giá tiền, thời gian chế biến, các topping/tùy chọn (modifiers) và mô tả chi tiết của từng món ăn dựa TRÊN CƠ SỞ DỮ LIỆU THỰC ĐƠN ĐƯỢC CUNG CẤP DƯỚI ĐÂY.
+Bạn cũng có thông tin thời tiết và thời gian thực tế để gợi ý món phù hợp (VD: trời nóng → đồ uống mát lạnh, trời mưa → món nóng ấm áp, buổi sáng → bữa sáng nhẹ, buổi tối → bữa chính). Khi khách hỏi chung chung ("gợi ý món gì đi", "hôm nay ăn gì", "trời nóng quá"), hãy tận dụng thông tin thời tiết để đưa ra gợi ý phù hợp nhất.
+
+THÔNG TIN THỜI TIẾT & THỜI GIAN HIỆN TẠI:
+$weatherContext
 
 DỮ LIỆU THỰC ĐƠN VÀ TOPPING CHÍNH THỨC TỪ CƠ SỞ DỮ LIỆU NHÀ HÀNG:
 $dbContext

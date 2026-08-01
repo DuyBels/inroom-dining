@@ -18,7 +18,6 @@ import '../../admin_panel/providers/menu_provider.dart';
 import '../../admin_panel/providers/tag_provider.dart';
 import '../../admin_panel/providers/admin_provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../providers/ai_recommendation_provider.dart';
 import '../providers/room_menu_provider.dart';
 import 'widgets/dish_customization_dialog.dart';
 import 'widgets/food_chatbot_dialog.dart';
@@ -172,7 +171,6 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                 _buildSearchBar(l10n),
                 if (isMobile) _buildTopCategoryChips(categoriesAsync.value, l10n, locale),
                 _buildTagFilterBar(tagsAsync, activeFilters, locale),
-                _buildAISuggestionBar(),
                 Expanded(
                   child: menuWithTagsAsync.when(
                     data: (items) {
@@ -657,112 +655,6 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildAISuggestionBar() {
-    final aiItemsAsync = ref.watch(aiRecommendedItemsProvider);
-    final contextAsync = ref.watch(roomContextProvider);
-    final manualPref = ref.watch(userManualPreferenceProvider);
-    final l10n = ref.watch(l10nProvider);
-    final locale = ref.watch(localeProvider);
-
-    return contextAsync.when(
-      loading: () => const SizedBox(),
-      error: (e, s) => const SizedBox(),
-      data: (roomCtx) {
-        if (roomCtx.isApiError && manualPref == null) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AdminTheme.lightBlueContainer,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AdminTheme.borderBlue),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.auto_awesome, color: AdminTheme.primaryBlue, size: 18),
-                const SizedBox(width: 10),
-                Expanded(child: Text(l10n.aiIntro, style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkBlue))),
-                TextButton(onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('COOL'), child: Text(l10n.cool)),
-                TextButton(onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('WARM'), child: Text(l10n.warm)),
-              ],
-            ),
-          );
-        }
-
-        return aiItemsAsync.when(
-          loading: () => const SizedBox(),
-          error: (e, s) => const SizedBox(),
-          data: (items) {
-            if (items.isEmpty) return const SizedBox();
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AdminTheme.blueTint,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AdminTheme.borderBlue),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${l10n.aiSuggestion}: ${roomCtx.isApiError ? (manualPref == 'COOL' ? l10n.cool : l10n.warm) : "${roomCtx.temp.toInt()}°C"}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminTheme.primaryDarkBlue),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 78,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: items.length,
-                      itemBuilder: (context, idx) {
-                        final item = items[idx];
-                        return GestureDetector(
-                          onTap: () => _showCustomizationDialog(item.id),
-                          child: Container(
-                            width: 185,
-                            margin: const EdgeInsets.only(right: 10),
-                            decoration: BoxDecoration(
-                              color: AdminTheme.surfaceWhite,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AdminTheme.borderBlue),
-                            ),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                                  child: item.imageUrl != null
-                                      ? Image.network(item.imageUrl!, width: 60, height: 78, fit: BoxFit.cover)
-                                      : Container(width: 60, color: AdminTheme.blueTint),
-                                ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      item.getName(locale),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AdminTheme.textDarkBlue),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 

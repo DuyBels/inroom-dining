@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/theme/admin_theme.dart';
+import '../../providers/ai_recommendation_provider.dart';
 import '../../providers/room_ai_chat_provider.dart';
 import '../../providers/room_menu_provider.dart';
 import 'dish_customization_dialog.dart';
@@ -25,10 +26,10 @@ class FoodChatbotDialog extends ConsumerStatefulWidget {
       showDialog(
         context: context,
         builder: (context) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: SizedBox(
-            width: 540,
-            height: 720,
+            width: 640,
+            height: 820,
             child: const FoodChatbotDialog(),
           ),
         ),
@@ -308,96 +309,314 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
   }
 
   Widget _buildEmptyWelcomeState(List<String> suggestions, String locale) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AdminTheme.lightWoodCream,
-                shape: BoxShape.circle,
-                border: Border.all(color: AdminTheme.borderWood, width: 1),
-              ),
-              child: const Icon(
-                Icons.restaurant_menu_rounded,
-                size: 36,
-                color: AdminTheme.primaryDarkWood,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              locale == 'vi'
-                  ? 'Trợ Lý Tư Vấn Món & Đặt Món AI'
-                  : 'Smart AI Food & Ordering Assistant',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: AdminTheme.primaryDarkWood,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              locale == 'vi'
-                  ? 'Hỏi AI về món ăn, tùy chỉnh topping, hoặc nói "Thêm món vào giỏ". Bạn chỉ cần bấm nút Đặt Món ở giỏ hàng khi sẵn sàng!'
-                  : 'Ask AI for recommendations, custom toppings, or say "Add to cart". Just click Order Now in your cart when ready!',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: AdminTheme.textMutedWood,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                locale == 'vi' ? 'Gợi ý trải nghiệm:' : 'Suggested prompts:',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: AdminTheme.primaryWood,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // --- HERO SECTION ---
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AdminTheme.lightWoodCream,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AdminTheme.borderWood, width: 1),
+                  ),
+                  child: const Icon(
+                    Icons.restaurant_menu_rounded,
+                    size: 32,
+                    color: AdminTheme.primaryDarkWood,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                Text(
+                  locale == 'vi'
+                      ? 'Trợ Lý Tư Vấn Món & Đặt Món AI'
+                      : 'Smart AI Food & Ordering Assistant',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AdminTheme.primaryDarkWood,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  locale == 'vi'
+                      ? 'Hỏi AI về món ăn, tùy chỉnh topping, hoặc nói "Thêm món vào giỏ".'
+                      : 'Ask AI for recommendations, custom toppings, or say "Add to cart".',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AdminTheme.textMutedWood,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: suggestions.map((text) {
-                return InkWell(
-                  onTap: () {
-                    _textController.text = text;
-                    _handleSend(locale);
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AdminTheme.borderWood),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.chat_bubble_outline, size: 14, color: AdminTheme.secondaryWood),
-                        const SizedBox(width: 6),
-                        Text(
+          ),
+
+          const SizedBox(height: 20),
+
+          // --- AI WEATHER RECOMMENDATION SECTION ---
+          _buildInlineAiRecommendations(locale),
+
+          const SizedBox(height: 16),
+
+          // --- SUGGESTED PROMPTS ---
+          Text(
+            locale == 'vi' ? 'Gợi ý trải nghiệm:' : 'Suggested prompts:',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: AdminTheme.primaryWood,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: suggestions.map((text) {
+              return InkWell(
+                onTap: () {
+                  _textController.text = text;
+                  _handleSend(locale);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AdminTheme.borderWood),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.chat_bubble_outline, size: 14, color: AdminTheme.secondaryWood),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
                           text,
                           style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood),
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// AI weather/time-based dish recommendations — integrated into chatbot welcome
+  Widget _buildInlineAiRecommendations(String locale) {
+    final aiItemsAsync = ref.watch(aiRecommendedItemsProvider);
+    final contextAsync = ref.watch(roomContextProvider);
+    final manualPref = ref.watch(userManualPreferenceProvider);
+    final l10n = ref.watch(l10nProvider);
+
+    return contextAsync.when(
+      loading: () => const SizedBox(),
+      error: (e, s) => const SizedBox(),
+      data: (roomCtx) {
+        // Show manual preference picker when API fails
+        if (roomCtx.isApiError && manualPref == null) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AdminTheme.lightWoodCream,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AdminTheme.borderWood),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, color: AdminTheme.primaryWood, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        l10n.aiIntro,
+                        style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.ac_unit, size: 16),
+                        label: Text(l10n.cool),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AdminTheme.primaryWood,
+                          side: const BorderSide(color: AdminTheme.borderWood),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('COOL'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.local_fire_department, size: 16),
+                        label: Text(l10n.warm),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AdminTheme.primaryWood,
+                          side: const BorderSide(color: AdminTheme.borderWood),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onPressed: () => ref.read(userManualPreferenceProvider.notifier).update('WARM'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Show recommended dishes
+        return aiItemsAsync.when(
+          loading: () => const SizedBox(),
+          error: (e, s) => const SizedBox(),
+          data: (items) {
+            if (items.isEmpty) return const SizedBox();
+
+            final label = roomCtx.isApiError
+                ? (manualPref == 'COOL' ? l10n.cool : l10n.warm)
+                : '${roomCtx.temp.toInt()}°C';
+
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AdminTheme.lightWoodCream,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AdminTheme.borderWood),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AdminTheme.primaryWood.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.auto_awesome, color: AdminTheme.primaryWood, size: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${l10n.aiSuggestion}: $label',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: AdminTheme.primaryDarkWood,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 80,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: items.length,
+                      itemBuilder: (context, idx) {
+                        final item = items[idx];
+                        return GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => DishCustomizationDialog(item: item),
+                            );
+                          },
+                          child: Container(
+                            width: 175,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AdminTheme.borderWood),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                                  child: item.imageUrl != null
+                                      ? Image.network(item.imageUrl!, width: 58, height: 80, fit: BoxFit.cover)
+                                      : Container(
+                                          width: 58,
+                                          height: 80,
+                                          color: AdminTheme.lightWoodCream,
+                                          child: const Icon(Icons.restaurant, color: AdminTheme.secondaryWood, size: 22),
+                                        ),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          item.getName(locale),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11.5,
+                                            color: AdminTheme.primaryDarkWood,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '${NumberFormat('#,###', 'vi_VN').format(item.price)} VND',
+                                          style: const TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF2E7D32),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

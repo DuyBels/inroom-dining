@@ -36,7 +36,6 @@ class SmartTicket {
   final String roomNumber;
   final String orderNotes;
   final int prepTime;
-  final int delayMinutes;
   final double basePrice;
   final DateTime targetStartTime;
   final bool isOrderStarted;
@@ -49,7 +48,6 @@ class SmartTicket {
     required this.roomNumber,
     required this.orderNotes,
     required this.prepTime,
-    required this.delayMinutes,
     required this.basePrice,
     required this.targetStartTime,
     this.isOrderStarted = false,
@@ -95,7 +93,6 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
     );
     
     final int prepTime = menuItem.prepTime;
-    final int delay = ticket['delay_minutes'] ?? 0;
     
     DateTime refTime;
     if (isStarted) {
@@ -108,7 +105,7 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
       refTime = DateTime.parse(ticket['created_at']).toLocal();
     }
 
-    final finishTime = refTime.add(Duration(minutes: prepTime + delay));
+    final finishTime = refTime.add(Duration(minutes: prepTime));
 
     if (!orderTargetFinishTimes.containsKey(orderId) || finishTime.isAfter(orderTargetFinishTimes[orderId]!)) {
       orderTargetFinishTimes[orderId] = finishTime;
@@ -131,13 +128,13 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
     final order = orders.firstWhere((o) => o['id'] == orderId, orElse: () => {'room_number': '?'});
 
     final targetFinish = orderTargetFinishTimes[orderId]!;
-    final targetStart = targetFinish.subtract(Duration(minutes: (menuItem.prepTime + (ticket['delay_minutes'] ?? 0)).toInt()));
+    final targetStart = targetFinish.subtract(Duration(minutes: (menuItem.prepTime).toInt()));
 
     final orderTickets = allTickets.where((t) => t['order_id'] == orderId && t['status'] != 'DONE');
     DateTime earliestInOrder = targetStart;
     for(var ot in orderTickets) {
        final m = menuItems.firstWhere((mi) => mi.id == ot['item_id'], orElse: () => MenuItemModel(id: '', price: 0, nameMap: {}, descriptionMap: {}, prepTime: 15, categoryId: '', stationId: '', isAvailable: false));
-       final otStart = targetFinish.subtract(Duration(minutes: (m.prepTime + (ot['delay_minutes'] ?? 0)).toInt()));
+       final otStart = targetFinish.subtract(Duration(minutes: (m.prepTime).toInt()));
        if (otStart.isBefore(earliestInOrder)) earliestInOrder = otStart;
     }
 
@@ -147,7 +144,6 @@ final smartKitchenTicketsProvider = Provider.family<List<SmartTicket>, String>((
       roomNumber: order['room_number']?.toString() ?? '?',
       orderNotes: order['notes']?.toString() ?? '',
       prepTime: menuItem.prepTime,
-      delayMinutes: ticket['delay_minutes'] ?? 0,
       basePrice: menuItem.price,
       targetStartTime: targetStart,
       isOrderStarted: orderHasStarted[orderId] ?? false,

@@ -136,7 +136,6 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
         'notes': raw['notes'],
         'selected_modifiers': raw['selected_modifiers'],
         'status': 'PENDING',
-        'delay_minutes': 0,
         'is_remake': true,
         'remake_of': raw['id'],
         'created_at': now,

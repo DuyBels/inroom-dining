@@ -6,6 +6,7 @@ import '../../../core/services/gemini_service.dart';
 import '../../../core/utils/l10n_utils.dart';
 import '../../../main.dart';
 import 'room_menu_provider.dart';
+import 'ai_recommendation_provider.dart';
 
 class AiSuggestedDish {
   final MenuItemModel menuItem;
@@ -62,10 +63,16 @@ class RoomAiChatState {
 }
 
 class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
+  /// Cache context menu từ DB để không phải query lại mỗi lần chat
+  String? _cachedDbContext;
+  String? _cachedLocale;
+
   @override
   RoomAiChatState build() => RoomAiChatState(messages: []);
 
   void clearChat() {
+    _cachedDbContext = null;
+    _cachedLocale = null;
     state = RoomAiChatState(messages: []);
   }
 
@@ -192,21 +199,51 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
     );
 
     try {
-      // 1. Truy xuất cơ sở dữ liệu các danh mục, món ăn, toppings, mô tả
-      final dbContext = await fetchFoodDatabaseContext(locale);
+      // 1. Truy xuất cơ sở dữ liệu (chỉ query lần đầu, sau đó dùng cache)
+      if (_cachedDbContext == null || _cachedLocale != locale) {
+        _cachedDbContext = await fetchFoodDatabaseContext(locale);
+        _cachedLocale = locale;
+      }
+      final dbContext = _cachedDbContext!;
 
-      // 2. Chuẩn bị lịch sử trò chuyện
+      // 2. Lấy thông tin thời tiết (đã cached bởi Riverpod, không gọi API thêm)
+      String weatherContext = '';
+      try {
+        final roomCtx = await ref.read(roomContextProvider.future);
+        final hour = roomCtx.hour;
+        String timeOfDay;
+        if (hour >= 5 && hour < 11) {
+          timeOfDay = 'Buổi sáng (Morning)';
+        } else if (hour >= 11 && hour < 14) {
+          timeOfDay = 'Buổi trưa (Lunch)';
+        } else if (hour >= 14 && hour < 17) {
+          timeOfDay = 'Buổi chiều (Afternoon)';
+        } else if (hour >= 17 && hour < 21) {
+          timeOfDay = 'Buổi tối (Dinner)';
+        } else {
+          timeOfDay = 'Khuya (Late Night)';
+        }
+        weatherContext = '- Nhiệt độ hiện tại: ${roomCtx.temp.toStringAsFixed(1)}°C\n'
+            '- Thời tiết: ${roomCtx.weather}\n'
+            '- Thời điểm: $timeOfDay (${hour}h)\n'
+            '${roomCtx.isApiError ? "(Lưu ý: Dữ liệu thời tiết có thể không chính xác do lỗi API)" : ""}';
+      } catch (_) {
+        weatherContext = '- Không có dữ liệu thời tiết.';
+      }
+
+      // 3. Chuẩn bị lịch sử trò chuyện
       final chatHistory = state.messages.map((m) => {
         'sender': m.sender,
         'text': m.text,
       }).toList();
 
-      // 3. Gửi sang Gemini API với Context từ Database
+      // 4. Gửi sang Gemini API với Context từ Database + Thời tiết
       String aiRawResponse = await ref.read(geminiServiceProvider).chatAboutFood(
         userMessage: userText,
         dbContext: dbContext,
         chatHistory: chatHistory,
         locale: locale,
+        weatherContext: weatherContext,
       );
 
       // 4. Bóc tách và dọn dẹp dữ liệu JSON đính kèm [ITEMS_DATA: ...] nếu có
@@ -338,8 +375,8 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       final int qty = num.tryParse(itemObj['quantity']?.toString() ?? '1')?.toInt() ?? 1;
       final String notes = itemObj['notes']?.toString() ?? '';
       final bool isAutoAdd = itemObj['auto_add'] == true;
-      // DEDUPLICATION: Prevent Gemini from returning duplicate entries and causing double quantity bugs.
-      // Instead of skipping duplicates, we merge their quantities.
+      // DEDUPLICATION: Gemini đôi khi trả trùng entry cho cùng 1 món.
+      // Prompt đã yêu cầu gộp sẵn, nên entry trùng là lỗi hallucination → bỏ qua.
       final modIdsKey = modIds.join('_');
       final existingIndex = result.indexWhere((d) {
         final dModIdsKey = d.selectedModifiers.map((m) => m.modifierId).toList().join('_');
@@ -347,14 +384,7 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       });
 
       if (existingIndex >= 0) {
-        final existingItem = result[existingIndex];
-        result[existingIndex] = AiSuggestedDish(
-          menuItem: existingItem.menuItem,
-          selectedModifiers: existingItem.selectedModifiers,
-          quantity: existingItem.quantity + (qty > 0 ? qty : 1),
-          autoAdded: existingItem.autoAdded || isAutoAdd,
-          notes: existingItem.notes,
-        );
+        // Đã có entry giống hệt → bỏ qua entry trùng, giữ nguyên số lượng gốc
         continue;
       }
 
