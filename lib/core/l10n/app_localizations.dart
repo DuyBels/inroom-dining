@@ -108,6 +108,7 @@ class AppDictionary {
   final String menuTab;
   final String tagsTab;
   final String adminHistoryTab;
+  final String liveOrderMonitorTab;
   final String qrCodeTab;
   final String generateQrTitle;
   final String selectRoom;
@@ -413,6 +414,7 @@ class AppDictionary {
     required this.menuTab,
     required this.tagsTab,
     required this.adminHistoryTab,
+    required this.liveOrderMonitorTab,
     required this.qrCodeTab,
     required this.generateQrTitle,
     required this.selectRoom,
@@ -695,6 +697,7 @@ final viDict = AppDictionary(
   menuTab: "Thực đơn",
   tagsTab: "Thẻ dữ liệu",
   adminHistoryTab: "Lịch sử",
+  liveOrderMonitorTab: "Giám sát đơn hàng",
   qrCodeTab: "Mã QR Phòng",
   generateQrTitle: "Tạo Mã QR Tự Đăng Nhập",
   selectRoom: "Chọn số phòng",
@@ -976,6 +979,7 @@ final enDict = AppDictionary(
   menuTab: "Menu",
   tagsTab: "Tags",
   adminHistoryTab: "History",
+  liveOrderMonitorTab: "Live Orders",
   qrCodeTab: "Room QR Code",
   generateQrTitle: "Generate Auto-Login QR Code",
   selectRoom: "Select Room Number",

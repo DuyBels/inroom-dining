@@ -20,6 +20,7 @@ import 'views/menu_management_view.dart';
 import 'views/tag_management_view.dart';
 import 'views/admin_history_view.dart';
 import 'views/print_bill_view.dart';
+import 'views/live_order_monitor_view.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   final String? adminId;
@@ -53,6 +54,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     CategoryManagementView(),
     MenuManagementView(),
     TagManagementView(),
+    LiveOrderMonitorView(),
     AdminHistoryView(),
     PrintBillView(),
   ];
@@ -97,6 +99,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             l10n.categoriesTab,
             l10n.menuTab,
             l10n.tagsTab,
+            l10n.liveOrderMonitorTab,
             l10n.adminHistoryTab,
             ref.watch(localeProvider) == 'vi' ? 'In hóa đơn' : 'Print Bill',
           ];
@@ -107,6 +110,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             Icons.category_outlined,
             Icons.restaurant_menu_outlined,
             Icons.local_offer_outlined,
+            Icons.monitor_heart_outlined,
             Icons.history_outlined,
             Icons.print_outlined,
           ];
@@ -117,6 +121,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             Icons.category,
             Icons.restaurant_menu,
             Icons.local_offer,
+            Icons.monitor_heart,
             Icons.history,
             Icons.print,
           ];
