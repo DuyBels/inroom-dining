@@ -190,7 +190,6 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
                         list = list.where((item) {
                           final name = L10nUtils.removeDiacritics(item.getName(locale).toLowerCase());
-                          final desc = L10nUtils.removeDiacritics(item.getDescription(locale).toLowerCase());
                           
                           String variant = '';
                           if (item.categoryVariantId != null) {
@@ -225,7 +224,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                             }
                           }
 
-                          final combinedText = "$name $desc $variant $tagNames $stationName $catName";
+                          final combinedText = "$name $variant $tagNames $stationName $catName";
                           
                           if (combinedText.contains(normalizedQuery)) return true;
 

@@ -34,10 +34,10 @@ class _MenuManagementViewState extends ConsumerState<MenuManagementView> {
 
   List<MenuItemModel> _filterBySearch(List<MenuItemModel> items, String locale) {
     if (_searchQuery.isEmpty) return items;
-    final query = _searchQuery.toLowerCase();
+    final query = L10nUtils.removeDiacritics(_searchQuery.toLowerCase());
     return items.where((item) {
-      final nameVi = (item.nameMap['vi'] ?? '').toLowerCase();
-      final nameEn = (item.nameMap['en'] ?? '').toLowerCase();
+      final nameVi = L10nUtils.removeDiacritics((item.nameMap['vi'] ?? '').toLowerCase());
+      final nameEn = L10nUtils.removeDiacritics((item.nameMap['en'] ?? '').toLowerCase());
       return nameVi.contains(query) || nameEn.contains(query);
     }).toList();
   }

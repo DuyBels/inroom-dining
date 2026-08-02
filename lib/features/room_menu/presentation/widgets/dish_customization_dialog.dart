@@ -117,6 +117,35 @@ class _DishCustomizationDialogState extends ConsumerState<DishCustomizationDialo
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (widget.item.getDescription(locale).isNotEmpty) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AdminTheme.bgWarmWhite,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AdminTheme.borderWood.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.info_outline_rounded, size: 16, color: AdminTheme.textMutedWood),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        widget.item.getDescription(locale),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AdminTheme.textDarkWood,
+                                          height: 1.45,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                            ],
                             if (groups.isNotEmpty) ...[
                               ...groups.map((group) => _buildModifierGroup(group, l10n, locale)),
                               const SizedBox(height: 12),
