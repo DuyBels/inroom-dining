@@ -12,8 +12,8 @@ import '../../../core/services/print_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/menu_provider.dart';
 
-// Import các giao diện tính năng con
-import 'views/account_management_view.dart';
+import 'views/staff_management_view.dart';
+import 'views/room_management_view.dart';
 import 'views/station_management_view.dart';
 import 'views/category_management_view.dart';
 import 'views/menu_management_view.dart';
@@ -49,7 +49,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   // Danh sách các màn hình tính năng tương ứng với các mục ở thanh Menu
   final List<Widget> _views = const [
-    AccountManagementView(),
+    StaffManagementView(),
+    RoomManagementView(),
     StationManagementView(),
     CategoryManagementView(),
     MenuManagementView(),
@@ -94,7 +95,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           final isDesktop = constraints.maxWidth >= 1024;
 
           final tabTitles = [
-            l10n.accountsTab,
+            l10n.staffTab,
+            l10n.roomsTab,
             l10n.stationsTab,
             l10n.categoriesTab,
             l10n.menuTab,
@@ -106,6 +108,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
           final tabIcons = const [
             Icons.people_outline,
+            Icons.meeting_room_outlined,
             Icons.countertops_outlined,
             Icons.category_outlined,
             Icons.restaurant_menu_outlined,
@@ -117,6 +120,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
           final selectedTabIcons = const [
             Icons.people,
+            Icons.meeting_room,
             Icons.countertops,
             Icons.category,
             Icons.restaurant_menu,

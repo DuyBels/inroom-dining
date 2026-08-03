@@ -127,7 +127,10 @@ class AppDictionary {
   final String addCategory;
   final String addItem;
   final String addTag;
+  final String addRoom;
   final String manageAccounts;
+  final String manageStaff;
+  final String manageRooms;
   final String manageStations;
   final String manageCategories;
   final String manageMenu;
@@ -147,6 +150,7 @@ class AppDictionary {
   final String ordersTab;
   final String kitchenTab;
   final String staffTab;
+  final String roomsTab;
   final String timeLabel;
   final String deliveryPersonLabel;
   final String performerLabel;
@@ -430,11 +434,14 @@ class AppDictionary {
     required this.qrExpiredTitle,
     required this.qrExpiredMessage,
     required this.addAccount,
+    required this.addRoom,
     required this.addStation,
     required this.addCategory,
     required this.addItem,
     required this.addTag,
     required this.manageAccounts,
+    required this.manageStaff,
+    required this.manageRooms,
     required this.manageStations,
     required this.manageCategories,
     required this.manageMenu,
@@ -454,6 +461,7 @@ class AppDictionary {
     required this.ordersTab,
     required this.kitchenTab,
     required this.staffTab,
+    required this.roomsTab,
     required this.timeLabel,
     required this.deliveryPersonLabel,
     required this.performerLabel,
@@ -714,11 +722,14 @@ final viDict = AppDictionary(
   qrExpiredTitle: "Mã QR đã hết hạn",
   qrExpiredMessage: "Thời gian sử dụng mã QR phòng này đã kết thúc. Vui lòng liên hệ lễ tân để nhận mã QR mới.",
   addAccount: "Thêm Tài Khoản",
+  addRoom: "Thêm Phòng",
   addStation: "Thêm Trạm Bếp",
   addCategory: "Thêm Danh Mục",
   addItem: "Thêm Món Mới",
   addTag: "Thêm Thẻ Mới",
   manageAccounts: "Quản lý Tài khoản",
+  manageStaff: "Quản lý Nhân viên",
+  manageRooms: "Quản lý Phòng",
   manageStations: "Quản lý Trạm Bếp",
   manageCategories: "Quản lý Danh mục",
   manageMenu: "Quản lý Thực đơn",
@@ -737,7 +748,8 @@ final viDict = AppDictionary(
   systemHistoryTitle: "Lịch Sử Hoạt Động Toàn Hệ Thống",
   ordersTab: "Đơn hàng (Phòng)",
   kitchenTab: "Bếp (Món ăn)",
-  staffTab: "Nhân viên (Dịch vụ)",
+  staffTab: "Nhân viên",
+  roomsTab: "Phòng",
   timeLabel: "Thời gian",
   deliveryPersonLabel: "Người giao",
   performerLabel: "Người thực hiện",
@@ -821,7 +833,7 @@ final viDict = AppDictionary(
   chooseImage: "Chọn ảnh",
   saveItem: "Lưu Món Ăn",
   deleteItemConfirm: "Bạn có chắc chắn muốn xóa món này khỏi Menu?",
-  manageToppingTooltip: "Quản lý Topping",
+  manageToppingTooltip: "Quản lý Tùy chọn",
   customization: "Tùy chỉnh",
   addNewGroup: "Thêm nhóm mới",
   noCustomizations: "Chưa có tùy chỉnh nào cho món này.\nNhấn \"Thêm nhóm mới\" để bắt đầu.",
@@ -997,11 +1009,14 @@ final enDict = AppDictionary(
   qrExpiredTitle: "QR Code Expired",
   qrExpiredMessage: "The usage time for this room QR code has ended. Please contact reception for a new QR code.",
   addAccount: "Add Account",
+  addRoom: "Add Room",
   addStation: "Add Station",
   addCategory: "Add Category",
   addItem: "Add New Item",
-  addTag: "Add New Tag",
+  addTag: "Add Tag",
   manageAccounts: "Account Management",
+  manageStaff: "Staff Management",
+  manageRooms: "Room Management",
   manageStations: "Station Management",
   manageCategories: "Category Management",
   manageMenu: "Menu Management",
@@ -1019,8 +1034,9 @@ final enDict = AppDictionary(
   infoLabel: "Information",
   systemHistoryTitle: "System Activity History",
   ordersTab: "Orders (Room)",
-  kitchenTab: "Kitchen (Dishes)",
-  staffTab: "Staff (Services)",
+  kitchenTab: "Kitchen",
+  staffTab: "Staff",
+  roomsTab: "Rooms",
   timeLabel: "Time",
   deliveryPersonLabel: "Delivery Person",
   performerLabel: "Performer",

@@ -79,12 +79,10 @@ class CategoryManagementView extends ConsumerWidget {
                                   dataRowMaxHeight: 60,
                                   columns: [
                                     DataColumn(label: Text(l10n.categoriesTab, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))),
-                                    DataColumn(label: Text(l10n.descriptionLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))),
                                     DataColumn(label: Text(l10n.actionsLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))),
                                   ],
                                   rows: categories.map((category) {
                                     final locale = ref.watch(localeProvider);
-                                    final desc = L10nUtils.getL10n(category.descriptionMap, locale);
                                     return DataRow(cells: [
                                       DataCell(
                                         Row(
@@ -105,11 +103,10 @@ class CategoryManagementView extends ConsumerWidget {
                                           ],
                                         ),
                                       ),
-                                      DataCell(Text(desc.isEmpty ? '-' : desc, style: const TextStyle(color: AdminTheme.textDarkBlue))),
                                       DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
                                         IconButton(
                                           icon: const Icon(Icons.list_alt_rounded, color: AdminTheme.primaryWood),
-                                          tooltip: 'Quản lý nhóm con (Variants)',
+                                          tooltip: 'Quản lý biến thể danh mục',
                                           onPressed: () => _showCategoryVariantDialog(context, category),
                                         ),
                                         IconButton(

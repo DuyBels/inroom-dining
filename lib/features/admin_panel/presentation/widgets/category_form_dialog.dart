@@ -19,7 +19,6 @@ class CategoryFormDialog extends ConsumerStatefulWidget {
 class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _nameControllers = {};
-  final Map<String, TextEditingController> _descControllers = {};
   String? _selectedIconName;
   bool _isLoading = false;
   final Map<String, bool> _isTranslating = {};
@@ -28,20 +27,14 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
     return nameMap[code]?.toString() ?? (code == 'vi' ? (nameMap['vi']?.toString() ?? '') : '');
   }
 
-  String _getDescInLang(String code, Map<String, dynamic> descMap) {
-    return descMap[code]?.toString() ?? (code == 'vi' ? (descMap['vi']?.toString() ?? '') : '');
-  }
-
   @override
   void initState() {
     super.initState();
     final nameMap = widget.category != null ? L10nUtils.decodeField(widget.category!['name']) : <String, dynamic>{};
-    final descMap = widget.category != null ? L10nUtils.decodeField(widget.category!['description']) : <String, dynamic>{};
 
     for (var lang in L10nUtils.supportedLanguages) {
       final code = lang['code']!;
       _nameControllers[code] = TextEditingController(text: _getNameInLang(code, nameMap));
-      _descControllers[code] = TextEditingController(text: _getDescInLang(code, descMap));
       _isTranslating[code] = false;
     }
 
@@ -62,21 +55,18 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
   void dispose() {
     _nameControllers['vi']?.removeListener(_autoUpdateSuggestedIcon);
     for (var c in _nameControllers.values) { c.dispose(); }
-    for (var c in _descControllers.values) { c.dispose(); }
     super.dispose();
   }
 
   Future<void> _translateWithAI(String targetLang) async {
     final viName = _nameControllers['vi']?.text.trim() ?? '';
-    final viDesc = _descControllers['vi']?.text.trim() ?? '';
-    if (viName.isEmpty && viDesc.isEmpty) return;
+    if (viName.isEmpty) return;
 
     final l10n = ref.read(l10nProvider);
     setState(() => _isTranslating[targetLang] = true);
     try {
       final gemini = ref.read(geminiServiceProvider);
       await gemini.autoTranslateMap(_nameControllers, force: true);
-      await gemini.autoTranslateMap(_descControllers, force: true);
       
       if (_selectedIconName == null) {
         setState(() {
@@ -97,7 +87,6 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
     try {
       final gemini = ref.read(geminiServiceProvider);
       await gemini.autoTranslateMap(_nameControllers);
-      await gemini.autoTranslateMap(_descControllers);
 
       if (!_formKey.currentState!.validate()) {
         setState(() => _isLoading = false);
@@ -108,18 +97,13 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
       final activeIconName = _selectedIconName ?? CategoryIconUtils.autoSuggestIconName(viName);
 
       final Map<String, String> nameData = {};
-      final Map<String, String> descData = {};
       
       _nameControllers.forEach((key, controller) {
         nameData[key] = controller.text.trim();
       });
-      _descControllers.forEach((key, controller) {
-        descData[key] = controller.text.trim();
-      });
 
       final data = {
         'name': nameData,
-        'description': descData,
         'icon_name': activeIconName,
       };
 
@@ -172,12 +156,6 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
                                 controller: _nameControllers[code],
                                 decoration: InputDecoration(labelText: '${l10n.categoryNameLang} (${lang['name']})', border: const OutlineInputBorder()),
                                 validator: code == 'vi' ? (val) => val == null || val.trim().isEmpty ? l10n.validName : null : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _descControllers[code],
-                                decoration: InputDecoration(labelText: '${l10n.descriptionLang} (${lang['name']})', border: const OutlineInputBorder()),
-                                maxLines: 2,
                               ),
                             ],
                           ),
