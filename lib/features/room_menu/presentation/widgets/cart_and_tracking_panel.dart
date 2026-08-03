@@ -355,6 +355,7 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
         .from('orders')
         .select('*, tickets(quantity, notes, selected_modifiers, status, menu_items(name, price))')
         .eq('room_number', widget.roomNumber)
+        .eq('is_cleared_from_room', false)
         .order('created_at', ascending: false)
         .limit(20);
 

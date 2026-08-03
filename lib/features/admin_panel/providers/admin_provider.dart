@@ -19,7 +19,7 @@ Future<void> deleteProfile(String id) async {
   await supabase.from('profiles').delete().eq('id', id);
 }
 
-// 4. Hàm Trả phòng (Xóa lịch sử của phòng đó)
+// 4. Hàm Trả phòng (Ẩn lịch sử với khách mới, KHÔNG xóa dữ liệu)
 Future<void> checkoutRoom(String roomNumber) async {
   if (roomNumber.isEmpty) {
     throw Exception("Room number cannot be empty for checkout");
@@ -27,18 +27,24 @@ Future<void> checkoutRoom(String roomNumber) async {
   
   print("DEBUG: Checking out room: $roomNumber");
 
-  // Xóa yêu cầu dịch vụ của phòng này
+  // Ẩn yêu cầu dịch vụ đã hoàn thành của phòng này khỏi khách mới
   await supabase
       .from('room_services')
-      .delete()
+      .update({'is_cleared_from_room': true})
       .eq('room_number', roomNumber);
 
-  // Xóa đơn hàng của phòng này
-  // (Lưu ý: Tickets liên quan sẽ tự động bị xóa nhờ ON DELETE CASCADE trên DB)
+  // Ẩn đơn hàng đã giao/hủy của phòng này khỏi khách mới
+  // (Dữ liệu vẫn còn nguyên cho Admin, Bếp và Phục vụ xem)
   await supabase
       .from('orders')
-      .delete()
+      .update({'is_cleared_from_room': true})
       .eq('room_number', roomNumber);
+
+  // Gửi tín hiệu Realtime Broadcast xuống Tablet phòng để xóa giỏ hàng cục bộ
+  supabase.channel('room_$roomNumber').sendBroadcastMessage(
+    event: 'clear_cart',
+    payload: {'room_number': roomNumber},
+  );
       
   print("DEBUG: Checkout successful for room: $roomNumber");
 }

@@ -28,7 +28,7 @@ final roomServicesByRoomStreamProvider = StreamProvider.family<List<Map<String, 
       .eq('room_number', roomNumber)
       .order('requested_at', ascending: false)
       .map((list) {
-        return list.where((item) => item['status_id'] != ServiceStatus.completed).toList();
+        return list.where((item) => item['status_id'] != ServiceStatus.completed && item['is_cleared_from_room'] != true).toList();
       });
 });
 
@@ -38,5 +38,6 @@ final allRoomServicesStreamProvider = StreamProvider.family<List<Map<String, dyn
       .from('room_services')
       .stream(primaryKey: ['id'])
       .eq('room_number', roomNumber)
-      .order('requested_at', ascending: false);
+      .order('requested_at', ascending: false)
+      .map((list) => list.where((item) => item['is_cleared_from_room'] != true).toList());
 });

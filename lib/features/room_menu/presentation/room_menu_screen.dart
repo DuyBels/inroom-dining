@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:inroom_dining/core/theme/admin_theme.dart';
 import 'package:inroom_dining/features/room_menu/presentation/widgets/cart_and_tracking_panel.dart';
 import '../../../core/l10n/app_localizations.dart';
@@ -36,6 +37,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
   int _charIndex = 0;
   Timer? _typewriterTimer;
   Timer? _qrCountdownTimer;
+  RealtimeChannel? _roomChannel;
 
   @override
   void initState() {
@@ -44,13 +46,32 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     _qrCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
+    _subscribeRoomChannel();
   }
 
   @override
   void dispose() {
     _typewriterTimer?.cancel();
     _qrCountdownTimer?.cancel();
+    _roomChannel?.unsubscribe();
     super.dispose();
+  }
+
+  /// Lắng nghe tín hiệu Broadcast từ Admin khi trả phòng để xóa giỏ hàng cục bộ
+  void _subscribeRoomChannel() {
+    final roomNumber = widget.roomNumber;
+    if (roomNumber == null || roomNumber.isEmpty) return;
+
+    _roomChannel = supabase.channel('room_$roomNumber')
+      ..onBroadcast(
+        event: 'clear_cart',
+        callback: (payload) {
+          if (mounted) {
+            ref.read(cartProvider.notifier).clearCart();
+          }
+        },
+      )
+      ..subscribe();
   }
 
   void _startTypewriter() {

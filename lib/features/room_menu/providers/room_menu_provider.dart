@@ -176,7 +176,8 @@ final allTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref
 });
 
 final roomOrdersStreamProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, roomNumber) {
-  return supabase.from('orders').stream(primaryKey: ['id']).eq('room_number', roomNumber).order('created_at', ascending: false);
+  return supabase.from('orders').stream(primaryKey: ['id']).eq('room_number', roomNumber).order('created_at', ascending: false)
+      .map((list) => list.where((o) => o['is_cleared_from_room'] != true).toList());
 });
 
 final activeRoomTicketsProvider = Provider.family<List<Map<String, dynamic>>, String>((ref, roomNumber) {
