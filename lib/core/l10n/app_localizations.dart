@@ -16,6 +16,7 @@ class AppDictionary {
   final String done;
   final String ready;
   final String delivery;
+  final String deliveredLabel;
   final String callStaff;
   final String cleaning;
   final String history;
@@ -324,6 +325,7 @@ class AppDictionary {
     required this.done,
     required this.ready,
     required this.delivery,
+    required this.deliveredLabel,
     required this.callStaff,
     required this.cleaning,
     required this.history,
@@ -607,6 +609,7 @@ final viDict = AppDictionary(
   done: "Hoàn tất",
   ready: "SẴN SÀNG",
   delivery: "Đang giao",
+  deliveredLabel: "Đã giao",
   callStaff: "CẦN HỖ TRỢ",
   cleaning: "DỌN BÀN",
   history: "Lịch sử gọi món",
@@ -676,7 +679,7 @@ final viDict = AppDictionary(
   alreadyTaken: "ĐÃ CÓ NGƯỜI NHẬN",
   historyTitle: "LỊCH SỬ",
   deliveryTab: "GIAO MÓN",
-  cleaningTab: "DỌN BÀN",
+  cleaningTab: "Dọn bàn",
   totalBill: "TỔNG BILL",
   totalItem: "TỔNG MÓN",
   chatGroup: "NHÓM PHỤC VỤ",
@@ -889,6 +892,7 @@ final enDict = AppDictionary(
   done: "Done",
   ready: "READY",
   delivery: "Delivery",
+  deliveredLabel: "Delivered",
   callStaff: "NEED SUPPORT",
   cleaning: "CLEANING",
   history: "Order History",
@@ -958,7 +962,7 @@ final enDict = AppDictionary(
   alreadyTaken: "TAKEN",
   historyTitle: "HISTORY",
   deliveryTab: "DELIVERY",
-  cleaningTab: "CLEANING",
+  cleaningTab: "Cleaning",
   totalBill: "TOTAL BILL",
   totalItem: "ITEM TOTAL",
   chatGroup: "STAFF GROUP",

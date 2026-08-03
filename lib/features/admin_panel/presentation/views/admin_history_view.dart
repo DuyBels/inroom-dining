@@ -97,7 +97,7 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
   // 1. LỊCH SỬ GỌI MÓN (CỦA PHÒNG)
   Widget _buildOrderHistory(AppDictionary l10n) {
     return _buildFutureList(
-      future: supabase.from('orders').select('*, profiles:delivery_waiter_id(display_name)').order('created_at', ascending: false).limit(50),
+      future: supabase.from('orders').select('*, delivery:delivery_waiter_id(display_name)').order('created_at', ascending: false).limit(50),
       itemBuilder: (order) {
         final status = order['status'] as String? ?? '';
         final statusColor = _getOrderStatusColor(status);
@@ -136,7 +136,7 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
               children: [
                 const SizedBox(height: 4),
                 Text('${l10n.timeLabel}: ${_formatDateTime(order['created_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
-                if (order['profiles'] != null) Text('${l10n.deliveryPersonLabel}: ${order['profiles']['display_name']}', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                if (order['delivery'] != null) Text('${l10n.deliveryPersonLabel}: ${order['delivery']['display_name']}', style: const TextStyle(color: AdminTheme.textMutedWood)),
               ],
             ),
             trailing: const Icon(Icons.chevron_right, color: AdminTheme.textMutedWood),
@@ -182,37 +182,94 @@ class _AdminHistoryViewState extends ConsumerState<AdminHistoryView> with Single
     );
   }
 
-  // 3. LỊCH SỬ HOẠT ĐỘNG CỦA NHÂN VIÊN (DỊCH VỤ PHÒNG)
+  // 3. LỊCH SỬ HOẠT ĐỘNG CỦA NHÂN VIÊN (GIAO MÓN + DỊCH VỤ PHÒNG)
   Widget _buildStaffActivityHistory(AppDictionary l10n) {
-    return _buildFutureList(
-      future: supabase.from('room_services').select('*, waiter:waiter_id(display_name)').order('created_at', ascending: false).limit(50),
-      itemBuilder: (service) {
-        final bool isCleaning = service['service_type'] == 'CLEANING';
-        final name = service['waiter']?['display_name'] ?? '...';
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: isCleaning ? const Color(0xFFE3F2FD) : const Color(0xFFF3E5F5),
-              child: Icon(
-                isCleaning ? Icons.cleaning_services : Icons.support_agent,
-                color: isCleaning ? const Color(0xFF1565C0) : const Color(0xFF6A1B9A),
-              ),
-            ),
-            title: Text(
-              '${isCleaning ? l10n.cleaningTab : l10n.supportTask} - ${l10n.room} ${service['room_number']}',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text('${l10n.performerLabel}: $name', style: const TextStyle(color: AdminTheme.textMutedWood)),
-                Text('${l10n.requestedAtLabel}: ${_formatDateTime(service['created_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
-                if (service['completed_at'] != null) Text('${l10n.completedAtLabel}: ${_formatDateTime(service['completed_at'])}', style: const TextStyle(color: Color(0xFF2E7D32))),
-              ],
-            ),
-          ),
+    return FutureBuilder<List<List<Map<String, dynamic>>>>(
+      future: Future.wait([
+        supabase.from('orders').select('*, delivery:delivery_waiter_id(display_name)').eq('status', 'DELIVERED').order('created_at', ascending: false).limit(50),
+        supabase.from('room_services').select('*, waiter:waiter_id(display_name)').order('created_at', ascending: false).limit(50),
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        if (snapshot.hasError) return Center(child: Text('${l10n.errorLoading}: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+
+        final deliveredOrders = (snapshot.data?[0] ?? []).map((o) => {...o, '_type': 'delivery', '_sort_time': o['created_at'] ?? ''}).toList();
+        final roomServices = (snapshot.data?[1] ?? []).map((s) => {...s, '_type': 'service', '_sort_time': s['created_at'] ?? ''}).toList();
+
+        final allItems = [...deliveredOrders, ...roomServices];
+        allItems.sort((a, b) => (b['_sort_time'] as String).compareTo(a['_sort_time'] as String));
+
+        if (allItems.isEmpty) return Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
+
+        return ListView.builder(
+          itemCount: allItems.length,
+          itemBuilder: (context, index) {
+            final item = allItems[index];
+            final isDelivery = item['_type'] == 'delivery';
+
+            if (isDelivery) {
+              final name = item['delivery']?['display_name'] ?? '...';
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE8F5E9),
+                    child: Icon(Icons.delivery_dining, color: Color(0xFF2E7D32)),
+                  ),
+                  title: Text(
+                    '${l10n.deliveredLabel} - ${l10n.room} ${item['room_number']}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text('${l10n.performerLabel}: $name', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                      Text('${l10n.requestedAtLabel}: ${_formatDateTime(item['created_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                      Text('${l10n.completedAtLabel}: ${_formatDateTime(item['delivered_at'])}', style: const TextStyle(color: Color(0xFF2E7D32))),
+                    ],
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFA5D6A7)),
+                    ),
+                    child: Text(l10n.done.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              );
+            } else {
+              final bool isCleaning = item['service_type'] == 'CLEANING';
+              final name = item['waiter']?['display_name'] ?? '...';
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isCleaning ? const Color(0xFFE3F2FD) : const Color(0xFFF3E5F5),
+                    child: Icon(
+                      isCleaning ? Icons.cleaning_services : Icons.support_agent,
+                      color: isCleaning ? const Color(0xFF1565C0) : const Color(0xFF6A1B9A),
+                    ),
+                  ),
+                  title: Text(
+                    '${isCleaning ? l10n.cleaningTab : l10n.supportTask} - ${l10n.room} ${item['room_number']}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text('${l10n.performerLabel}: $name', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                      Text('${l10n.requestedAtLabel}: ${_formatDateTime(item['created_at'])}', style: const TextStyle(color: AdminTheme.textMutedWood)),
+                      if (item['completed_at'] != null) Text('${l10n.completedAtLabel}: ${_formatDateTime(item['completed_at'])}', style: const TextStyle(color: Color(0xFF2E7D32))),
+                    ],
+                  ),
+                ),
+              );
+            }
+          },
         );
       },
     );
