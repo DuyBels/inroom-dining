@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inroom_dining/core/theme/admin_theme.dart';
 import '../../../../core/l10n/app_localizations.dart';
-import '../../../../core/services/qr_session_service.dart';
 import '../../../../main.dart';
 import '../../providers/admin_provider.dart';
 import '../widgets/account_form_dialog.dart';
@@ -223,11 +222,10 @@ class RoomManagementView extends ConsumerWidget {
               try {
                 Navigator.pop(dialogContext);
                 await checkoutRoom(roomNumber);
-                await ref.read(qrSessionServiceProvider).revokeRoomSessions(roomNumber);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${l10n.checkoutRoomTitle} $roomNumber - ${l10n.checkoutRoomSuccess} (Mã QR đã hủy)'),
+                      content: Text('${l10n.checkoutRoomTitle} $roomNumber - ${l10n.checkoutRoomSuccess}'),
                       backgroundColor: Colors.green,
                     ),
                   );

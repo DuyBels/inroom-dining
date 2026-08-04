@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/admin_panel/presentation/admin_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
-import '../../features/auth/presentation/qr_login_handler.dart';
+
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/kitchen_dashboard/presentation/kitchen_screen.dart';
 import '../../features/room_menu/presentation/room_menu_screen.dart';
@@ -21,19 +21,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (context, state) => const LoginScreen(),
       ),
-      GoRoute(
-        path: '/qr-login',
-        builder: (context, state) {
-          final room = state.uri.queryParameters['room'];
-          final token = state.uri.queryParameters['token'];
-          final expires = state.uri.queryParameters['expires'];
-          return QrLoginHandler(
-            roomNumber: room,
-            token: token,
-            expiresStr: expires,
-          );
-        },
-      ),
+
       GoRoute(
         path: '/admin',
         builder: (context, state) => const AdminScreen(),

@@ -12,7 +12,6 @@ import '../../../core/models/menu_item_model.dart';
 import '../../../core/models/category_model.dart';
 import '../../../core/models/tag_model.dart';
 import '../../../core/widgets/language_selector.dart';
-import '../../../core/services/qr_session_service.dart';
 import '../../../main.dart';
 import '../../admin_panel/providers/category_provider.dart';
 import '../../admin_panel/providers/menu_provider.dart';
@@ -36,23 +35,18 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
   String _animatedHint = "";
   int _charIndex = 0;
   Timer? _typewriterTimer;
-  Timer? _qrCountdownTimer;
   RealtimeChannel? _roomChannel;
 
   @override
   void initState() {
     super.initState();
     _startTypewriter();
-    _qrCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
     _subscribeRoomChannel();
   }
 
   @override
   void dispose() {
     _typewriterTimer?.cancel();
-    _qrCountdownTimer?.cancel();
     _roomChannel?.unsubscribe();
     super.dispose();
   }
@@ -188,7 +182,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
 
             Widget menuContent = Column(
               children: [
-                _buildQrSessionBanner(),
+
                 _buildSearchBar(l10n),
                 if (isMobile) _buildTopCategoryChips(categoriesAsync.value, l10n, locale),
                 _buildTagFilterBar(tagsAsync, activeFilters, locale),
@@ -597,86 +591,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
     );
   }
 
-  Widget _buildQrSessionBanner() {
-    final activeQr = ref.watch(activeRoomQrSessionProvider);
-    if (activeQr == null || activeQr.roomNumber != widget.roomNumber) {
-      return const SizedBox();
-    }
 
-    final remaining = activeQr.remainingTime;
-    final minutes = remaining.inMinutes;
-    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
-    final isWarning = remaining.inMinutes < 10;
-    final isExpired = activeQr.isExpired;
-
-    if (isExpired) {
-      return Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFEBEE),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFC62828)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.timer_off, color: Color(0xFFC62828), size: 24),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                '🔴 Mã QR của phòng này đã hết hạn. Vui lòng liên hệ lễ tân để lấy mã mới.',
-                style: TextStyle(color: Color(0xFFC62828), fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: isWarning ? const Color(0xFFFFF3E0) : AdminTheme.lightBlueContainer,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryBlue.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.qr_code_2, color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryBlue, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Phòng ${activeQr.roomNumber} • QR tự động',
-              style: TextStyle(
-                color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryDarkBlue,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: isWarning ? const Color(0xFFE65100) : AdminTheme.primaryBlue,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.timer, color: Colors.white, size: 12),
-                const SizedBox(width: 4),
-                Text(
-                  'Còn $minutes:$seconds',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   int _getSelectedIndex(List<CategoryModel>? cats) {
     if (_selectedCategoryId == null || cats == null) return 0;
