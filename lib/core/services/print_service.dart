@@ -64,7 +64,7 @@ class PrintService {
                   children: [
                     pw.Divider(thickness: 2),
                     pw.Center(
-                      child: pw.Text(locale == 'vi' ? 'KHÁCH SẠN INROOM DINING' : 'INROOM DINING HOTEL', style: pw.TextStyle(font: fontBold, fontSize: 16)),
+                      child: pw.Text(locale == 'vi' ? 'NHÀ HÀNG DINETAP' : 'DINETAP RESTAURANT', style: pw.TextStyle(font: fontBold, fontSize: 16)),
                     ),
                     pw.Center(
                       child: pw.Text(locale == 'vi' ? '123 Ninh Kiều, TP. Cần Thơ' : '123 Ninh Kieu, Can Tho City', style: pw.TextStyle(font: font, fontSize: 12)),
@@ -74,7 +74,7 @@ class PrintService {
                       child: pw.Text(locale == 'vi' ? 'PHIẾU TẠM TÍNH' : 'PROVISIONAL RECEIPT', style: pw.TextStyle(font: fontBold, fontSize: 14)),
                     ),
                     pw.Center(
-                      child: pw.Text('(IN-ROOM DINING)', style: pw.TextStyle(font: font, fontSize: 12)),
+                      child: pw.Text('(DINETAP SYSTEM)', style: pw.TextStyle(font: font, fontSize: 12)),
                     ),
                     pw.Divider(borderStyle: pw.BorderStyle.dashed),
                     pw.Text('${locale == 'vi' ? 'Số HĐ' : 'Bill No'}: #${order['id'].toString().substring(0, 8).toUpperCase()}', style: pw.TextStyle(font: font, fontSize: 12)),

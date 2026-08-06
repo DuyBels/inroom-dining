@@ -110,18 +110,7 @@ class AppDictionary {
   final String tagsTab;
   final String adminHistoryTab;
   final String liveOrderMonitorTab;
-  final String qrCodeTab;
-  final String generateQrTitle;
   final String selectRoom;
-  final String selectDuration;
-  final String generateQrBtn;
-  final String qrCodeCreated;
-  final String qrExpiresAt;
-  final String printQr;
-  final String copyQrLink;
-  final String revokeQr;
-  final String qrExpiredTitle;
-  final String qrExpiredMessage;
   final String addAccount;
   final String addStation;
   final String addCategory;
@@ -421,18 +410,7 @@ class AppDictionary {
     required this.tagsTab,
     required this.adminHistoryTab,
     required this.liveOrderMonitorTab,
-    required this.qrCodeTab,
-    required this.generateQrTitle,
     required this.selectRoom,
-    required this.selectDuration,
-    required this.generateQrBtn,
-    required this.qrCodeCreated,
-    required this.qrExpiresAt,
-    required this.printQr,
-    required this.copyQrLink,
-    required this.revokeQr,
-    required this.qrExpiredTitle,
-    required this.qrExpiredMessage,
     required this.addAccount,
     required this.addRoom,
     required this.addStation,
@@ -709,18 +687,7 @@ final viDict = AppDictionary(
   tagsTab: "Thẻ dữ liệu",
   adminHistoryTab: "Lịch sử",
   liveOrderMonitorTab: "Giám sát đơn hàng",
-  qrCodeTab: "Mã QR Phòng",
-  generateQrTitle: "Tạo Mã QR Tự Đăng Nhập",
   selectRoom: "Chọn số phòng",
-  selectDuration: "Thời gian sử dụng mã QR",
-  generateQrBtn: "Tạo mã QR",
-  qrCodeCreated: "Mã QR cho phòng",
-  qrExpiresAt: "Hạn sử dụng",
-  printQr: "In mã QR",
-  copyQrLink: "Sao chép Link",
-  revokeQr: "Vô hiệu hóa QR",
-  qrExpiredTitle: "Mã QR đã hết hạn",
-  qrExpiredMessage: "Thời gian sử dụng mã QR phòng này đã kết thúc. Vui lòng liên hệ lễ tân để nhận mã QR mới.",
   addAccount: "Thêm Tài Khoản",
   addRoom: "Thêm Phòng",
   addStation: "Thêm Trạm Bếp",
@@ -996,18 +963,7 @@ final enDict = AppDictionary(
   tagsTab: "Tags",
   adminHistoryTab: "History",
   liveOrderMonitorTab: "Live Orders",
-  qrCodeTab: "Room QR Code",
-  generateQrTitle: "Generate Auto-Login QR Code",
   selectRoom: "Select Room Number",
-  selectDuration: "QR Code Duration",
-  generateQrBtn: "Generate QR Code",
-  qrCodeCreated: "QR Code for Room",
-  qrExpiresAt: "Expires at",
-  printQr: "Print QR Code",
-  copyQrLink: "Copy Link",
-  revokeQr: "Revoke QR",
-  qrExpiredTitle: "QR Code Expired",
-  qrExpiredMessage: "The usage time for this room QR code has ended. Please contact reception for a new QR code.",
   addAccount: "Add Account",
   addRoom: "Add Room",
   addStation: "Add Station",
@@ -1055,7 +1011,7 @@ final enDict = AppDictionary(
   confirmDeleteBtn: "Confirm Delete",
   noNameSet: "No name set",
   notePrefix: "Notes",
-  systemTitle: "IN-ROOM DINING SYSTEM",
+  systemTitle: "DINETAP SYSTEM",
   username: "Username",
   password: "Password",
   loginButton: "SIGN IN",

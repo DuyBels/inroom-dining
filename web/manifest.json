@@ -1,6 +1,6 @@
 {
-    "name": "inroom_dining",
-    "short_name": "inroom_dining",
+    "name": "DineTap",
+    "short_name": "DineTap",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

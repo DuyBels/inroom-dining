@@ -50,7 +50,7 @@ class MyApp extends ConsumerWidget {
     final currentLocaleCode = ref.watch(localeProvider);
 
     return MaterialApp.router(
-      title: 'Smart Menu App',
+      title: 'DineTap',
       debugShowCheckedModeBanner: false,
       locale: Locale(currentLocaleCode),
       supportedLocales: const [
