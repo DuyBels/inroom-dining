@@ -76,8 +76,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF2C3E50), // Đen xanh sang trọng
-              Color(0xFFFD746C), // Cam ấm kích thích vị giác
+              Color(0xFF001F3E), // Xanh Navy đậm
+              Color(0xFF007ACC), // Xanh dương sáng
             ],
           ),
         ),
@@ -103,12 +103,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.deepOrange.withOpacity(0.1),
+                        color: Colors.white,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                          )
+                        ]
                       ),
-                      child: const Icon(Icons.restaurant_menu_rounded, size: 56, color: Colors.deepOrange),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(40),
+                        child: Image.asset('assets/images/logo.png', width: 80, height: 80, fit: BoxFit.cover),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -117,7 +126,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         fontSize: 26, 
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.2,
-                        color: Color(0xFF2C3E50),
+                        color: Color(0xFF001F3E),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -132,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _emailController,
                       decoration: InputDecoration(
                         labelText: l10n.username,
-                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.deepOrange),
+                        prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF0061A4)),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide(color: Colors.grey.shade300),
@@ -143,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
+                          borderSide: const BorderSide(color: Color(0xFF0061A4), width: 2),
                         ),
                         filled: true,
                         fillColor: Colors.grey.shade50,
@@ -156,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: l10n.password,
-                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: Colors.deepOrange),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF0061A4)),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -166,7 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
+                          borderSide: const BorderSide(color: Color(0xFF0061A4), width: 2),
                         ),
                         filled: true,
                         fillColor: Colors.grey.shade50,
@@ -181,7 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _signIn,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
+                          backgroundColor: const Color(0xFF0061A4),
                           foregroundColor: Colors.white,
                           elevation: 2,
                           shape: RoundedRectangleBorder(
@@ -212,7 +221,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 8),
                     Switch(
                       value: _showDebugPanel,
-                      activeColor: Colors.deepOrange,
+                      activeColor: const Color(0xFF0061A4),
                       onChanged: (val) => setState(() => _showDebugPanel = val),
                     ),
 

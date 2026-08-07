@@ -81,7 +81,7 @@ class _CategoryVariantManagementDialogState extends ConsumerState<CategoryVarian
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(variant == null ? (locale == 'vi' ? 'Thêm nhóm con' : 'Add Variant') : (locale == 'vi' ? 'Sửa nhóm con' : 'Edit Variant')),
+          title: Text(variant == null ? (locale == 'vi' ? 'Thêm nhóm tùy chọn' : 'Add Variant') : (locale == 'vi' ? 'Sửa nhóm tùy chọn' : 'Edit Variant')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -94,7 +94,7 @@ class _CategoryVariantManagementDialogState extends ConsumerState<CategoryVarian
                       Expanded(
                         child: TextField(
                           controller: nameControllers[code],
-                          decoration: InputDecoration(labelText: '${locale == 'vi' ? 'Tên nhóm con' : 'Variant Name'} (${lang['name']})'),
+                          decoration: InputDecoration(labelText: '${locale == 'vi' ? 'Tên nhóm tùy chọn' : 'Variant Name'} (${lang['name']})'),
                         ),
                       ),
                       if (code != 'vi') ...[
@@ -169,7 +169,7 @@ class _CategoryVariantManagementDialogState extends ConsumerState<CategoryVarian
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.confirm),
-        content: const Text('Bạn có chắc chắn muốn xoá nhóm con này không?'),
+        content: const Text('Bạn có chắc chắn muốn xoá nhóm tùy chọn này không?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.delete, style: const TextStyle(color: Colors.red))),
@@ -194,7 +194,7 @@ class _CategoryVariantManagementDialogState extends ConsumerState<CategoryVarian
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('${locale == 'vi' ? 'Quản lý nhóm con của' : 'Manage Variants for'} ${widget.category.getName(locale)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('${locale == 'vi' ? 'Quản lý nhóm tùy chọn của' : 'Manage Variants for'} ${widget.category.getName(locale)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
         ],
       ),
@@ -210,7 +210,7 @@ class _CategoryVariantManagementDialogState extends ConsumerState<CategoryVarian
                   children: [
                     ElevatedButton.icon(
                       icon: const Icon(Icons.add, size: 18),
-                      label: Text(locale == 'vi' ? 'Thêm nhóm con' : 'Add Variant'),
+                      label: Text(locale == 'vi' ? 'Thêm nhóm tùy chọn' : 'Add Variant'),
                       onPressed: () => _showVariantDialog(),
                     )
                   ],
@@ -218,7 +218,7 @@ class _CategoryVariantManagementDialogState extends ConsumerState<CategoryVarian
                 const SizedBox(height: 16),
                 Expanded(
                   child: _variants.isEmpty 
-                    ? const Center(child: Text('Chưa có nhóm con nào.'))
+                    ? const Center(child: Text('Chưa có nhóm tùy chọn nào.'))
                     : ListView.separated(
                         itemCount: _variants.length,
                         separatorBuilder: (c, i) => const Divider(),

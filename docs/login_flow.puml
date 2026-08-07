@@ -1,0 +1,32 @@
+@startuml
+|Người dùng|
+start
+:Mở ứng dụng;
+
+|Giao diện|
+:Hiển thị giao diện\nđăng nhập;
+
+|Người dùng|
+:Nhập thông tin\nđăng nhập (Email/Pass);
+:Nhấn nút Đăng nhập;
+
+|Hệ thống|
+:Kiểm tra hợp lệ\n(Supabase Auth);
+
+if (Hợp lệ?) then (No)
+  |Giao diện|
+  :Thông báo lỗi;
+  -> (Quay lại)
+  |Giao diện|
+  :Hiển thị giao diện\nđăng nhập;
+  detach
+else (Yes)
+  |Hệ thống|
+  :Tạo phiên đăng nhập;
+  :Truy xuất Vai trò\n(Role);
+  
+  |Giao diện|
+  :Chuyển đến màn hình\nlàm việc tương ứng\n(Admin/Bếp/Phục vụ);
+  stop
+endif
+@enduml

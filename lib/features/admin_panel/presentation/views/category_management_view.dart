@@ -106,7 +106,7 @@ class CategoryManagementView extends ConsumerWidget {
                                       DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
                                         IconButton(
                                           icon: const Icon(Icons.list_alt_rounded, color: AdminTheme.primaryWood),
-                                          tooltip: 'Quản lý biến thể danh mục',
+                                          tooltip: 'Quản lý nhóm tùy chọn',
                                           onPressed: () => _showCategoryVariantDialog(context, category),
                                         ),
                                         IconButton(

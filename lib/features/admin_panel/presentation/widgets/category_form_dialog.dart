@@ -128,7 +128,7 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
     final l10n = ref.watch(l10nProvider);
     final viName = _nameControllers['vi']?.text.trim() ?? '';
     final activeIconName = _selectedIconName ?? CategoryIconUtils.autoSuggestIconName(viName);
-    final activeIcon = CategoryIconUtils.getIconData(activeIconName, viName);
+
 
     return AlertDialog(
       title: Text(widget.category == null ? l10n.addCategory : l10n.editCategory, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.textDarkBlue)),
@@ -177,89 +177,7 @@ class _CategoryFormDialogState extends ConsumerState<CategoryFormDialog> {
                     ),
                   );
                 }),
-                const Divider(),
-                const Text(
-                  'Biểu tượng Google Material Icon (Tự động tạo & Có thể chọn):',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AdminTheme.textDarkBlue),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AdminTheme.blueTint,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AdminTheme.borderBlue),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AdminTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(color: AdminTheme.primaryBlue.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
-                          ],
-                        ),
-                        child: Icon(activeIcon, color: Colors.white, size: 28),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Icon: $activeIconName',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AdminTheme.textDarkBlue),
-                            ),
-                            const Text(
-                              'Được gợi ý tự động từ tên danh mục',
-                              style: TextStyle(fontSize: 11, color: AdminTheme.textMutedBlue),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 110,
-                  child: GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: CategoryIconUtils.availableIcons.length,
-                    itemBuilder: (context, index) {
-                      final key = CategoryIconUtils.availableIcons.keys.elementAt(index);
-                      final iconData = CategoryIconUtils.availableIcons[key]!;
-                      final isSelected = key == activeIconName;
 
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () {
-                          setState(() {
-                            _selectedIconName = key;
-                          });
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected ? AdminTheme.primaryBlue : AdminTheme.surfaceWhite,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: isSelected ? AdminTheme.primaryBlue : AdminTheme.borderBlue),
-                          ),
-                          child: Icon(
-                            iconData,
-                            size: 20,
-                            color: isSelected ? Colors.white : AdminTheme.textDarkBlue,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
               ],
             ),
           ),
