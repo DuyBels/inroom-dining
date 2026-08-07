@@ -8,6 +8,8 @@ import '../../../../core/utils/l10n_utils.dart';
 import '../../../../core/models/menu_item_model.dart';
 import '../../../waiter_app/providers/waiter_provider.dart';
 import '../../providers/menu_provider.dart';
+import '../../providers/admin_provider.dart';
+import '../../../waiter_app/providers/room_service_provider.dart';
 
 /// Chế độ xem Giám sát đơn hàng trực tiếp (chỉ đọc) dành cho Admin
 class LiveOrderMonitorView extends ConsumerWidget {
@@ -23,6 +25,8 @@ class LiveOrderMonitorView extends ConsumerWidget {
     final ordersAsync = ref.watch(activeOrdersStreamProvider);
     final ticketsAsync = ref.watch(activeTicketsStreamProvider);
     final menuItemsAsync = ref.watch(menuItemsStreamProvider);
+    final profilesAsync = ref.watch(profilesStreamProvider);
+    final roomServicesAsync = ref.watch(activeRoomServicesStreamProvider);
 
     return Scaffold(
       backgroundColor: AdminTheme.bgWarmWhite,
@@ -40,7 +44,13 @@ class LiveOrderMonitorView extends ConsumerWidget {
           // Chỉ lấy các đơn hàng đang hoạt động (không phải DELIVERED, CANCELLED)
           final activeOrders = orders.where((o) => o['status'] != 'DELIVERED' && o['status'] != 'CANCELLED').toList();
           
-          if (activeOrders.isEmpty) {
+          // Lấy các yêu cầu dịch vụ
+          final roomServicesList = roomServicesAsync.value ?? [];
+          final activeRoomServices = roomServicesList.where((s) => s['status_id'] != 3).toList(); // Khác completed
+          
+          final combinedList = [...activeOrders, ...activeRoomServices];
+          
+          if (combinedList.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -48,7 +58,7 @@ class LiveOrderMonitorView extends ConsumerWidget {
                   Icon(Icons.inbox_outlined, size: 64, color: AdminTheme.textMutedWood),
                   const SizedBox(height: 16),
                   Text(
-                    isVi ? 'Chưa có đơn hàng nào' : 'No active orders',
+                    isVi ? 'Chưa có hoạt động nào' : 'No active operations',
                     style: TextStyle(fontSize: 18, color: AdminTheme.textMutedWood),
                   ),
                 ],
@@ -56,10 +66,21 @@ class LiveOrderMonitorView extends ConsumerWidget {
             );
           }
 
-          // Phân loại trạng thái
+          // Phân loại trạng thái đơn hàng
           final pendingCount = activeOrders.where((o) => o['status'] == 'PENDING').length;
           final processingCount = activeOrders.where((o) => o['status'] == 'PROCESSING').length;
           final readyCount = activeOrders.where((o) => o['status'] == 'READY_FOR_DELIVERY').length;
+          
+          // Phân loại trạng thái dịch vụ
+          final pendingRsCount = activeRoomServices.where((s) => s['status_id'] == 1).length;
+          final processingRsCount = activeRoomServices.where((s) => s['status_id'] == 2).length;
+
+          // Sắp xếp danh sách hỗn hợp: Cũ nhất lên trước
+          combinedList.sort((a, b) {
+            final timeA = DateTime.parse(a['created_at'] ?? a['requested_at'] ?? DateTime.now().toIso8601String());
+            final timeB = DateTime.parse(b['created_at'] ?? b['requested_at'] ?? DateTime.now().toIso8601String());
+            return timeA.compareTo(timeB);
+          });
 
           return Column(
             children: [
@@ -67,18 +88,41 @@ class LiveOrderMonitorView extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 color: AdminTheme.surfaceWhite,
-                child: Row(
+                child: Column(
                   children: [
-                    Text(
-                      '${activeOrders.length} ${isVi ? 'đơn đang hoạt động' : 'active orders'}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                    Row(
+                      children: [
+                        const Icon(Icons.restaurant, size: 18, color: AdminTheme.textDarkWood),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${activeOrders.length} ${isVi ? 'đơn ẩm thực' : 'food orders'}',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                        ),
+                        const Spacer(),
+                        _buildStatusChip(l10n.pending, pendingCount, Colors.orange),
+                        const SizedBox(width: 8),
+                        _buildStatusChip(isVi ? 'Đang nấu' : 'Cooking', processingCount, const Color(0xFF1565C0)),
+                        const SizedBox(width: 8),
+                        _buildStatusChip(isVi ? 'Sẵn sàng giao' : 'Ready for delivery', readyCount, const Color(0xFF00897B)),
+                      ],
                     ),
-                    const Spacer(),
-                    _buildStatusChip(l10n.pending, pendingCount, Colors.orange),
-                    const SizedBox(width: 8),
-                    _buildStatusChip(isVi ? 'Đang nấu' : 'Cooking', processingCount, const Color(0xFF1565C0)),
-                    const SizedBox(width: 8),
-                    _buildStatusChip(isVi ? 'Sẵn sàng giao' : 'Ready for delivery', readyCount, const Color(0xFF00897B)),
+                    if (activeRoomServices.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.room_service, size: 18, color: AdminTheme.textDarkWood),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${activeRoomServices.length} ${isVi ? 'yêu cầu dịch vụ' : 'service requests'}',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                          ),
+                          const Spacer(),
+                          _buildStatusChip(isVi ? 'Chờ nhận' : 'Pending', pendingRsCount, Colors.orange),
+                          const SizedBox(width: 8),
+                          _buildStatusChip(isVi ? 'Đang làm' : 'Processing', processingRsCount, const Color(0xFF1565C0)),
+                        ],
+                      ),
+                    ]
                   ],
                 ),
               ),
@@ -106,11 +150,17 @@ class LiveOrderMonitorView extends ConsumerWidget {
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
                               ),
-                              itemCount: activeOrders.length,
+                              itemCount: combinedList.length,
                               itemBuilder: (context, index) {
-                                final order = activeOrders[index];
-                                final orderTickets = tickets.where((t) => t['order_id'] == order['id']).toList();
-                                return _buildOrderCard(context, order, orderTickets, menuItems, l10n, locale);
+                                final item = combinedList[index];
+                                final profiles = profilesAsync.value ?? [];
+                                
+                                if (item.containsKey('service_type')) {
+                                  return _buildServiceCard(context, item, profiles, l10n, locale);
+                                } else {
+                                  final orderTickets = tickets.where((t) => t['order_id'] == item['id']).toList();
+                                  return _buildOrderCard(context, item, orderTickets, menuItems, profiles, l10n, locale);
+                                }
                               },
                             );
                           },
@@ -160,7 +210,7 @@ class LiveOrderMonitorView extends ConsumerWidget {
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order, List<Map<String, dynamic>> tickets, List<MenuItemModel> menuItems, dynamic l10n, String locale) {
+  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order, List<Map<String, dynamic>> tickets, List<MenuItemModel> menuItems, List<Map<String, dynamic>> profiles, dynamic l10n, String locale) {
     final status = order['status'] ?? 'PENDING';
     final isVi = locale == 'vi';
     
@@ -254,6 +304,29 @@ class LiveOrderMonitorView extends ConsumerWidget {
               ),
               const Divider(color: AdminTheme.borderWood, height: 24),
               
+              // Người nhận giao đơn
+              if (order['delivery_waiter_id'] != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delivery_dining, size: 16, color: Color(0xFF00897B)),
+                      const SizedBox(width: 6),
+                      Text(
+                        isVi ? 'Người nhận giao: ' : 'Delivery by: ',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                      ),
+                      Text(
+                        profiles.firstWhere(
+                          (p) => p['id'] == order['delivery_waiter_id'], 
+                          orElse: () => {'display_name': 'Unknown'}
+                        )['display_name'] ?? 'Unknown',
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF00897B), fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              
               // Tiến trình
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -297,13 +370,31 @@ class LiveOrderMonitorView extends ConsumerWidget {
                           final tStatus = ticket['status'] ?? 'PENDING';
                           
                           Color tColor;
+                          String tStatusText;
                           switch (tStatus) {
-                            case 'PENDING': tColor = Colors.orange; break;
-                            case 'COOKING': tColor = const Color(0xFF1565C0); break;
-                            case 'DONE': tColor = const Color(0xFF2E7D32); break;
-                            case 'REMAKED': tColor = Colors.purple; break;
-                            case 'CANCELLED': tColor = Colors.red; break;
-                            default: tColor = Colors.grey;
+                            case 'PENDING': 
+                              tColor = Colors.orange; 
+                              tStatusText = isVi ? 'Chờ nhận' : 'Pending';
+                              break;
+                            case 'COOKING': 
+                              tColor = const Color(0xFF1565C0); 
+                              tStatusText = isVi ? 'Đang nấu' : 'Cooking';
+                              break;
+                            case 'DONE': 
+                              tColor = const Color(0xFF2E7D32); 
+                              tStatusText = isVi ? 'Xong' : 'Done';
+                              break;
+                            case 'REMAKED': 
+                              tColor = Colors.purple; 
+                              tStatusText = isVi ? 'Làm lại' : 'Remake';
+                              break;
+                            case 'CANCELLED': 
+                              tColor = Colors.red; 
+                              tStatusText = isVi ? 'Hủy' : 'Cancelled';
+                              break;
+                            default: 
+                              tColor = Colors.grey;
+                              tStatusText = tStatus;
                           }
                           
                           return Row(
@@ -317,6 +408,10 @@ class LiveOrderMonitorView extends ConsumerWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                              ),
+                              Text(
+                                tStatusText,
+                                style: TextStyle(color: tColor, fontSize: 12, fontStyle: FontStyle.italic),
                               ),
                             ],
                           );
@@ -350,6 +445,157 @@ class LiveOrderMonitorView extends ConsumerWidget {
                     ],
                   ),
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCard(BuildContext context, Map<String, dynamic> service, List<Map<String, dynamic>> profiles, dynamic l10n, String locale) {
+    final statusId = service['status_id'] ?? 1;
+    final isVi = locale == 'vi';
+    final isCleaning = service['service_type'] == 'CLEANING';
+    
+    Color statusColor;
+    String statusText;
+    
+    switch (statusId) {
+      case 1: // pending
+        statusColor = Colors.orange;
+        statusText = isVi ? 'Chờ nhận' : 'Pending';
+        break;
+      case 2: // processing
+        statusColor = const Color(0xFF1565C0);
+        statusText = isVi ? 'Đang thực hiện' : 'Processing';
+        break;
+      case 3: // completed
+        statusColor = const Color(0xFF2E7D32);
+        statusText = isVi ? 'Hoàn tất' : 'Completed';
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusText = 'Unknown';
+    }
+
+    final createdAt = service['requested_at'] != null ? DateTime.parse(service['requested_at']) : DateTime.now();
+    final formattedTime = DateFormat('HH:mm dd/MM').format(createdAt);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AdminTheme.borderWood, width: 1),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: statusColor, width: 6)),
+          color: AdminTheme.surfaceWhite,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tiêu đề
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${l10n.room} ${service['room_number'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AdminTheme.textDarkWood,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              
+              // Thời gian
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 14, color: AdminTheme.textMutedWood),
+                  const SizedBox(width: 4),
+                  Text(
+                    formattedTime,
+                    style: TextStyle(fontSize: 13, color: AdminTheme.textMutedWood),
+                  ),
+                ],
+              ),
+              const Divider(color: AdminTheme.borderWood, height: 24),
+              
+              // Người nhận
+              if (service['waiter_id'] != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Icon(isCleaning ? Icons.cleaning_services : Icons.support_agent, size: 16, color: statusColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        isVi ? 'Người phụ trách: ' : 'Assigned to: ',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                      ),
+                      Text(
+                        profiles.firstWhere(
+                          (p) => p['id'] == service['waiter_id'], 
+                          orElse: () => {'display_name': 'Unknown'}
+                        )['display_name'] ?? 'Unknown',
+                        style: TextStyle(fontSize: 13, color: statusColor, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              // Loại dịch vụ
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isCleaning ? Icons.cleaning_services_outlined : Icons.room_service_outlined, 
+                      size: 24, 
+                      color: AdminTheme.textDarkWood
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isCleaning ? (isVi ? 'Dọn phòng' : 'Cleaning') : (isVi ? 'Hỗ trợ' : 'Support'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AdminTheme.textDarkWood),
+                          ),
+                          if (service['notes'] != null && service['notes'].toString().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                service['notes'],
+                                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
