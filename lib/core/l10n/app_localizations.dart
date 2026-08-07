@@ -686,7 +686,7 @@ final viDict = AppDictionary(
   menuTab: "Thực đơn",
   tagsTab: "Thẻ dữ liệu",
   adminHistoryTab: "Lịch sử",
-  liveOrderMonitorTab: "Giám sát đơn hàng",
+  liveOrderMonitorTab: "Theo dõi hoạt động trực tuyến",
   selectRoom: "Chọn số phòng",
   addAccount: "Thêm Tài Khoản",
   addRoom: "Thêm Phòng",

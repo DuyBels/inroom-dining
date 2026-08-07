@@ -11,7 +11,7 @@ import '../../providers/menu_provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../../waiter_app/providers/room_service_provider.dart';
 
-/// Chế độ xem Giám sát đơn hàng trực tiếp (chỉ đọc) dành cho Admin
+/// Chế độ xem Theo dõi hoạt động trực tuyến dành cho Admin
 class LiveOrderMonitorView extends ConsumerWidget {
   const LiveOrderMonitorView({super.key});
 
@@ -32,7 +32,7 @@ class LiveOrderMonitorView extends ConsumerWidget {
       backgroundColor: AdminTheme.bgWarmWhite,
       appBar: AppBar(
         title: Text(
-          isVi ? 'Giám sát đơn hàng' : 'Live Order Monitor',
+          isVi ? 'Theo dõi hoạt động trực tuyến' : 'Live Operations Monitor',
           style: const TextStyle(color: AdminTheme.textDarkWood, fontWeight: FontWeight.bold),
         ),
         backgroundColor: AdminTheme.surfaceWhite,
