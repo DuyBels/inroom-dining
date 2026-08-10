@@ -50,7 +50,7 @@ class MyApp extends ConsumerWidget {
     final currentLocaleCode = ref.watch(localeProvider);
 
     return MaterialApp.router(
-      title: 'DineTap',
+      title: 'Inroom Dining',
       debugShowCheckedModeBanner: false,
       locale: Locale(currentLocaleCode),
       supportedLocales: const [

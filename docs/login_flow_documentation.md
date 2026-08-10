@@ -1,6 +1,6 @@
-# Luồng Xử Lý Chức Năng Đăng Nhập (Login Flow) - DineTap
+# Luồng Xử Lý Chức Năng Đăng Nhập (Login Flow) - Inroom Dining
 
-Tài liệu này mô tả chi tiết quy trình xác thực và phân quyền người dùng (Role-Based Access Control - RBAC) trong dự án **DineTap (Inroom Dining)**, sử dụng Flutter và Supabase.
+Tài liệu này mô tả chi tiết quy trình xác thực và phân quyền người dùng (Role-Based Access Control - RBAC) trong dự án **Inroom Dining**, sử dụng Flutter và Supabase.
 
 ---
 
@@ -81,4 +81,4 @@ Màn hình Splash đóng vai trò như một **Middleware** điều hướng.
 - Ứng dụng sẽ bắt exception, gọi `supabase.auth.signOut()` để xóa token rác và lập tức đẩy về `/login` để tránh việc người dùng bị kẹt lại ở màn hình Loading (Splash Screen).
 
 ---
-*Tài liệu được sinh tự động bởi hệ thống AI hỗ trợ phát triển DineTap.*
+*Tài liệu được sinh tự động bởi hệ thống AI hỗ trợ phát triển Inroom Dining.*

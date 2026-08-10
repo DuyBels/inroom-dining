@@ -1011,7 +1011,7 @@ final enDict = AppDictionary(
   confirmDeleteBtn: "Confirm Delete",
   noNameSet: "No name set",
   notePrefix: "Notes",
-  systemTitle: "DINETAP SYSTEM",
+  systemTitle: "INROOM DINING SYSTEM",
   username: "Username",
   password: "Password",
   loginButton: "SIGN IN",
