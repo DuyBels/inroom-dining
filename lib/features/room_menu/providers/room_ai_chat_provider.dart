@@ -14,6 +14,7 @@ class AiSuggestedDish {
   final int quantity;
   final bool autoAdded;
   final String notes;
+  final bool blockedByRequiredOptions;
 
   AiSuggestedDish({
     required this.menuItem,
@@ -21,6 +22,7 @@ class AiSuggestedDish {
     this.quantity = 1,
     this.autoAdded = false,
     this.notes = '',
+    this.blockedByRequiredOptions = false,
   });
 }
 
@@ -292,6 +294,16 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         }
       }
 
+      // THÊM CẢNH BÁO nếu AI định auto_add nhưng bị chặn vì thiếu tùy chọn bắt buộc
+      final blockedDishes = matchedDishes.where((d) => d.blockedByRequiredOptions).toList();
+      if (blockedDishes.isNotEmpty) {
+        final warningMsg = locale == 'vi' 
+            ? '\n\n⚠️ **Lưu ý:** Một số món có tùy chọn bắt buộc. Vui lòng nhấn "Tùy chỉnh" ở bên dưới để hoàn tất thêm vào giỏ hàng nhé!'
+            : '\n\n⚠️ **Note:** Some items require specific options. Please click "Customize" below to add them to your cart!';
+        cleanedText += warningMsg;
+      }
+
+
       final aiMessage = ChatMessage(
         id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
         sender: 'ai',
@@ -374,7 +386,17 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
       List<SelectedModifier> selectedMods = await _fetchModifiersByIds(itemId, modIds, locale);
       final int qty = num.tryParse(itemObj['quantity']?.toString() ?? '1')?.toInt() ?? 1;
       final String notes = itemObj['notes']?.toString() ?? '';
-      final bool isAutoAdd = itemObj['auto_add'] == true;
+      bool isAutoAdd = itemObj['auto_add'] == true;
+      bool isBlocked = false;
+
+      // KIỂM TRA TÙY CHỌN BẮT BUỘC:
+      // Nếu món có nhóm modifier bắt buộc (min_select > 0) mà AI chưa cung cấp đủ
+      // modifier cho nhóm đó → KHÔNG được auto_add, bắt buộc khách phải chọn thủ công.
+      if (isAutoAdd) {
+        isAutoAdd = await _canAutoAdd(itemId, selectedMods);
+        if (!isAutoAdd) isBlocked = true;
+      }
+
       // DEDUPLICATION: Gemini đôi khi trả trùng entry cho cùng 1 món.
       // Prompt đã yêu cầu gộp sẵn, nên entry trùng là lỗi hallucination → bỏ qua.
       final modIdsKey = modIds.join('_');
@@ -394,10 +416,42 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         quantity: qty > 0 ? qty : 1,
         autoAdded: isAutoAdd,
         notes: notes,
+        blockedByRequiredOptions: isBlocked,
       ));
     }
 
     return result;
+  }
+
+  /// Kiểm tra xem món có thể auto_add hay không.
+  /// Trả về false CHỈ KHI xác nhận chắc chắn có nhóm modifier bắt buộc chưa được chọn đủ.
+  /// Nếu không query được DB → cho phép auto_add (fallback an toàn, AI đã xác nhận ý định).
+  Future<bool> _canAutoAdd(String itemId, List<SelectedModifier> selectedMods) async {
+    try {
+      final res = await supabase
+          .from('item_modifier_groups')
+          .select('modifier_groups(id, min_select)')
+          .eq('item_id', itemId);
+
+      for (var row in res) {
+        final group = row['modifier_groups'];
+        if (group == null) continue;
+        final int minSelect = group['min_select'] ?? 0;
+        if (minSelect > 0) {
+          final groupId = group['id']?.toString() ?? '';
+          final selectedInGroup = selectedMods.where((m) => m.groupId == groupId).length;
+          if (selectedInGroup < minSelect) {
+            // Xác nhận chắc chắn: có nhóm bắt buộc chưa chọn đủ → chặn auto_add
+            return false;
+          }
+        }
+      }
+    } catch (_) {
+      // Lỗi khi query DB → KHÔNG chặn auto_add vì AI đã xác nhận ý định khách.
+      // Thà thêm vào giỏ (khách có thể sửa) còn hơn chặn im lặng.
+      return true;
+    }
+    return true;
   }
 
   Future<List<SelectedModifier>> _fetchModifiersByIds(String itemId, List<String> modIds, String locale) async {
@@ -464,12 +518,21 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         final userMentionedItem = lowerUserText.contains(normalizedItemName) || 
                                   L10nUtils.removeDiacritics(lowerUserText).contains(normalizedItemName);
 
+        bool shouldAutoAdd = hasOrderIntent && userMentionedItem;
+        bool isBlocked = false;
+        // Kiểm tra tùy chọn bắt buộc trước khi auto_add (fuzzy match path)
+        if (shouldAutoAdd) {
+          shouldAutoAdd = await _canAutoAdd(item.id, matchedMods);
+          if (!shouldAutoAdd) isBlocked = true;
+        }
+
         matched.add(AiSuggestedDish(
           menuItem: item,
           selectedModifiers: matchedMods,
           quantity: qty,
-          autoAdded: hasOrderIntent && userMentionedItem,
+          autoAdded: shouldAutoAdd,
           notes: customNotes,
+          blockedByRequiredOptions: isBlocked,
         ));
 
         if (matched.length >= 3) break;
@@ -484,6 +547,7 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
     final lowerItem = L10nUtils.removeDiacritics(itemName.toLowerCase());
 
     try {
+      // Pattern 1: Số + (đơn vị)? + tên món  → VD: "2 tô phở gà", "3 trà sữa"
       final pattern1 = RegExp(r'(\d+)\s*(tô|phần|ly|cốc|đĩa|chén|suất|món|sp|x)?\s*' + RegExp.escape(lowerItem));
       final match1 = pattern1.firstMatch(lowerUser);
       if (match1 != null) {
@@ -491,6 +555,7 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         if (q != null && q > 0) return q;
       }
 
+      // Pattern 2: Tên món + x/*/: + số  → VD: "phở gà x2", "trà sữa *3"
       final pattern2 = RegExp(RegExp.escape(lowerItem) + r'\s*(x|\*|\:)?\s*(\d+)');
       final match2 = pattern2.firstMatch(lowerUser);
       if (match2 != null) {
@@ -498,6 +563,17 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         if (q != null && q > 0) return q;
       }
 
+      // Pattern 3: Động từ đặt hàng + số + đơn vị (BẮT BUỘC có đơn vị để tránh bắt nhầm)
+      // VD: "cho 2 phần", "thêm 3 ly", "đặt 1 tô"
+      final actionUnitPattern = RegExp(r'(cho|thêm|đặt|lấy|gọi|cho toi|cho minh|cho xin)\s+(\d+)\s*(tô|phần|ly|cốc|đĩa|chén|bát|suất|món|sp)\b');
+      final actionUnitMatch = actionUnitPattern.firstMatch(lowerUser);
+      if (actionUnitMatch != null) {
+        final q = int.tryParse(actionUnitMatch.group(2) ?? '1');
+        if (q != null && q > 0) return q;
+      }
+
+      // Pattern 4: Số + đơn vị (phải có đơn vị để tránh bắt nhầm số phòng/bàn)
+      // VD: "2 tô", "3 ly"
       final unitPattern = RegExp(r'(\d+)\s*(tô|phần|ly|cốc|đĩa|chén|bát|suất|món|sp)\b');
       final unitMatch = unitPattern.firstMatch(lowerUser);
       if (unitMatch != null) {
@@ -505,18 +581,8 @@ class RoomAiChatNotifier extends Notifier<RoomAiChatState> {
         if (q != null && q > 0) return q;
       }
 
-      final actionPattern = RegExp(r'(cho|thêm|đặt|lấy|gọi)\s+(\d+)\b');
-      final actionMatch = actionPattern.firstMatch(lowerUser);
-      if (actionMatch != null) {
-        final q = int.tryParse(actionMatch.group(2) ?? '1');
-        if (q != null && q > 0) return q;
-      }
-
-      final firstNumMatch = RegExp(r'(?<!bàn\s+)(?<!phòng\s+)\b(\d+)\b').firstMatch(lowerUser);
-      if (firstNumMatch != null) {
-        final q = int.tryParse(firstNumMatch.group(1) ?? '1');
-        if (q != null && q > 0) return q;
-      }
+      // KHÔNG dùng catch-all regex bắt bất kỳ số nào nữa.
+      // Nếu không match được pattern nào ở trên → mặc định 1.
     } catch (_) {}
 
     return 1;
