@@ -193,7 +193,7 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
                             icon: const Icon(Icons.print, size: 18),
-                            label: Text(ref.watch(localeProvider) == 'vi' ? 'In bill' : 'Print'),
+                            label: Text(ref.watch(localeProvider) == 'vi' ? 'In Hóa đơn' : 'Print'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AdminTheme.primaryBlue,
                               foregroundColor: Colors.white,
