@@ -608,7 +608,7 @@ class _ModifierManagementDialogState extends ConsumerState<ModifierManagementDia
           OutlinedButton.icon(
             onPressed: () => _showSelectExistingGroupDialog(), 
             icon: const Icon(Icons.list), 
-            label: const Text('Chọn nhóm có sẵn')
+            label: Text(l10n.selectExistingGroup)
           ),
           const SizedBox(width: 12),
           ElevatedButton.icon(

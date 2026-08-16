@@ -89,14 +89,14 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
 
     final suggestions = locale == 'vi'
         ? [
-            "Trà sữa có những topping gì?",
-            "Thêm 1 Trà sữa truyền thống vào giỏ",
+            "Ở đây có rượu không?",
+            "Cho tôi 1 phở gà",
             "Món nào bán chạy & ngon nhất?",
             "Cho tôi xem danh mục món ăn",
           ]
         : [
-            "What toppings are available?",
-            "Add 1 Milk Tea to cart",
+            "Do you have wine here?",
+            "I'll have 1 chicken pho",
             "What are the best-selling dishes?",
             "Show me the food categories",
           ];
@@ -131,35 +131,12 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      locale == 'vi' ? 'Trợ Lý Thực Đơn AI (Gemini)' : 'Menu AI Assistant (Gemini)',
+                      locale == 'vi' ? 'Trợ lý AI' : 'AI Assistant',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: Colors.greenAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          locale == 'vi'
-                              ? 'Truy xuất CSDL & Tự động thêm giỏ'
-                              : 'Live DB Query & Auto Add to Cart',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
@@ -345,8 +322,8 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
                 const SizedBox(height: 6),
                 Text(
                   locale == 'vi'
-                      ? 'Hỏi AI về món ăn, tùy chỉnh topping, hoặc nói "Thêm món vào giỏ".'
-                      : 'Ask AI for recommendations, custom toppings, or say "Add to cart".',
+                      ? 'Bạn có thể hỏi tôi về thông tin các món ăn và yêu cầu tôi thêm món ăn vào giỏ hàng'
+                      : 'You can ask me about dish information and request to add dishes to the cart.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 12,
@@ -375,39 +352,24 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
             ),
           ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: suggestions.map((text) {
-              return InkWell(
-                onTap: () {
-                  _textController.text = text;
-                  _handleSend(locale);
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AdminTheme.borderWood),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.chat_bubble_outline, size: 14, color: AdminTheme.secondaryWood),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          text,
-                          style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildSuggestionChip(suggestions[0], locale)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildSuggestionChip(suggestions[1], locale)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: _buildSuggestionChip(suggestions[2], locale)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildSuggestionChip(suggestions[3], locale)),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -454,7 +416,7 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.ac_unit, size: 16),
+                        icon: const Icon(Icons.wb_sunny, size: 16),
                         label: Text(l10n.cool),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AdminTheme.primaryWood,
@@ -468,7 +430,7 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.local_fire_department, size: 16),
+                        icon: const Icon(Icons.ac_unit, size: 16),
                         label: Text(l10n.warm),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AdminTheme.primaryWood,
@@ -1079,6 +1041,40 @@ class _FoodChatbotDialogState extends ConsumerState<FoodChatbotDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: spans,
+    );
+  }
+
+  Widget _buildSuggestionChip(String text, String locale) {
+    return InkWell(
+      onTap: () {
+        _textController.text = text;
+        _handleSend(locale);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AdminTheme.borderWood),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.chat_bubble_outline, size: 14, color: AdminTheme.secondaryWood),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(fontSize: 12, color: AdminTheme.textDarkWood),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

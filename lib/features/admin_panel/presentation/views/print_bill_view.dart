@@ -84,6 +84,10 @@ class _PrintBillViewState extends ConsumerState<PrintBillView> {
         menuItems: menuItems,
         locale: ref.read(localeProvider),
       );
+      
+      if (mounted) {
+        _refreshOrders();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

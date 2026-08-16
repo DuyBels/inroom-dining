@@ -58,6 +58,19 @@ class TagManagementView extends ConsumerWidget {
                   data: (tags) {
                     if (tags.isEmpty) return Center(child: Text(l10n.noOptions, style: const TextStyle(color: AdminTheme.textMutedWood)));
 
+                    final sortedTags = List.of(tags)..sort((a, b) {
+                      int getWeight(String type) {
+                        switch (type) {
+                          case 'ALLERGY': return 1; // Đậm nhất
+                          case 'WEATHER': return 2; // Đậm
+                          case 'TIME': return 3;    // Vừa
+                          case 'TASTE': return 4;   // Nhạt nhất
+                          default: return 5;
+                        }
+                      }
+                      return getWeight(a.tagType).compareTo(getWeight(b.tagType));
+                    });
+
                     return Card(
                       child: LayoutBuilder(
                         builder: (context, cardConstraints) {
@@ -75,14 +88,15 @@ class TagManagementView extends ConsumerWidget {
                                   dataRowMaxHeight: 60,
                                   columns: [
                                     DataColumn(label: Text(l10n.tagsTab, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))),
-                                    DataColumn(label: Text(l10n.tagTypeLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))),
-                                    DataColumn(label: Text(l10n.actionsLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))),
+                                    DataColumn(label: Expanded(child: Center(child: Text(l10n.tagTypeLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))))),
+                                    DataColumn(label: Expanded(child: Center(child: Text(l10n.actionsLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AdminTheme.primaryDarkWood))))),
                                   ],
-                                  rows: tags.map((tag) {
+                                  rows: sortedTags.map((tag) {
                                     final locale = ref.watch(localeProvider);
                                     return DataRow(cells: [
                                       DataCell(
                                         Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Container(
                                               padding: const EdgeInsets.all(8),
@@ -97,17 +111,22 @@ class TagManagementView extends ConsumerWidget {
                                           ],
                                         ),
                                       ),
-                                      DataCell(_buildTypeBadge(tag.tagType, l10n)),
-                                      DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.edit_square, color: AdminTheme.accentAmber),
-                                          onPressed: () => _showTagDialog(context, {'id': tag.id, 'name': tag.nameMap, 'tag_type': tag.tagType}),
+                                      DataCell(Center(child: _buildTypeBadge(tag.tagType, l10n))),
+                                      DataCell(Center(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min, 
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.edit_square, color: AdminTheme.accentAmber),
+                                              onPressed: () => _showTagDialog(context, {'id': tag.id, 'name': tag.nameMap, 'tag_type': tag.tagType}),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                              onPressed: () => _confirmDelete(context, ref, tag.id),
+                                            ),
+                                          ]
                                         ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                          onPressed: () => _confirmDelete(context, ref, tag.id),
-                                        ),
-                                      ])),
+                                      )),
                                     ]);
                                   }).toList(),
                                 ),

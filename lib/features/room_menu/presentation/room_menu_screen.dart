@@ -473,7 +473,7 @@ class _RoomMenuScreenState extends ConsumerState<RoomMenuScreen> {
                                   const Icon(Icons.auto_awesome, color: AdminTheme.primaryBlue, size: 24),
                                   const SizedBox(height: 4),
                                   Text(
-                                    locale == 'vi' ? 'Hỏi AI' : 'Ask AI',
+                                    locale == 'vi' ? 'Trợ lý AI' : 'Ask AI',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,

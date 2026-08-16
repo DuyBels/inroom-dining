@@ -39,10 +39,12 @@ class PrintService {
     
     if (isAutoPrint) {
       if (await isOrderPrinted(orderId)) {
-        return; // Bỏ qua nếu đã in
+        return; // Bỏ qua nếu đã in tự động trước đó
       }
-      await markOrderAsPrinted(orderId); // Đánh dấu đã in
     }
+    
+    // Đánh dấu đã in (dù in tự động hay thủ công)
+    await markOrderAsPrinted(orderId);
 
     final font = await PdfGoogleFonts.robotoRegular();
     final fontBold = await PdfGoogleFonts.robotoBold();
