@@ -3,6 +3,7 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/utils/l10n_utils.dart';
 import '../../../core/models/menu_item_model.dart';
 import '../../../core/theme/waiter_theme.dart';
+import '../../../core/services/notification_sound_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,6 +77,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
       if (next.hasValue && prev?.hasValue == true) {
         for (var t in next.value!) {
           if (t['status'] == 'DONE' && !prev!.value!.any((p) => p['id'] == t['id'] && p['status'] == 'DONE')) {
+            NotificationSoundService.instance.playWaiterAlert();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🔔 ${ref.read(l10nProvider).dishReady}'), backgroundColor: WaiterTheme.readyGreen));
           }
         }
@@ -86,6 +88,7 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
       if (next.hasValue && prev?.hasValue == true) {
         for (var s in next.value!) {
           if (!prev!.value!.any((p) => p['id'] == s['id'])) {
+            NotificationSoundService.instance.playWaiterAlert();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('🧹 ${ref.read(l10nProvider).room} ${s['room_number']} ${ref.read(l10nProvider).roomServiceNotify}'), backgroundColor: WaiterTheme.serviceColor));
           }
         }
@@ -136,7 +139,10 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
           Icons.history,
         ];
 
-        return Theme(
+        return GestureDetector(
+          onTap: () => NotificationSoundService.instance.markUserInteracted(),
+          behavior: HitTestBehavior.translucent,
+          child: Theme(
           data: WaiterTheme.themeData,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -344,7 +350,8 @@ class _WaiterScreenState extends ConsumerState<WaiterScreen> {
               );
             },
           ),
-        );
+        ),  // Theme
+        );  // GestureDetector
       },
     );
   }

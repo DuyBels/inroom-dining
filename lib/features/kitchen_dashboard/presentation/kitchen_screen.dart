@@ -3,6 +3,7 @@ import '../../../core/l10n/app_localizations.dart';
 import '../../../core/utils/l10n_utils.dart';
 import '../../../core/models/menu_item_model.dart';
 import '../../../core/theme/kitchen_theme.dart';
+import '../../../core/services/notification_sound_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -250,6 +251,17 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
     }
 
     final smartTickets = ref.watch(smartKitchenTicketsProvider(stationId));
+
+    // === ÂM THANH THÔNG BÁO: Phát "ting ting" khi có đơn mới cho Bếp ===
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(activeTicketsStreamProvider, (prev, next) {
+      if (next.hasValue && prev?.hasValue == true) {
+        final newPending = next.value!.where((t) => t['station_id'] == stationId && t['status'] == 'PENDING').length;
+        final oldPending = prev!.value!.where((t) => t['station_id'] == stationId && t['status'] == 'PENDING').length;
+        if (newPending > oldPending) {
+          NotificationSoundService.instance.playKitchenAlert();
+        }
+      }
+    });
     final profileAsync = ref.watch(userProfileProvider);
     final stationDetailAsync = ref.watch(stationDetailProvider(stationId));
 
@@ -274,7 +286,10 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
             final pendingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'PENDING').toList();
             final cookingTickets = smartTickets.where((t) => t.rawTicket['status'] == 'COOKING').toList();
 
-            return Theme(
+            return GestureDetector(
+              onTap: () => NotificationSoundService.instance.markUserInteracted(),
+              behavior: HitTestBehavior.translucent,
+              child: Theme(
               data: KitchenTheme.themeData,
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -567,7 +582,8 @@ class _KitchenScreenState extends ConsumerState<KitchenScreen> {
                   );
                 },
               ),
-            );
+            ),  // Theme
+            );  // GestureDetector
           },
         );
       },
