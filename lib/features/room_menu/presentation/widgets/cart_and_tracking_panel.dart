@@ -147,6 +147,79 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
     }
   }
 
+  Future<void> _cancelAllTickets(String orderId, List<Map<String, dynamic>> tickets) async {
+    final l10n = ref.read(l10nProvider);
+    final locale = ref.read(localeProvider);
+    final pendingTickets = tickets.where((t) => t['status'] == 'PENDING').toList();
+    if (pendingTickets.isEmpty) return;
+
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminTheme.surfaceWhite,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          locale == 'vi' ? 'Hủy toàn bộ đơn hàng?' : 'Cancel entire order?',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+        ),
+        content: Text(
+          locale == 'vi'
+              ? 'Bạn có chắc muốn hủy tất cả ${pendingTickets.length} món trong đơn hàng này không?'
+              : 'Are you sure you want to cancel all ${pendingTickets.length} items in this order?',
+          style: const TextStyle(color: AdminTheme.textDarkWood),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(locale == 'vi' ? 'Không' : 'No', style: const TextStyle(color: AdminTheme.textMutedWood)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(locale == 'vi' ? 'Hủy hết' : 'Cancel all'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // Hủy tất cả ticket PENDING trong đơn hàng
+      for (var t in pendingTickets) {
+        await supabase.from('tickets').update({'status': 'CANCELLED'}).eq('id', t['id']);
+      }
+
+      // Kiểm tra xem toàn bộ đơn đã bị hủy hết chưa để cập nhật order
+      final res = await supabase.from('tickets').select('status').eq('order_id', orderId);
+      final List allTickets = res;
+      final bool allCancelled = allTickets.isNotEmpty && allTickets.every((t) => t['status'] == 'CANCELLED');
+
+      if (allCancelled) {
+        await supabase.from('orders').update({'status': 'CANCELLED'}).eq('id', orderId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(locale == 'vi' ? 'Đã hủy toàn bộ đơn hàng' : 'Entire order cancelled'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.errorPrefix}: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _submitOrderWithConfirmation() async {
     final l10n = ref.read(l10nProvider);
     final cart = ref.read(cartProvider);
@@ -982,6 +1055,28 @@ class _CartAndTrackingPanelState extends ConsumerState<CartAndTrackingPanel> {
               ),
             );
           }),
+          // Nút Hủy toàn bộ đơn hàng - chỉ hiện khi tất cả món đều còn PENDING
+          if (activeTickets.isNotEmpty && activeTickets.every((t) => t['status'] == 'PENDING'))
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                  label: Text(
+                    ref.read(localeProvider) == 'vi' ? 'Hủy toàn bộ đơn hàng' : 'Cancel entire order',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: BorderSide(color: Colors.red.shade300, width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onPressed: () => _cancelAllTickets(order['id'].toString(), tickets),
+                ),
+              ),
+            ),
         ],
       ),
     );

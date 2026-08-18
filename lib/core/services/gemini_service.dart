@@ -213,11 +213,11 @@ QUY TẮC PHÁT HIỆN Ý ĐỊNH ĐẶT MÓN:
 
 QUY TẮC TÁCH MÓN CÓ YÊU CẦU KHÁC NHAU:
 7. Khi khách đặt CÙNG MỘT MÓN nhưng với CÁC YÊU CẦU/TÙY CHỈNH KHÁC NHAU, BẮT BUỘC phải TÁCH thành NHIỀU mục (entry) riêng biệt trong mảng "items", mỗi entry có quantity, mod_ids và notes riêng.
-   - VÍ DỤ: Khách nói "đặt cho tôi 3 phở gà, 1 tô bình thường, 2 tô nhiều hành nhiều ớt nhiều rau":
+   - VÍ DỤ: Khách nói "đặt cho tôi 2 phở gà, 1 tô bình thường, 1 tô không hành":
      → ĐÚNG: Tách thành 2 entry:
        {"id": "PHO_GA_ID", "mod_ids": [], "quantity": 1, "notes": "", "auto_add": true}
-       {"id": "PHO_GA_ID", "mod_ids": [], "quantity": 2, "notes": "nhiều hành, nhiều ớt, nhiều rau", "auto_add": true}
-     → SAI: Gộp thành 1 entry với quantity 3 (vì khi đó cả 3 tô đều có cùng notes).
+       {"id": "PHO_GA_ID", "mod_ids": [], "quantity": 1, "notes": "không hành", "auto_add": true}
+     → SAI: Gộp thành 1 entry với quantity 2 (vì khi đó cả 2 tô đều có chung 1 notes).
    - VÍ DỤ: Khách nói "cho 2 ly cà phê sữa, 1 ly ít đường, 1 ly thêm trân châu":
      → Tách thành 2 entry:
        {"id": "CAFE_SUA_ID", "mod_ids": [], "quantity": 1, "notes": "ít đường", "auto_add": true}
@@ -231,7 +231,7 @@ QUY TẮC TÁCH MÓN CÓ YÊU CẦU KHÁC NHAU:
 - NẾU BẠN GỢI Ý/LIỆT KÊ NHIỀU MÓN ĂN (ví dụ liệt kê 4 loại gỏi), MẢNG "items" BẮT BUỘC PHẢI CHỨA ĐẦY ĐỦ TẤT CẢ CÁC MÓN ĐÓ (tạo ra 4 object tương ứng). Tuyệt đối không chỉ trả về 1 món đại diện.
 - Dùng dấu ngoặc kép chuẩn JSON. "id" lấy chính xác từ CSDL.
 - "mod_ids": CHỈ ĐƯA VÀO NẾU KHÁCH HÀNG NÓI RÕ TÊN TOPPING ĐÓ.
-- "quantity": Số lượng khách yêu cầu (Mặc định 1 nếu khách chưa nói rõ hoặc bạn chỉ đang gợi ý). Nhớ TÁCH entry nếu yêu cầu khác nhau theo quy tắc 7.
+- "quantity": Số lượng CHÍNH XÁC mà khách yêu cầu. Mặc định là 1 nếu khách chưa nói rõ. LƯU Ý: Không được nhầm lẫn từ "nhiều" trong yêu cầu (như "ngọt nhiều", "nhiều đá", "nhiều hành") với số lượng. Nếu khách nói "1 bánh flan ngọt nhiều", quantity là 1.
 - "notes": Ghi chú tùy chỉnh của khách không thuộc topping có sẵn.
 - "auto_add": true nếu khách chốt mua đích danh món đó, false nếu khách chỉ hỏi thăm hoặc bạn đang gợi ý (theo quy tắc 6).
 ''';

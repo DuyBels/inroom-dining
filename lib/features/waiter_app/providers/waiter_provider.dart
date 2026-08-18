@@ -43,8 +43,8 @@ final waiterOrdersProvider = Provider<List<WaiterOrderModel>>((ref) {
 
   final List<WaiterOrderModel> result = [];
   for (var order in orders) {
-    // Lọc ra các vé thuộc về đơn hàng này và BỎ QUA các vé đã hủy
-    final orderTickets = tickets.where((t) => t['order_id'] == order['id'] && t['status'] != 'CANCELLED').toList();
+    // Lọc ra các vé thuộc về đơn hàng này và BỎ QUA các vé đã hủy hoặc đã nấu lại
+    final orderTickets = tickets.where((t) => t['order_id'] == order['id'] && t['status'] != 'CANCELLED' && t['status'] != 'REMAKED').toList();
 
     // Bỏ qua nếu đơn hàng không có món nào (đã bị khách hủy hết)
     if (orderTickets.isEmpty) continue;
